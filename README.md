@@ -1,14 +1,15 @@
 Simple library that allows to read the data of an Autosubmit experiment. 
 
-## How to 
+Usage:
 
-#.. code_block: python
-
+#imports
 from autosubmitconfigparser.config.yamlparser import YAMLParserFactory
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from autosubmitconfigparser.config.basicconfig import BasicConfig
-
+# Read autosubmit.rc ( if any )
 BasicConfig.read()
+# Init parser where
+expid = "a01y"
 as_conf = AutosubmitConfig("a01y", BasicConfig, YAMLParserFactory())
 as_conf.reload(True)
 

@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="autosubmitconfigparser",
-    version="0.0.1",
+    version="0.0.2",
     author="Daniel Beltrán Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",

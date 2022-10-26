@@ -27,6 +27,7 @@ import traceback
 import json
 import ruamel.yaml as yaml
 from .basicconfig import BasicConfig
+from .yamlparser import YAMLParserFactory
 from configobj import ConfigObj
 from log.log import Log,AutosubmitCritical,AutosubmitError
 
@@ -50,7 +51,7 @@ class AutosubmitConfig(object):
     :type expid: str
     """
 
-    def __init__(self, expid, basic_config, parser_factory):
+    def __init__(self, expid, basic_config=BasicConfig, parser_factory=YAMLParserFactory()):
         self.ignore_undefined_platforms = False
         self.expid = expid
         self.basic_config = basic_config
