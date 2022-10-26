@@ -1618,7 +1618,6 @@ class AutosubmitConfig(object):
         if re.search('AUTOSUBMIT_VERSION:.*', content):
             content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),"AUTOSUBMIT_VERSION: {0}".format(autosubmit_version) )
         open(self._conf_parser_file, 'w').write(content)
-        update_experiment_descrip_version(self.expid, description=None, version=autosubmit_version)
 
     def get_version(self):
         """
