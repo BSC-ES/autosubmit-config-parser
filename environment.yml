@@ -1,0 +1,39 @@
+name: autosubmit-config-parser
+channels:
+  - conda-forge
+
+dependencies:
+- nose
+- nose-cov
+- python-dateutil
+- pyparsing
+- numpy
+- matplotlib
+- pip
+- mock
+- portalocker
+- networkx
+- python=3
+- pip:
+  - autosubmitconfigparser
+  - argparse>=1.4.0
+  - python-dateutil>=2.8.2
+  - matplotlib>=3.5.1
+  - numpy>=1.22.2
+  - pyparsing>=3.0.7
+  - mock>=4.0.3
+  - portalocker>=2.3.2
+  - requests>=2.27.1
+  - bscearth.utils>=0.5.2
+  - cryptography>=36.0.1
+  - setuptools>=60.8.2
+  - six>=1.10.0
+  - xlib>=0.21
+  - ruamel.yaml
+  - pythondialog
+  - pytest
+  - nose
+  - coverage
+  - requests
+  - configobj
+
