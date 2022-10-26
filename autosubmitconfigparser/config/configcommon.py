@@ -55,6 +55,7 @@ class AutosubmitConfig(object):
         self.ignore_undefined_platforms = False
         self.expid = expid
         self.basic_config = basic_config
+        self.basic_config.read()
         self.parser_factory = parser_factory
         self.experiment_data = {}
         self.data_loops = list()

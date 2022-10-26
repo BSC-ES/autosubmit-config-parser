@@ -2,13 +2,9 @@ Simple library that allows to read the data of an Autosubmit experiment.
 
 Usage:
 
-#imports
-from autosubmitconfigparser.config.yamlparser import YAMLParserFactory
+#import the main config library
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
-from autosubmitconfigparser.config.basicconfig import BasicConfig
-# Read autosubmit.rc ( if any )
-BasicConfig.read()
-# Init parser where expid = experiment identifier that you want to load
+# Init the configuration object where expid = experiment identifier that you want to load
 expid = "a01y"
 as_conf = AutosubmitConfig("a01y")
 # This will load the data from the experiment
