@@ -1,6 +1,8 @@
-Simple library that allows to read the data of an Autosubmit experiment. 
+Simple library that allows to read the data of an Autosubmit experiment.
 
-Usage:
+### Usage: ####
+
+```python
 
 #import the main config library
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
@@ -16,4 +18,4 @@ as_conf.experiment_data
 as_conf.jobs_data
 # Obtain only platforms data
 as_conf.platforms_data
-
+```
