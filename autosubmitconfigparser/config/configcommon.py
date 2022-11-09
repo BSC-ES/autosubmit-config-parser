@@ -1029,25 +1029,35 @@ class AutosubmitConfig(object):
             return False
 
     def check_wrapper_conf(self,wrappers=dict()):
-        for wrapper_name,wrapper_values in wrappers.items():
-            if not self.is_valid_jobs_in_wrapper(wrapper_values):
-                self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                  "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
-            if 'horizontal' in self.get_wrapper_type(wrapper_values):
-
-                if not self.experiment_data["PLATFORMS"][self.get_platform()].get('PROCESSORS_PER_NODE',"1"):
-                    self.wrong_config["WRAPPERS"] += [
-                        [wrapper_name, "PROCESSORS_PER_NODE no exist in the horizontal-wrapper platform"]]
-                if not self.experiment_data["PLATFORMS"][self.get_platform()].get('MAX_PROCESSORS',""):
-                    self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                      "MAX_PROCESSORS no exist in the horizontal-wrapper platform"]]
-            if 'vertical' in self.get_wrapper_type(wrapper_values):
-                if not self.experiment_data["PLATFORMS"][self.get_platform()].get('MAX_WALLCLOCK',""):
-                    self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                      "MAX_WALLCLOCK no exist in the vertical-wrapper platform"]]
-            if "WRAPPERS" not in self.wrong_config:
-                Log.result('wrappers OK')
-                return True
+            for wrapper_name,wrapper_values in wrappers.items():
+                jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER',"")
+                if "&" in jobs_in_wrapper:
+                    jobs_in_wrapper = jobs_in_wrapper.split("&")
+                else:
+                    jobs_in_wrapper = jobs_in_wrapper.split(" ")
+                for section in jobs_in_wrapper:
+                    platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
+                    if platform_name == "":
+                        platform_name = self.get_platform().upper()
+                    if platform_name == "LOCAL":
+                        continue
+                    if not self.is_valid_jobs_in_wrapper(wrapper_values):
+                        self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                          "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
+                    if 'horizontal' in self.get_wrapper_type(wrapper_values):
+                        if not self.experiment_data["PLATFORMS"][platform_name].get('PROCESSORS_PER_NODE',"1"):
+                            self.wrong_config["WRAPPERS"] += [
+                                [wrapper_name, "PROCESSORS_PER_NODE no exist in the horizontal-wrapper platform"]]
+                        if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_PROCESSORS',""):
+                            self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                              "MAX_PROCESSORS no exist in the horizontal-wrapper platform"]]
+                    if 'vertical' in self.get_wrapper_type(wrapper_values):
+                        if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_WALLCLOCK',""):
+                            self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                              "MAX_WALLCLOCK no exist in the vertical-wrapper platform"]]
+                if "WRAPPERS" not in self.wrong_config:
+                    Log.result('wrappers OK')
+                    return True
     def file_modified(self,file,prev_mod_time):
         '''
         Function to check if a file has been modified.
@@ -1904,7 +1914,14 @@ class AutosubmitConfig(object):
         :rtype: string
         """
         return wrapper.get( 'QUEUE', self.experiment_data["WRAPPERS"].get("QUEUE",""))
+    def get_wrapper_partition(self, wrapper={}):
+        """
+        Returns the wrapper queue if not defined, will be the one of the first job wrapped
 
+        :return: expression (or none)
+        :rtype: string
+        """
+        return wrapper.get( 'PARTITION', self.experiment_data["WRAPPERS"].get("PARTITION",""))
     def get_min_wrapped_jobs(self, wrapper={}):
         """
          Returns the minium number of jobs that can be wrapped together as configured in autosubmit's config file
