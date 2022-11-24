@@ -2098,7 +2098,35 @@ class AutosubmitConfig(object):
         branch = self.get_git_project_branch()
         commit = self.get_git_project_commit()
         return origin_exists and ( (branch is not None and len(str(branch)) > 0) or ( commit is not None and len(str(commit)) > 0))
+    def parse_githooks(self):
+        """
+        Parse githooks section in configuration file
 
+        :return: dictionary with githooks configuration
+        :rtype: dict
+        """
+        proj_dir = os.path.join(
+            BasicConfig.LOCAL_ROOT_DIR, self.expid, BasicConfig.LOCAL_PROJ_DIR)
+        #get project_name
+        project_name = str(self.get_project_destination())
+
+        #get githook files from proj_dir
+        githook_files = [os.path.join(os.path.join(os.path.join(proj_dir,project_name),".githooks"), f) for f in os.listdir(os.path.join(os.path.join(proj_dir,project_name),".githooks")) ]
+        parameters = self.load_parameters()
+
+        #find all '%(?<!%%)\w+%(?!%%)' in githook files
+        for githook_file in githook_files:
+            f_name,ext = os.path.splitext(githook_file)
+            if ext == ".tmpl":
+                with open(githook_file, 'r') as f:
+                    content = f.read()
+                matches = re.findall('%(?<!%%)\w+%(?!%%)', content)
+                for match in matches:
+                    #replace all '%(?<!%%)\w+%(?!%%)' with parameters value
+                    content = content.replace(match, parameters.get(match[1:-1],""))
+                with open(f_name, 'w') as f:
+                    f.write(content)
+        pass
     @staticmethod
     def get_parser(parser_factory, file_path):
         """
