@@ -580,7 +580,17 @@ class AutosubmitConfig(object):
             if type(custom_directives) != str:
                 data_fixed["JOBS"][job]["CUSTOM_DIRECTIVES"] = str(custom_directives)
             data_fixed["JOBS"][job]["DEPENDENCIES"] = dependencies
-
+            files = job_data.get("FILE","")
+            if ',' in files:
+                files = files.split(",")
+            elif ' ' in files:
+                files = files.split(" ")
+            else:
+                files = [files]
+            data_fixed["JOBS"][job]["FILE"] = files[0]
+            data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
+            for file in files[1:]:
+                data_fixed["JOBS"][job]["ADDITIONAL_FILES"].append(file)
 
         return data_fixed
     def unify_conf(self):
