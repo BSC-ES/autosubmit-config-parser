@@ -1141,12 +1141,18 @@ class AutosubmitConfig(object):
                         self._platforms_parser.data = {}
                     default_section = self._exp_parser.data.get("DEFAULT",None)
                     default_path = Path(self.basic_config.LOCAL_ROOT_DIR) / self.expid
-                    custom_folder_path = default_path / "conf"
+                    custom_folder_path = default_path / "conf" / "custom_conf"
+                    if not custom_folder_path.exists():
+                        try:
+                            os.mkdir(custom_folder_path)
+                            os.chmod(custom_folder_path, 0o770)
+                        except:
+                            pass
                     if default_section is not None and len(str(default_section)) > 0:
-                        custom_folder_path = Path(re.sub('%(?<!%%)' + "ROOTDIR" + '%(?!%%)', str(default_path), str(custom_folder_path), flags=re.I))
-                        default_section["CUSTOM_CONFIG_DIR"] = str(custom_folder_path)
+                        default_section["CUSTOM_CONFIG"] = default_section.get("CUSTOM_CONFIG",custom_folder_path)
+                        custom_folder_path = Path(re.sub('%(?<!%%)' + "ROOTDIR" + '%(?!%%)', str(default_path), default_section["CUSTOM_CONFIG"], flags=re.I))
                     else:
-                        custom_folder_path = default_path / "conf"
+                        custom_folder_path = default_path / "conf" / "custom_conf"
                     self._custom_parser_files = []
                     self._custom_parser_files_modtime = []
 
