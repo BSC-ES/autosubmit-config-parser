@@ -745,7 +745,7 @@ class AutosubmitConfig(object):
 
 
     def check_mandatory_conf_files(self):
-        self.unify_conf()
+        #self.unify_conf()
         self.check_expdef_conf()
         self.check_platforms_conf()
         self.check_jobs_conf()
@@ -1089,6 +1089,7 @@ class AutosubmitConfig(object):
         Creates parser objects for configuration files
         """
         any_file_changed = False
+        modified = False
         # check if original_files has been edited
         for config_file in range(0,len(self._original_parser_files)):
             try:
