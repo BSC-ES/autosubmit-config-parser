@@ -178,7 +178,25 @@ class AutosubmitConfig(object):
          :rtype: string
          """
         return wrapper.get('EXPORT', self.experiment_data["WRAPPERS"].get("EXPORT",""))
-
+    def get_project_submodules_depth(self):
+        """
+        Returns the max depth of submodule at the moment of cloning
+        Default is -1 (no limit)
+        :return: depth
+        :rtype: list
+        """
+        unparsed_depth = str(self._exp_parser.get_option('git', 'PROJECT_SUBMODULES_DEPTH', "-1"))
+        if "[" in unparsed_depth and "]" in unparsed_depth:
+            unparsed_depth = unparsed_depth.strip("[]")
+            depth = [int(x) for x in unparsed_depth.split(",")]
+        else:
+            try:
+                depth = int(unparsed_depth)
+                depth = [depth]
+            except:
+                Log.warning("PROJECT_SUBMODULES_DEPTH is not an integer neither a int. Using default value -1")
+                depth = []
+        return depth
     def get_full_config_as_json(self):
         """
         Return config as json object
