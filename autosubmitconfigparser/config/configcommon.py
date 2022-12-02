@@ -185,7 +185,8 @@ class AutosubmitConfig(object):
         :return: depth
         :rtype: list
         """
-        unparsed_depth = str(self._exp_parser.get_option('git', 'PROJECT_SUBMODULES_DEPTH', "-1"))
+        git_data= self.experiment_data.get("GIT",{})
+        unparsed_depth = git_data.get('PROJECT_SUBMODULES_DEPTH', "-1")
         if "[" in unparsed_depth and "]" in unparsed_depth:
             unparsed_depth = unparsed_depth.strip("[]")
             depth = [int(x) for x in unparsed_depth.split(",")]
