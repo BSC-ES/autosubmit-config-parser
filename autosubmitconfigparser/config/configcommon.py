@@ -1149,14 +1149,23 @@ class AutosubmitConfig(object):
                         except:
                             pass
                     if default_section is not None and len(str(default_section)) > 0:
-                        default_section["CUSTOM_CONFIG"] = default_section.get("CUSTOM_CONFIG",custom_folder_path)
-                        custom_folder_path = Path(re.sub('%(?<!%%)' + "ROOTDIR" + '%(?!%%)', str(default_path), default_section["CUSTOM_CONFIG"], flags=re.I))
+                        default_section["CUSTOM_CONFIG"] = default_section.get("CUSTOM_CONFIG",str(custom_folder_path))
+                        custom_config = re.sub('%(?<!%%)' + "ROOTDIR" + '%(?!%%)', str(default_path), default_section["CUSTOM_CONFIG"], flags=re.I)
                     else:
-                        custom_folder_path = default_path / "conf" / "custom_conf"
+                        custom_config = str(default_path / "conf" / "custom_conf")
                     self._custom_parser_files = []
                     self._custom_parser_files_modtime = []
-
-                    for f in custom_folder_path.rglob("*.yml"):
+                    # Parse folder. Should always exists as first item.
+                    if ',' in custom_config:
+                        custom_config = custom_config.split(',')
+                    elif ' ' in custom_config:
+                        custom_config = custom_config.split(' ')
+                    else:
+                        custom_config = [custom_config]
+                    custom_folder_path = [x for x in Path(custom_config[0]).rglob("*.yml") ] + [x for x in Path(custom_config[0]).rglob("*.yaml") ]
+                    if len(custom_config) > 1:
+                        custom_folder_path.extend([Path(x) for x in custom_config[1:] ])
+                    for f in custom_folder_path:
                         if not (self._proj_parser_file.exists() and f.samefile(self._proj_parser_file)) \
                                 and not (self._jobs_parser_file.exists() and f.samefile(self._jobs_parser_file)) \
                                 and not (self._platforms_parser_file.exists() and f.samefile(self._platforms_parser_file)) \
