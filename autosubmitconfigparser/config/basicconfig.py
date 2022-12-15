@@ -57,7 +57,7 @@ class BasicConfig:
     MAIL_FROM = ''
     ALLOWED_HOSTS = ''
     DENIED_HOSTS = ''
-
+    CONFIG_FILE_FOUND = False
     @staticmethod
     def _update_config():
         """
@@ -78,6 +78,8 @@ class BasicConfig:
         """
         if not os.path.isfile(file_path):
             return
+        else:
+            BasicConfig.CONFIG_FILE_FOUND = True
         #Log.debug('Reading config from ' + file_path)
         parser = SafeConfigParser()
         parser.optionxform = str
