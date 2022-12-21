@@ -763,14 +763,14 @@ class AutosubmitConfig(object):
 
 
 
-    def check_mandatory_conf_files(self):
+    def check_mandatory_conf_files(self,refresh=False):
         #self.unify_conf()
-        self.check_expdef_conf()
+        self.check_expdef_conf(refresh)
         self.check_platforms_conf()
         self.check_jobs_conf()
-        self.check_autosubmit_conf()
+        self.check_autosubmit_conf(refresh)
 
-    def check_conf_files(self, running_time=False,first_load=True):
+    def check_conf_files(self, running_time=False,first_load=True,refresh=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
@@ -793,7 +793,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_conf_files()
+        self.check_mandatory_conf_files(refresh)
         try:
             if self.get_project_type():
                 self.check_proj()
@@ -814,7 +814,7 @@ class AutosubmitConfig(object):
             raise AutosubmitCritical(
                 "There was an error while showing the config log messages", 7014, str(e))
 
-    def check_autosubmit_conf(self):
+    def check_autosubmit_conf(self,refresh=False):
         """
         Checks experiment's autosubmit configuration file.
 
@@ -822,22 +822,26 @@ class AutosubmitConfig(object):
         :rtype: bool
         """
         parser_data = self.experiment_data
-        if parser_data["CONFIG"].get('AUTOSUBMIT_VERSION',-1.1) == -1.1:
-            self.wrong_config["Autosubmit"] += [['config',
-                                                 "AUTOSUBMIT_VERSION parameter not found"]]
-        if parser_data["CONFIG"].get('MAXWAITINGJOBS',-1) == -1:
-            self.wrong_config["Autosubmit"] += [['config',
-                                                 "MAXWAITINGJOBS parameter not found or non-integer"]]
-        if parser_data["CONFIG"].get('TOTALJOBS',-1) == -1:
-            self.wrong_config["Autosubmit"] += [['config',
-                                                 "TOTALJOBS parameter not found or non-integer"]]
-        if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
-            self.set_safetysleeptime(10)
+        if parser_data.get("CONFIG","") == "":
+            self.wrong_config["Autosubmit"] += [['CONFIG',"Mandatory AUTOSUBMIT section doesn't exists"]]
         else:
-            self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
-        if type(parser_data["CONFIG"].get('RETRIALS',0)) != int:
-            parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS',0))
+            if parser_data["CONFIG"].get('AUTOSUBMIT_VERSION',-1.1) == -1.1:
+                self.wrong_config["Autosubmit"] += [['config',
+                                                     "AUTOSUBMIT_VERSION parameter not found"]]
+            if not refresh:
 
+                if parser_data["CONFIG"].get('MAXWAITINGJOBS',-1) == -1:
+                    self.wrong_config["Autosubmit"] += [['config',
+                                                         "MAXWAITINGJOBS parameter not found or non-integer"]]
+                if parser_data["CONFIG"].get('TOTALJOBS',-1) == -1:
+                    self.wrong_config["Autosubmit"] += [['config',
+                                                         "TOTALJOBS parameter not found or non-integer"]]
+                if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
+                    self.set_safetysleeptime(10)
+                else:
+                    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
+                if type(parser_data["CONFIG"].get('RETRIALS',0)) != int:
+                    parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS',0))
 
         if parser_data.get("STORAGE",None) is None:
             parser_data["STORAGE"] = {}
@@ -848,20 +852,21 @@ class AutosubmitConfig(object):
         wrappers_info = parser_data.get("WRAPPERS",{})
         if wrappers_info:
             self.check_wrapper_conf(wrappers_info)
-        if str(parser_data["MAIL"].get("NOTIFICATIONS", "false")).lower() == "true":
-            mails = parser_data["MAIL"].get("TO", "")
-            if type(mails) == list:
-                pass
-            elif "," in mails:
-                mails = mails.split(',')
-            else:
-                mails = mails.split(' ')
-            self.experiment_data["MAIL"]["TO"] = mails
+        if parser_data.get("MAIL","") != "":
+            if str(parser_data["MAIL"].get("NOTIFICATIONS", "false")).lower() == "true":
+                mails = parser_data["MAIL"].get("TO", "")
+                if type(mails) == list:
+                    pass
+                elif "," in mails:
+                    mails = mails.split(',')
+                else:
+                    mails = mails.split(' ')
+                self.experiment_data["MAIL"]["TO"] = mails
 
-            for mail in self.experiment_data["MAIL"]["TO"]:
-                if not self.is_valid_mail_address(mail):
-                    self.wrong_config["Autosubmit"] += [['mail',
-                                                         "invalid e-mail"]]
+                for mail in self.experiment_data["MAIL"]["TO"]:
+                    if not self.is_valid_mail_address(mail):
+                        self.wrong_config["Autosubmit"] += [['mail',
+                                                             "invalid e-mail"]]
         if "Autosubmit" not in self.wrong_config:
             Log.result('{0} OK'.format(
                 os.path.basename(self._conf_parser_file)))
@@ -876,7 +881,7 @@ class AutosubmitConfig(object):
         """
         Checks experiment's queues configuration file.
         """
-        parser_data = self.experiment_data["PLATFORMS"]
+        parser_data = self.experiment_data.get("PLATFORMS",{})
         main_platform_found = False
         if self.hpcarch == "LOCAL":
             main_platform_found = True
@@ -918,7 +923,7 @@ class AutosubmitConfig(object):
         :rtype: bool
         """
         parser = self.experiment_data
-        for section in parser["JOBS"]:
+        for section in parser.get("JOBS",{}):
             section_data=parser["JOBS"][section]
             section_file_path = section_data.get('FILE',"")
             if not section_file_path:
@@ -976,7 +981,7 @@ class AutosubmitConfig(object):
             return True
         return False
 
-    def check_expdef_conf(self):
+    def check_expdef_conf(self,refresh=False):
         """
         Checks experiment's experiment configuration file.
 
@@ -984,51 +989,74 @@ class AutosubmitConfig(object):
         :rtype: bool
         """
         parser = self.experiment_data
-        if not parser['DEFAULT'].get('EXPID',""):
-            self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.EXPID parameter is invalid"]]
+        self.hpcarch = ""
+        if parser.get('DEFAULT',"") == "":
+            self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT section doesn't exists"]]
+        else:
+            if not parser['DEFAULT'].get('EXPID',""):
+                self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.EXPID parameter is invalid"]]
 
-        self.hpcarch = parser['DEFAULT'].get('HPCARCH',"").upper()
-        if not self.hpcarch:
-            self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.HPCARCH parameter is invalid"]]
-        if not parser['EXPERIMENT'].get('DATELIST',""):
-            self.wrong_config["Expdef"] += [['DEFAULT', "Mandatory EXPERIMENT.DATELIST parameter is invalid"]]
-        if not parser['EXPERIMENT'].get('MEMBERS',""):
-            self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory EXPERIMENT.MEMBERS parameter is invalid"]]
-        if parser['EXPERIMENT'].get('CHUNKSIZEUNIT',"").lower() not in ['year', 'month', 'day', 'hour']:
-            self.wrong_config["Expdef"] += [['experiment',"Mandatory EXPERIMENT.CHUNKSIZEUNIT choice is invalid"]]
-        if type(parser['EXPERIMENT'].get('CHUNKSIZE',"-1")) not in [int]:
-            if parser['EXPERIMENT']['CHUNKSIZE'] == "-1":
-                self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CHUNKSIZE is not defined"]]
-            parser['EXPERIMENT']['CHUNKSIZE'] = int(parser['EXPERIMENT']['CHUNKSIZE'])
-        if type(parser['EXPERIMENT'].get('NUMCHUNKS',"-1")) not in [int]:
-            if parser['EXPERIMENT']['NUMCHUNKS'] == "-1":
-                self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.NUMCHUNKS is not defined"]]
-            parser['EXPERIMENT']['NUMCHUNKS'] = int(parser['EXPERIMENT']['NUMCHUNKS'])
-        if parser['EXPERIMENT'].get('CALENDAR',"").lower() not in ['standard','noleap']:
-            self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CALENDAR choice is invalid"]]
-        project_type = parser['PROJECT'].get('PROJECT_TYPE',"")
+            self.hpcarch = parser['DEFAULT'].get('HPCARCH',"").upper()
+            if not self.hpcarch:
+                self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.HPCARCH parameter is invalid"]]
+        if not refresh:
+
+            if parser.get('EXPERIMENT',"") == "":
+                self.wrong_config["Expdef"] += [['EXPERIMENT',"Mandatory EXPERIMENT section doesn't exists"]]
+            else:
+                if not parser['EXPERIMENT'].get('DATELIST',""):
+                    self.wrong_config["Expdef"] += [['DEFAULT', "Mandatory EXPERIMENT.DATELIST parameter is invalid"]]
+                if not parser['EXPERIMENT'].get('MEMBERS',""):
+                    self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory EXPERIMENT.MEMBERS parameter is invalid"]]
+                if parser['EXPERIMENT'].get('CHUNKSIZEUNIT',"").lower() not in ['year', 'month', 'day', 'hour']:
+                    self.wrong_config["Expdef"] += [['experiment',"Mandatory EXPERIMENT.CHUNKSIZEUNIT choice is invalid"]]
+                if type(parser['EXPERIMENT'].get('CHUNKSIZE',"-1")) not in [int]:
+                    if parser['EXPERIMENT']['CHUNKSIZE'] == "-1":
+                        self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CHUNKSIZE is not defined"]]
+                    parser['EXPERIMENT']['CHUNKSIZE'] = int(parser['EXPERIMENT']['CHUNKSIZE'])
+                if type(parser['EXPERIMENT'].get('NUMCHUNKS',"-1")) not in [int]:
+                    if parser['EXPERIMENT']['NUMCHUNKS'] == "-1":
+                        self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.NUMCHUNKS is not defined"]]
+                    parser['EXPERIMENT']['NUMCHUNKS'] = int(parser['EXPERIMENT']['NUMCHUNKS'])
+                if parser['EXPERIMENT'].get('CALENDAR',"").lower() not in ['standard','noleap']:
+                    self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CALENDAR choice is invalid"]]
+        if parser.get('PROJECT',"") == "":
+            self.wrong_config["Expdef"] += [['PROJECT',"Mandatory PROJECT section doesn't exists"]]
+            project_type = ""
+        else:
+            project_type = parser['PROJECT'].get('PROJECT_TYPE',"")
         if project_type.lower() not in ['none', 'git', 'svn', 'local']:
             self.wrong_config["PROJECT"] += [['PROJECT_TYPE', "Mandatory PROJECT_TYPE choice is invalid"]]
         else:
             if project_type == 'git':
-                if not parser['GIT'].get('PROJECT_ORIGIN',""):
-                    self.wrong_config["Expdef"] += [['git',
-                                                     "PROJECT_ORIGIN parameter is invalid"]]
-                if not parser['GIT'].get('PROJECT_BRANCH',""):
-                    self.wrong_config["Expdef"] += [['git',
-                                                     "PROJECT_BRANCH parameter is invalid"]]
+                if parser.get('GIT', "") == "":
+                    self.wrong_config["Expdef"] += [['GIT',"Mandatory GIT section doesn't exists"]]
+                else:
+                    if not parser['GIT'].get('PROJECT_ORIGIN',""):
+                        self.wrong_config["Expdef"] += [['git',
+                                                         "PROJECT_ORIGIN parameter is invalid"]]
+                    if not parser['GIT'].get('PROJECT_BRANCH',""):
+                        self.wrong_config["Expdef"] += [['git',
+                                                         "PROJECT_BRANCH parameter is invalid"]]
 
             elif project_type == 'svn':
-                if not parser['SVN'].get('PROJECT_URL',""):
-                    self.wrong_config["Expdef"] += [['svn',
-                                                     "PROJECT_URL parameter is invalid"]]
-                if not parser['SVN'].get('PROJECT_REVISION',""):
-                    self.wrong_config["Expdef"] += [['svn',
-                                                     "PROJECT_REVISION parameter is invalid"]]
+                if parser.get('SVN', "") == "":
+                    self.wrong_config["Expdef"] += [['SVN',"Mandatory SVN section doesn't exists"]]
+                else:
+                    if not parser['SVN'].get('PROJECT_URL',""):
+                        self.wrong_config["Expdef"] += [['svn',
+                                                         "PROJECT_URL parameter is invalid"]]
+                    if not parser['SVN'].get('PROJECT_REVISION',""):
+                        self.wrong_config["Expdef"] += [['svn',
+                                                         "PROJECT_REVISION parameter is invalid"]]
             elif project_type == 'local':
-                if not parser['LOCAL'].get('PROJECT_PATH',""):
-                    self.wrong_config["Expdef"] += [['local',
-                                                     "PROJECT_PATH parameter is invalid"]]
+                if parser.get('LOCAL', "") == "":
+                    self.wrong_config["Expdef"] += [['LOCAL',"Mandatory LOCAL section doesn't exists"]]
+                else:
+
+                    if not parser['LOCAL'].get('PROJECT_PATH',""):
+                        self.wrong_config["Expdef"] += [['local',
+                                                         "PROJECT_PATH parameter is invalid"]]
             elif project_type == 'none':  # debug propouses
                 self.ignore_file_path = False
         if "Expdef" not in self.wrong_config:
@@ -1422,8 +1450,10 @@ class AutosubmitConfig(object):
                 elif self.get_project_type().lower() == "svn":
                     value = self.get_svn_project_url().split('/')[-1]
                 elif self.get_project_type().lower() == "git":
-                    value = self.get_git_project_origin().split(
-                        '/')[-1].split('.')[-2]
+                    value = self.experiment_data.get("GIT",{}).get("PROJECT_ORIGIN","").split('/')[-1]
+                    if "." in value:
+                        value=value.split('.')[-2]
+
             if value != "":
                 return value
             else:
@@ -1671,10 +1701,14 @@ class AutosubmitConfig(object):
         :param autosubmit_version: autosubmit's version
         :type autosubmit_version: str
         """
-        content = open(self._conf_parser_file, 'r').read()
-        if re.search('AUTOSUBMIT_VERSION:.*', content):
-            content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),"AUTOSUBMIT_VERSION: {0}".format(autosubmit_version) )
+        try:
+            content = open(self._conf_parser_file, 'r').read()
+            if re.search('AUTOSUBMIT_VERSION:.*', content):
+                content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),"AUTOSUBMIT_VERSION: {0}".format(autosubmit_version) )
+        except:
+            content = "CONFIG:\n  AUTOSUBMIT_VERSION: " + autosubmit_version + "\n"
         open(self._conf_parser_file, 'w').write(content)
+        os.chmod(self._conf_parser_file, 0o755)
 
     def get_version(self):
         """
@@ -2191,7 +2225,6 @@ class AutosubmitConfig(object):
         else:
             # This block may rise an exception but all its callers handle it
             try:
-
                 with open(file_path) as f:
                     parser.data = parser.load(f)
                     if parser.data is None:
