@@ -836,10 +836,10 @@ class AutosubmitConfig(object):
                 if parser_data["CONFIG"].get('TOTALJOBS',-1) == -1:
                     self.wrong_config["Autosubmit"] += [['config',
                                                          "TOTALJOBS parameter not found or non-integer"]]
-                if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
-                    self.set_safetysleeptime(10)
-                else:
-                    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
+                #if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
+                #    self.set_safetysleeptime(10)
+                #else:
+                #    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
                 if type(parser_data["CONFIG"].get('RETRIALS',0)) != int:
                     parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS',0))
 
