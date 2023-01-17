@@ -1087,6 +1087,10 @@ class AutosubmitConfig(object):
 
     def check_wrapper_conf(self,wrappers=dict()):
             for wrapper_name,wrapper_values in wrappers.items():
+                #continue if it is a global option (non-dicT)
+                if type(wrapper_values) is not dict:
+                    continue
+
                 jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER',"")
                 if "&" in jobs_in_wrapper:
                     jobs_in_wrapper = jobs_in_wrapper.split("&")
@@ -2065,16 +2069,16 @@ class AutosubmitConfig(object):
          """
         return wrapper.get('METHOD', self.experiment_data["WRAPPERS"].get("METHOD",'ASThread'))
 
-    def get_wrapper_check_time(self, wrapper=None):
+    def get_wrapper_check_time(self):
         """
          Returns time to check the status of jobs in the wrapper
 
          :return: wrapper check time
          :rtype: int
          """
-        if wrapper is None:
-            return 10
-        return int(wrapper.get('CHECK_TIME_WRAPPER', self.experiment_data["WRAPPERS"].get("CHECK_TIME_WRAPPER",self.get_safetysleeptime())))
+        wrapper = self.experiment_data.get("WRAPPERS", {})
+
+        return wrapper.get("CHECK_TIME_WRAPPER",self.get_safetysleeptime())
 
     def get_wrapper_machinefiles(self, wrapper={}):
         """
