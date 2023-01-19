@@ -2,7 +2,7 @@ configobj>=5.0.6
 argparse>=1.4.0
 python-dateutil>=2.8.2
 matplotlib==3.4.3
-numpy==1.21.6
+numpy>=1.21.6
 pyparsing>=3.0.7
 mock>=4.0.3
 six>=1.10
