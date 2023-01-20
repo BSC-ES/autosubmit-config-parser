@@ -654,6 +654,7 @@ class AutosubmitConfig(object):
             self.deep_read_loops(self.experiment_data)
             self.parse_data_loops(self.experiment_data, self.data_loops)
         self.dynamic_variables = list(set(self.dynamic_variables))
+        self.sustitute_dynamic_variables(self.deep_parameters_export(self.experiment_data),max_deep=25)
 
     def parse_data_loops(self,exp_data,data_loops):
         section_data = list()
@@ -723,6 +724,42 @@ class AutosubmitConfig(object):
                 placeholders.append(posible_placeholder.strip("%"))
         return placeholders
 
+    def sustitute_dynamic_variables(self,parameters=None,max_deep=25):
+        """
+        Substitute dynamic variables in the experiment data
+        :return:
+        """
+        if parameters is None:
+            parameters = self.deep_parameters_export(self.experiment_data)
+
+        backup_variables = self.dynamic_variables
+        while len(self.dynamic_variables) > 0 and max_deep > 0:
+            dynamic_variables = []
+            for dynamic_var in self.dynamic_variables:
+                #get value of placeholder with  name without %%
+                value = parameters.get(str(dynamic_var[1][1:-1]),None)
+                if value is not None:
+                    if "." in dynamic_var[0]:
+                        #get the key of the dict
+                        keys = dynamic_var[0].split(".")
+                        #get the dict
+                        aux_dict = parameters
+                        for k in keys[:-1]:
+                            aux_dict = aux_dict[k]
+                        #update the value
+                        aux_dict[keys[-1]] = value
+                        substituted = True
+                    else:
+                        parameters[dynamic_var[0]] = value
+                        substituted = True
+                else:
+                    substituted = False
+                if not substituted:
+                    dynamic_variables.append(dynamic_var)
+            self.dynamic_variables = dynamic_variables
+            max_deep = max_deep - 1
+        self.dynamic_variables = backup_variables
+        return parameters
     def sustitute_placeholder_variables(self,key,val,parameters):
         substituted = False
         data = parameters
@@ -1268,7 +1305,8 @@ class AutosubmitConfig(object):
         :return: a dictionary containing tuples [parameter_name, parameter_value]
         :rtype: dict
         """
-        return self.deep_parameters_export(self.experiment_data)
+        self.parameters = self.deep_parameters_export(self.experiment_data)
+        return self.parameters
 
     def load_platform_parameters(self):
         """
