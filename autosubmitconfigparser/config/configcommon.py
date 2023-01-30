@@ -612,6 +612,32 @@ class AutosubmitConfig(object):
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"].append(file)
 
         return data_fixed
+
+    def dict_replace_value(self,d: dict, old: str, new: str) -> dict:
+        x = {}
+        for k, v in d.items():
+            if isinstance(v, dict):
+                v = self.dict_replace_value(v, old, new)
+            elif isinstance(v, list):
+                v = self.list_replace_value(v, old, new)
+            elif isinstance(v, str):
+                v = v.replace(old, new)
+            x[k] = v
+        return x
+
+    def list_replace_value(self,l: list, old: str, new: str) -> list:
+        x = []
+        for e in l:
+            if isinstance(e, list):
+                e = self.list_replace_value(e, old, new)
+            elif isinstance(e, dict):
+                e = self.dict_replace_value(e, old, new)
+            elif isinstance(e, str):
+                e = e.replace(old, new)
+            x.append(e)
+        return x
+
+
     def unify_conf(self):
         '''
         Unifies all configuration files into a single dictionary. Custom files will be able to override the default configuration.
@@ -654,7 +680,7 @@ class AutosubmitConfig(object):
             self.deep_read_loops(self.experiment_data)
             self.parse_data_loops(self.experiment_data, self.data_loops)
         self.dynamic_variables = list(set(self.dynamic_variables))
-        self.sustitute_dynamic_variables(self.deep_parameters_export(self.experiment_data),max_deep=25)
+        self.experiment_data = self.sustitute_dynamic_variables(self.experiment_data,max_deep=25)
 
     def parse_data_loops(self,exp_data,data_loops):
         section_data = list()
@@ -724,34 +750,66 @@ class AutosubmitConfig(object):
                 placeholders.append(posible_placeholder.strip("%"))
         return placeholders
 
-    def sustitute_dynamic_variables(self,parameters=None,max_deep=25):
+    def check_dict_keys_type(self,parameters):
+        '''
+        Check if keys are plained into 1 dimension
+        :param parameters:
+        :return:
+        '''
+        amount_of_keys_to_check = int(len(parameters)/3)+1
+        count_dot = 0
+        count = 0
+        for key in parameters.keys():
+            if "." in key:
+                count_dot+=1
+            count+=1
+            if count >= amount_of_keys_to_check:
+                break
+        if count_dot >= int(count/2)+1:
+            dict_keys_type = "long"
+        else:
+            dict_keys_type = "short"
+        return dict_keys_type
+    def sustitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
         """
         Substitute dynamic variables in the experiment data
         :return:
         """
+
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
-
+        # Check if the parameters key provided are long or short if it is not specified.
+        if dict_keys_type is None:
+            dict_keys_type = self.check_dict_keys_type(parameters)
         backup_variables = self.dynamic_variables
         while len(self.dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in self.dynamic_variables:
                 #get value of placeholder with  name without %%
-                value = parameters.get(str(dynamic_var[1][1:-1]),None)
-                if value is not None:
-                    if "." in dynamic_var[0]:
-                        #get the key of the dict
-                        keys = dynamic_var[0].split(".")
-                        #get the dict
-                        aux_dict = parameters
-                        for k in keys[:-1]:
-                            aux_dict = aux_dict[k]
-                        #update the value
-                        aux_dict[keys[-1]] = value
-                        substituted = True
+                if dict_keys_type == "long":
+                    value = parameters.get(str(dynamic_var[1][1:-1]),None)
+                else:
+                    keys = dynamic_var[1].split(".")
+                    aux_dict = parameters
+                    for k in keys:
+                        k = k.strip("%")
+                        aux_dict = aux_dict.get(k,{})
+                    if len(aux_dict) > 0:
+                        value = aux_dict
                     else:
-                        parameters[dynamic_var[0]] = value
-                        substituted = True
+                        value = None
+                if value is not None:
+                    if dict_keys_type == "long":
+                        dict_key = parameters.get(str(dynamic_var[0]), {})
+                        if len(dict_key) > 0:
+                            substituted = True
+                            parameters[str(dynamic_var[0])] = value
+                        else:
+                            substituted = False
+                    else:
+                        # See input and output below todo
+                        substituted = False
+                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
                 else:
                     substituted = False
                 if not substituted:
@@ -793,7 +851,7 @@ class AutosubmitConfig(object):
             if key == "FOR":
                 self.data_loops.append(for_keys)
             elif isinstance(val, collections.abc.Mapping ):
-                self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=key+".")
+                self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
 
 
 
