@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="autosubmitconfigparser",
-    version="0.0.74",
+    version="0.0.75",
     author="Daniel Beltrán Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",
@@ -26,6 +26,7 @@ setuptools.setup(
                       'Pygments'],
     classifiers=[
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9"
         "Operating System :: OS Independent",
     ],
 )

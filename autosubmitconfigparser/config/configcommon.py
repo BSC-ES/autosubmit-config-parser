@@ -752,8 +752,8 @@ class AutosubmitConfig(object):
 
     def check_dict_keys_type(self,parameters):
         '''
-        Check if keys are plained into 1 dimension
-        :param parameters:
+        Check if keys are plain into 1 dimension, checks for 33% of dict to ensure it.
+        :param parameters: experiment parameters
         :return:
         '''
         amount_of_keys_to_check = int(len(parameters)/3)+1
@@ -773,12 +773,13 @@ class AutosubmitConfig(object):
     def sustitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
         """
         Substitute dynamic variables in the experiment data
+        :parameter
         :return:
         """
 
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
-        # Check if the parameters key provided are long or short if it is not specified.
+        # Check if the parameters key provided are long(%DEFAULT.EXPID%) or short(DEFAULT[EXPID]) if it is not specified.
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
         backup_variables = self.dynamic_variables
