@@ -859,23 +859,31 @@ class AutosubmitConfig(object):
 
 
 
-    def check_mandatory_conf_files(self,refresh=False):
+    def check_mandatory_conf_files(self,refresh=False,no_log=False):
         #self.unify_conf()
-        self.check_expdef_conf(refresh)
-        self.check_platforms_conf()
-        self.check_jobs_conf()
-        self.check_autosubmit_conf(refresh)
+        self.check_expdef_conf(refresh,no_log=no_log)
+        self.check_platforms_conf(no_log=no_log)
+        self.check_jobs_conf(no_log=no_log)
+        self.check_autosubmit_conf(refresh,no_log=no_log)
 
-    def check_conf_files(self, running_time=False,first_load=True,refresh=False):
+    def check_conf_files(self, running_time=False,first_load=True,refresh=False,no_log=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
+        :param running_time: True if the function is called during the execution of the program
+        :type running_time: bool
+        :param first_load: True if the function is called during the first load of the program
+        :type first_load: bool
+        :param refresh: True if the function is called during the refresh of the program
+        :type refresh: bool
+        :param no_log: True if the function is called during describe
+        :type no_log: bool
 
         :return: True if everything is correct, False if it finds any error
         :rtype: bool
         """
-
-        Log.info('\nChecking configuration files...')
+        if not no_log:
+            Log.info('\nChecking configuration files...')
         self.ignore_file_path = running_time
         self.ignore_undefined_platforms = running_time
 
@@ -889,7 +897,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_conf_files(refresh)
+        self.check_mandatory_conf_files(refresh,no_log=no_log)
         try:
             if self.get_project_type():
                 self.check_proj()
@@ -898,22 +906,27 @@ class AutosubmitConfig(object):
         # End of checkers.
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
-            result = self.show_messages()
-            return result
+            if not no_log:
+                result = self.show_messages()
+                return result
         except AutosubmitCritical as e:
             # In case that there are critical errors in the configuration, Autosubmit won't continue.
             if running_time is True:
                 raise AutosubmitCritical(e.message, e.code, e.trace)
             else:
-                Log.warning(e.message)
+                if not no_log:
+                    Log.warning(e.message)
         except Exception as e:
             raise AutosubmitCritical(
                 "There was an error while showing the config log messages", 7014, str(e))
 
-    def check_autosubmit_conf(self,refresh=False):
+    def check_autosubmit_conf(self,refresh=False,no_log=False):
         """
         Checks experiment's autosubmit configuration file.
-
+        :param refresh: True if the function is called during the refresh of the program
+        :type refresh: bool
+        :param no_log: True if the function is called during describe
+        :type no_log: bool
         :return: True if everything is correct, False if it founds any error
         :rtype: bool
         """
@@ -964,18 +977,18 @@ class AutosubmitConfig(object):
                         self.wrong_config["Autosubmit"] += [['mail',
                                                              "invalid e-mail"]]
         if "Autosubmit" not in self.wrong_config:
-            Log.result('{0} OK'.format(
-                os.path.basename(self._conf_parser_file)))
+            if not no_log:
+                Log.result('{0} OK'.format(
+                    os.path.basename(self._conf_parser_file)))
             return True
         else:
-            Log.warning('{0} Issues'.format(
-                os.path.basename(self._conf_parser_file)))
             return True
         return False
 
-    def check_platforms_conf(self):
+    def check_platforms_conf(self,no_log=False):
         """
-        Checks experiment's queues configuration file.
+        Checks experiment's platforms configuration file.
+
         """
         parser_data = self.experiment_data.get("PLATFORMS",{})
         main_platform_found = False
@@ -1006,15 +1019,17 @@ class AutosubmitConfig(object):
         if not main_platform_found:
             self.wrong_config["Expdef"] += [["Default","Main platform is not defined! check if [HPCARCH = {0}] has any typo".format(self.hpcarch)]]
         if "Platform" not in self.wrong_config:
-            Log.result('{0} OK'.format(
-                os.path.basename(self._platforms_parser_file)))
+            if not no_log:
+                Log.result('{0} OK'.format(
+                    os.path.basename(self._platforms_parser_file)))
             return True
         return False
 
-    def check_jobs_conf(self):
+    def check_jobs_conf(self,no_log=False):
         """
         Checks experiment's jobs configuration file.
-
+        :param no_log: if True, it doesn't print any log message
+        :type no_log: bool
         :return: True if everything is correct, False if it founds any error
         :rtype: bool
         """
@@ -1072,15 +1087,18 @@ class AutosubmitConfig(object):
                 self.wrong_config["Jobs"] += [[section,
                                                "Mandatory RUNNING parameter is invalid"]]
         if "Jobs" not in self.wrong_config:
-            Log.result('{0} OK'.format(
-                os.path.basename(self._jobs_parser_file)))
+            if not no_log:
+                Log.result('{0} OK'.format(os.path.basename(self._jobs_parser_file)))
             return True
         return False
 
-    def check_expdef_conf(self,refresh=False):
+    def check_expdef_conf(self,refresh=False,no_log=False):
         """
         Checks experiment's experiment configuration file.
-
+        :param refresh: if True, it doesn't check the mandatory parameters
+        :type refresh: bool
+        :param no_log: if True, it doesn't print any log message
+        :type no_log: bool
         :return: True if everything is correct, False if it founds any error
         :rtype: bool
         """
@@ -1156,15 +1174,17 @@ class AutosubmitConfig(object):
             elif project_type == 'none':  # debug propouses
                 self.ignore_file_path = False
         if "Expdef" not in self.wrong_config:
-            Log.result('{0} OK'.format(
-                os.path.basename(self._exp_parser_file)))
+            if not no_log:
+                Log.result('{0} OK'.format(
+                    os.path.basename(self._exp_parser_file)))
             return True
         return False
 
-    def check_proj(self):
+    def check_proj(self,no_log=False):
         """
         Checks project config file
-
+        :no_log if True, it doesn't print any log message
+        :type no_log: bool
         :return: True if everything is correct, False if it founds any error
         :rtype: bool
         """
@@ -1181,40 +1201,48 @@ class AutosubmitConfig(object):
                                            "FILE_PROJECT_CONF parameter is invalid"]]
             return False
 
-    def check_wrapper_conf(self,wrappers=dict()):
-            for wrapper_name,wrapper_values in wrappers.items():
-                #continue if it is a global option (non-dicT)
-                if type(wrapper_values) is not dict:
-                    continue
+    def check_wrapper_conf(self,wrappers=dict(),no_log=False):
+        """
+        Checks wrapper config file
 
-                jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER',"")
-                if "&" in jobs_in_wrapper:
-                    jobs_in_wrapper = jobs_in_wrapper.split("&")
-                else:
-                    jobs_in_wrapper = jobs_in_wrapper.split(" ")
-                for section in jobs_in_wrapper:
-                    platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
-                    if platform_name == "":
-                        platform_name = self.get_platform().upper()
-                    if platform_name == "LOCAL":
-                        continue
-                    if not self.is_valid_jobs_in_wrapper(wrapper_values):
+        :param wrappers:
+        :param no_log:
+        :return:
+        """
+        for wrapper_name,wrapper_values in wrappers.items():
+            #continue if it is a global option (non-dicT)
+            if type(wrapper_values) is not dict:
+                continue
+
+            jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER',"")
+            if "&" in jobs_in_wrapper:
+                jobs_in_wrapper = jobs_in_wrapper.split("&")
+            else:
+                jobs_in_wrapper = jobs_in_wrapper.split(" ")
+            for section in jobs_in_wrapper:
+                platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
+                if platform_name == "":
+                    platform_name = self.get_platform().upper()
+                if platform_name == "LOCAL":
+                    continue
+                if not self.is_valid_jobs_in_wrapper(wrapper_values):
+                    self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                      "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
+                if 'horizontal' in self.get_wrapper_type(wrapper_values):
+                    if not self.experiment_data["PLATFORMS"][platform_name].get('PROCESSORS_PER_NODE',"1"):
+                        self.wrong_config["WRAPPERS"] += [
+                            [wrapper_name, "PROCESSORS_PER_NODE no exist in the horizontal-wrapper platform"]]
+                    if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_PROCESSORS',""):
                         self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                          "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
-                    if 'horizontal' in self.get_wrapper_type(wrapper_values):
-                        if not self.experiment_data["PLATFORMS"][platform_name].get('PROCESSORS_PER_NODE',"1"):
-                            self.wrong_config["WRAPPERS"] += [
-                                [wrapper_name, "PROCESSORS_PER_NODE no exist in the horizontal-wrapper platform"]]
-                        if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_PROCESSORS',""):
-                            self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                              "MAX_PROCESSORS no exist in the horizontal-wrapper platform"]]
-                    if 'vertical' in self.get_wrapper_type(wrapper_values):
-                        if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_WALLCLOCK',""):
-                            self.wrong_config["WRAPPERS"] += [[wrapper_name,
-                                                              "MAX_WALLCLOCK no exist in the vertical-wrapper platform"]]
-                if "WRAPPERS" not in self.wrong_config:
+                                                          "MAX_PROCESSORS no exist in the horizontal-wrapper platform"]]
+                if 'vertical' in self.get_wrapper_type(wrapper_values):
+                    if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_WALLCLOCK',""):
+                        self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                          "MAX_WALLCLOCK no exist in the vertical-wrapper platform"]]
+            if "WRAPPERS" not in self.wrong_config:
+                if not no_log:
                     Log.result('wrappers OK')
-                    return True
+                return True
     def file_modified(self,file,prev_mod_time):
         '''
         Function to check if a file has been modified.
