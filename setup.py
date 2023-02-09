@@ -27,6 +27,7 @@ setuptools.setup(
     classifiers=[
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.9",
-        "Operating System :: OS Independent"
+        "License :: OSI Approved :: GNU General Public License (GPL)",
+        "Operating System :: POSIX :: Linux"
     ],
 )
