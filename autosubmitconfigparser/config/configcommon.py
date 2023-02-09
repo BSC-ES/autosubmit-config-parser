@@ -786,17 +786,28 @@ class AutosubmitConfig(object):
         while len(self.dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in self.dynamic_variables:
+                rest_of_keys = ""
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     value = parameters.get(str(dynamic_var[1][1:-1]),None)
                 else:
-                    keys = dynamic_var[1].split(".")
+                    keys = dynamic_var[1]
+                    # get substring of key between %%
+                    pattern = '%[a-zA-Z0-9_.]*%'
+                    match = (re.search(pattern, keys))
+                    if match is not None:
+                        rest_of_keys = keys[match.end():]
+                        keys = keys[match.start():match.end()]
+
+                        if "." in keys:
+                            keys = keys[1:-1].split(".")
+                        else:
+                            keys = [keys[1:-1]]
                     aux_dict = parameters
                     for k in keys:
-                        k = k.strip("%")
                         aux_dict = aux_dict.get(k,{})
                     if len(aux_dict) > 0:
-                        value = aux_dict
+                        value = str(aux_dict)+str(rest_of_keys)
                     else:
                         value = None
                 if value is not None:
