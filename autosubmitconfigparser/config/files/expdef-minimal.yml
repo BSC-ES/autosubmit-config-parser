@@ -1,17 +1,17 @@
 DEFAULT:
-    EXPID:
-    HPCARCH:
+    EXPID: ""
+    HPCARCH: ""
     #ADD, note that %ROOTDIR% is an special AS_PLACEHOLDER that points to the expid folder.
     #Syntax: <model-specific_configuration_folder_path>,<user-file>,<user-file2_path>
-    CUSTOM_CONFIG:
+    CUSTOM_CONFIG: ""
 PROJECT:
     #CHANGE
     PROJECT_TYPE: "git"
     #CHANGE  note that custom_config is pointing to the same name as this parameter
     PROJECT_DESTINATION: "git_project"
 GIT:
-    PROJECT_ORIGIN:
-    PROJECT_BRANCH:
-    PROJECT_COMMIT:
-    PROJECT_SUBMODULES:
+    PROJECT_ORIGIN: ""
+    PROJECT_BRANCH: ""
+    PROJECT_COMMIT: ""
+    PROJECT_SUBMODULES: ""
     FETCH_SINGLE_BRANCH: True

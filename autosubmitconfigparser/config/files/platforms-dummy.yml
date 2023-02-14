@@ -1,4 +1,4 @@
-Platforms:
+PLATFORMS:
   MARENOSTRUM4:
     TYPE: slurm
     HOST: mn1.bsc.es
