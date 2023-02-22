@@ -53,6 +53,7 @@ class AutosubmitConfig(object):
 
     def __init__(self, expid, basic_config=BasicConfig, parser_factory=YAMLParserFactory()):
         self.ignore_undefined_platforms = False
+        self.ignore_file_path = False
         self.expid = expid
         self.basic_config = basic_config
         self.basic_config.read()
@@ -63,7 +64,6 @@ class AutosubmitConfig(object):
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
 
-        self.ignore_file_path = False
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
@@ -555,9 +555,13 @@ class AutosubmitConfig(object):
         return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
 
-    def load_config_folder(self,current_data,yaml_folder):
-        for yaml_file in yaml_folder:
-                current_data = self.load_config_file(current_data,yaml_file)
+    def load_config_folder(self,current_data,yaml_folder,ignore_minimal=False):
+        if ignore_minimal:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"} and not (str(p).endswith("minimal.yml") or str(p).endswith("minimal.yaml") )]:
+                    current_data = self.load_config_file(current_data,yaml_file)
+        else:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"}]:
+                    current_data = self.load_config_file(current_data,yaml_file)
         return current_data
 
     def parse_custom_conf_directive(self,custom_conf_directive):
@@ -1170,7 +1174,7 @@ class AutosubmitConfig(object):
         :return:
         """
 
-        parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
+        #parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
         parameters['ROOTDIR'] = os.path.join(
             BasicConfig.LOCAL_ROOT_DIR, self.expid)
         parameters['PROJDIR'] = self.get_project_dir()
@@ -1222,18 +1226,22 @@ class AutosubmitConfig(object):
         #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
         if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
-            starter_files = [p.resolve() for p in Path(self.conf_folder_yaml).glob("**/*") if p.suffix in {".yml", ".yaml"}]
-            starter_conf = self.load_config_folder({},starter_files)
+            starter_conf = self.load_config_folder({},self.conf_folder_yaml)
             starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.sustitute_dynamic_variables(starter_conf, max_deep=25)
             # Reset current loaded files as the first data doesnt count
             self.current_loaded_files = {}
+            # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
+            non_minimal_conf = self.load_config_folder({},self.conf_folder_yaml,ignore_minimal=True)
+            non_minimal_conf = self.load_common_parameters(non_minimal_conf)
+            non_minimal_conf = self.sustitute_dynamic_variables(non_minimal_conf, max_deep=25)
+            self.current_loaded_files = {}
             # Get %CONFIG.CUSTOM_CONF%" directive if exists
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
             custom_conf_pre = self.load_custom_config_section({},filenames_to_load["PRE"])
-            custom_conf_post = self.load_custom_config_section(starter_conf,filenames_to_load["POST"])
+            custom_conf_post = self.load_custom_config_section({},filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
-            self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,starter_conf),custom_conf_post)
+            self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
             # UNIFY CURRENT_DATA using $EXPID/CONF with USER CONFIGURATION
             self.experiment_data = self.sustitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
@@ -1705,14 +1713,15 @@ class AutosubmitConfig(object):
         :param autosubmit_version: autosubmit's version
         :type autosubmit_version: str
         """
+        version_file = os.path.join(self.conf_folder_yaml,"version.yml")
         try:
-            content = open(self._conf_parser_file, 'r').read()
+            content = open(version_file, 'r').read()
             if re.search('AUTOSUBMIT_VERSION:.*', content):
                 content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),"AUTOSUBMIT_VERSION: {0}".format(autosubmit_version) )
         except:
             content = "CONFIG:\n  AUTOSUBMIT_VERSION: " + autosubmit_version + "\n"
-        open(self._conf_parser_file, 'w').write(content)
-        os.chmod(self._conf_parser_file, 0o755)
+        open(version_file,'w').write(content)
+        os.chmod(version_file, 0o755)
 
     def get_version(self):
         """
