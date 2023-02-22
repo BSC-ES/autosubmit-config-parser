@@ -1204,8 +1204,10 @@ class AutosubmitConfig(object):
                 else:
                     # Load a file and unify the current_data with the loaded data
                     current_data = self.unify_conf(self.sustitute_dynamic_variables(current_data), self.load_config_file(current_data,filename))
-                custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                 # Load next level if any
+                current_data = self.sustitute_dynamic_variables(current_data)
+                custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
+
                 filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
                 current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
                 current_data_post = self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"]))
@@ -1256,9 +1258,9 @@ class AutosubmitConfig(object):
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
             # Loads all configuration associated with the project data "pre"
-            custom_conf_pre = self.load_custom_config_section({},filenames_to_load["PRE"])
+            custom_conf_pre = self.load_custom_config_section(self.load_common_parameters({}),filenames_to_load["PRE"])
             # Loads all configuration associated with the user data "post"
-            custom_conf_post = self.load_custom_config_section({},filenames_to_load["POST"])
+            custom_conf_post = self.load_custom_config_section(self.load_common_parameters({}),filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
             self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
             # UNIFY ALL data with the user data
