@@ -60,17 +60,14 @@ class AutosubmitConfig(object):
         self.experiment_data = {}
         self.data_loops = list()
 
-        self.current_loaded_files = list()
+        self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
 
         self.ignore_file_path = False
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
-
-    @property
-    def unified_data(self):
-        return self.experiment_data
+        self.current_loaded_files = dict()
 
     @property
     def jobs_data(self):
@@ -562,56 +559,32 @@ class AutosubmitConfig(object):
         for yaml_file in yaml_folder:
                 current_data = self.load_config_file(current_data,yaml_file)
         return current_data
-    def load_custom_config(self,current_data_pre,current_data_post,custom_conf_directive):
-        """
-        """
+
+    def parse_custom_conf_directive(self,custom_conf_directive):
         filenames_to_load = dict()
         filenames_to_load["PRE"] = []
         filenames_to_load["POST"] = []
         if custom_conf_directive is not None:
             # Check if directive is a dictionary
             if type(custom_conf_directive) is not dict:
-                filenames_to_load = []
-                if type(custom_conf_directive) is str:
-                    if ',' in custom_conf_directive:
-                        filenames_to_load["POST"] = custom_conf_directive.split(',')
-                    else:
-                        filenames_to_load["POST"] = custom_conf_directive.split(' ')
-            else:
-                if custom_conf_directive.get('PRE',""):
+                if type(custom_conf_directive) is str and custom_conf_directive != "":
                     if ',' in custom_conf_directive:
                         filenames_to_load["PRE"] = custom_conf_directive.split(',')
                     else:
                         filenames_to_load["PRE"] = custom_conf_directive.split(' ')
-                if custom_conf_directive.get('POST',""):
+            else:
+                if custom_conf_directive.get('PRE', "") != "":
                     if ',' in custom_conf_directive:
-                        filenames_to_load["POST"] = custom_conf_directive.split(',')
+                        filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(',')
                     else:
-                        filenames_to_load["POST"] = custom_conf_directive.split(' ')
+                        filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(' ')
+                if custom_conf_directive.get('POST', "") != "":
+                    if ',' in custom_conf_directive:
+                        filenames_to_load["POST"] = custom_conf_directive["POST"].split(',')
+                    else:
+                        filenames_to_load["POST"] = custom_conf_directive["POST"].split(' ')
+        return filenames_to_load
 
-            for section in filenames_to_load:
-                for filename in filenames_to_load[section]:
-                    filename = filename.strip(",")  # Remove commas
-                    filename = filename.strip(" ")  # Remove spaces
-                    filename = Path(filename)  # Convert to Path obj
-                    if filename.exists():
-                        if filename.is_folder():
-                            current_data_post = self.unify_conf(current_data_post, self.load_config_folder(filename))
-                            current_data_pre = self.unify_conf(current_data_pre, self.load_config_folder(filename))
-                            current_data_pre, current_data_post = self.load_custom_config(current_data_pre,
-                                                                                          current_data_post.get('CONFIG',
-                                                                                                                {}).get(
-                                                                                              "CUSTOM_CONFIG", None))
-                        else:
-                            current_data_post = self.unify_conf(current_data_post, self.load_config_file(filename))
-                            current_data_pre = self.unify_conf(current_data_pre, self.load_config_file(filename))
-
-                            current_data_pre, current_data_post = self.load_custom_config(current_data_pre,
-                                                                                          current_data_post.get('CONFIG',
-                                                                                                                {}).get(
-                                                                                              "CUSTOM_CONFIG", None))
-
-        return current_data_pre, current_data_post
     def unify_conf(self,current_data,new_data,max_deep=25):
         '''
         Unifies all configuration files into a single dictionary.
@@ -619,10 +592,9 @@ class AutosubmitConfig(object):
         # Basic data
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
-        current_data= self.deep_read_loops(current_data)
-        current_data= self.parse_data_loops(current_data, self.data_loops)
+        current_data = self.deep_read_loops(current_data)
+        current_data = self.parse_data_loops(current_data, self.data_loops)
         self.dynamic_variables = list(set(self.dynamic_variables))
-        current_data= self.sustitute_dynamic_variables(current_data,max_deep)
         return current_data
 
     def parse_data_loops(self,exp_data,data_loops):
@@ -814,8 +786,7 @@ class AutosubmitConfig(object):
 
 
 
-    def check_mandatory_conf_files(self,refresh=False,no_log=False):
-        #self.unify_conf()
+    def check_mandatory_parameters(self,refresh=False,no_log=False):
         self.check_expdef_conf(refresh,no_log=no_log)
         self.check_platforms_conf(no_log=no_log)
         self.check_jobs_conf(no_log=no_log)
@@ -852,12 +823,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_conf_files(refresh,no_log=no_log)
-        try:
-            if self.get_project_type():
-                self.check_proj()
-        except:
-            pass
+        self.check_mandatory_parameters(refresh,no_log=no_log)
         # End of checkers.
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
@@ -972,7 +938,13 @@ class AutosubmitConfig(object):
                                                    "Mandatory SCRATCH_DIR parameter not found"]]
         if not main_platform_found:
             self.wrong_config["Expdef"] += [["Default","Main platform is not defined! check if [HPCARCH = {0}] has any typo".format(self.hpcarch)]]
-        if "Platform" not in self.wrong_config:
+        main_platform_issues = False
+        for platform,error in self.wrong_config.get("Platform",[]):
+            if platform.upper() == self.hpcarch.upper():
+                main_platform_issues = True
+        if not main_platform_issues:
+            Log.warning("Some defined platforms have the following issues: {0}\nThe main platform is OK",str(self.wrong_config.get("Platform",[])))
+            self.wrong_config.pop("Platform",None)
             if not no_log:
                 Log.result('Platforms sections: OK')
             return True
@@ -1132,26 +1104,6 @@ class AutosubmitConfig(object):
             return True
         return False
 
-    def check_proj(self,no_log=False):
-        """
-        Checks project config file
-        :no_log if True, it doesn't print any log message
-        :type no_log: bool
-        :return: True if everything is correct, False if it founds any error
-        :rtype: bool
-        """
-        try:
-            if not self._proj_parser_file:
-                self._proj_parser = None
-                return True
-            else:
-                self._proj_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._proj_parser_file)
-            return True
-        except Exception as e:
-            self.wrong_config["Proj"] += [['project_files',
-                                           "FILE_PROJECT_CONF parameter is invalid"]]
-            return False
 
     def check_wrapper_conf(self,wrappers=dict(),no_log=False):
         """
@@ -1211,6 +1163,46 @@ class AutosubmitConfig(object):
         else:
             modified = False
         return modified,file_mod_time
+    def load_common_parameters(self,parameters):
+        """
+        Loads common parameters not specific to a job neither a platform
+        :param parameters:
+        :return:
+        """
+
+        parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
+        parameters['ROOTDIR'] = os.path.join(
+            BasicConfig.LOCAL_ROOT_DIR, self.expid)
+        parameters['PROJDIR'] = self.get_project_dir()
+
+        return parameters
+    def load_custom_config(self,current_data_pre,current_data_post,filenames_to_load):
+        """
+        Load custom config files
+
+        """
+        for filename in filenames_to_load:
+            filename = filename.strip(",")  # Remove commas
+            filename = filename.strip(" ")  # Remove spaces
+            filename = Path(filename)  # Convert to Path obj
+            if filename.exists() and str(filename) not in self.current_loaded_files:
+                self.current_loaded_files[str(filename)] = filename.stat().st_mtime
+                if not filename.is_file():
+                    current_data_post = self.unify_conf(self.sustitute_dynamic_variables(current_data_post), self.load_config_folder(current_data_post,filename))
+                    current_data_pre = self.unify_conf(self.sustitute_dynamic_variables(current_data_pre), self.load_config_folder(current_data_pre,filename))
+                else:
+                    current_data_post = self.unify_conf(self.sustitute_dynamic_variables(current_data_post), self.load_config_file(current_data_post,filename))
+                    current_data_pre = self.unify_conf(self.sustitute_dynamic_variables(current_data_pre), self.load_config_file(current_data_pre,filename))
+                custom_conf_directive = current_data_pre.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
+                filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
+                current_data_pre = self.load_custom_config_section(current_data_pre, filenames_to_load_level["PRE"])
+                current_data_post = self.load_custom_config_section(current_data_post, filenames_to_load_level["POST"])
+
+        return current_data_pre, current_data_post
+
+    def load_custom_config_section(self,current_data,filenames_to_load):
+        current_data_pre,current_data_post = self.load_custom_config({}, current_data, filenames_to_load)
+        return self.sustitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
 
     def reload(self,force_load=False):
         """
@@ -1221,25 +1213,31 @@ class AutosubmitConfig(object):
         # Check if the files have been modified or if they need a reload
         load = False
         files_to_reload = []
-        # TODO Check if the files have been modified
-        for yaml_name,last_known_modtime in self.current_loaded_files:
+        # Reload only the files that have been modified
+        for yaml_name,last_known_modtime in self.current_loaded_files.items():
             if Path(yaml_name).stat().st_mtime > last_known_modtime:
                 files_to_reload.append(yaml_name)
-        #  TODO Load only the files that have been modified.
-        if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
-            self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
-        else:
+        #  TODO What we should really reload? right now is all files , hard to track the changes in files with custom_config of custom_config
+        #if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
+        #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
+        if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
             starter_files = [p.resolve() for p in Path(self.conf_folder_yaml).glob("**/*") if p.suffix in {".yml", ".yaml"}]
-
             starter_conf = self.load_config_folder({},starter_files)
+            starter_conf = self.load_common_parameters(starter_conf)
+            starter_conf = self.sustitute_dynamic_variables(starter_conf, max_deep=25)
+            # Reset current loaded files as the first data doesnt count
+            self.current_loaded_files = {}
             # Get %CONFIG.CUSTOM_CONF%" directive if exists
-            custom_conf_directive = starter_conf.get('CONFIG',{}).get('CUSTOM_CONF',None)
-            custom_conf_pre,custom_conf_post = self.load_custom_config({},starter_conf,custom_conf_directive)
+            filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
+            custom_conf_pre = self.load_custom_config_section({},filenames_to_load["PRE"])
+            custom_conf_post = self.load_custom_config_section(starter_conf,filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
             self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,starter_conf),custom_conf_post)
             # UNIFY CURRENT_DATA using $EXPID/CONF with USER CONFIGURATION
-            #self.experiment_data = self.unify_conf(experiment_data,self.current_loaded_files)
+            self.experiment_data = self.sustitute_dynamic_variables(self.experiment_data, max_deep=25)
+            user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
+            self.experiment_data = self.sustitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
 
     def deep_get_long_key(self,section_data,long_key):
         parameters_dict = dict()
@@ -1257,7 +1255,10 @@ class AutosubmitConfig(object):
         """
         parameters_dict =  dict()
         for key in data.keys():
-            parameters_dict.update(self.deep_get_long_key(data.get(key, {}),key))
+            if isinstance(data.get(key, {}), collections.abc.Mapping ):
+                parameters_dict.update(self.deep_get_long_key(data.get(key, {}),key))
+            else:
+                parameters_dict[key] = data.get(key, {})
         return parameters_dict
 
     def load_parameters(self):
