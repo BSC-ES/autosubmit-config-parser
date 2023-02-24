@@ -701,7 +701,7 @@ class AutosubmitConfig(object):
         else:
             dict_keys_type = "short"
         return dict_keys_type
-    def sustitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
+    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
         """
         Substitute dynamic variables in the experiment data
         :parameter
@@ -761,7 +761,7 @@ class AutosubmitConfig(object):
             max_deep = max_deep - 1
         self.dynamic_variables = backup_variables
         return parameters
-    def sustitute_placeholder_variables(self,key,val,parameters):
+    def substitute_placeholder_variables(self,key,val,parameters):
         substituted = False
         data = parameters
         placeholders=self.get_placeholders(val, False)
@@ -1216,7 +1216,7 @@ class AutosubmitConfig(object):
                     current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
                 else:
                     # Load a file and unify the current_data with the loaded data
-                    current_data = self.sustitute_dynamic_variables(self.unify_conf(self.sustitute_dynamic_variables(current_data), self.load_config_file(current_data,filename)))
+                    current_data = self.substitute_dynamic_variables(self.unify_conf(self.substitute_dynamic_variables(current_data), self.load_config_file(current_data,filename)))
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
@@ -1235,7 +1235,7 @@ class AutosubmitConfig(object):
         # This is a recursive call
         current_data_pre,current_data_post = self.load_custom_config(current_data, filenames_to_load)
         # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
-        return self.sustitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
+        return self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
 
     def reload(self,force_load=False):
         """
@@ -1256,20 +1256,20 @@ class AutosubmitConfig(object):
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
-                starter_conf = self.sustitute_dynamic_variables(
+                starter_conf = self.substitute_dynamic_variables(
                     self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
             starter_conf = self.load_common_parameters(starter_conf)
-            starter_conf = self.sustitute_dynamic_variables(starter_conf, max_deep=25)
+            starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
             # Reset current loaded files as the first data doesnt count
             # Is the tracker of the files that have been loaded. This is needed to avoid infinite loops
             self.current_loaded_files = {}
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
-                non_minimal_conf = self.sustitute_dynamic_variables(
+                non_minimal_conf = self.substitute_dynamic_variables(
                     self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
-            non_minimal_conf = self.sustitute_dynamic_variables(non_minimal_conf, max_deep=25)
+            non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
             self.current_loaded_files = {}
             # Start loading the custom config files
             # Gets the files to load
@@ -1281,9 +1281,9 @@ class AutosubmitConfig(object):
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
             self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
             # UNIFY ALL data with the user data
-            self.experiment_data = self.sustitute_dynamic_variables(self.experiment_data, max_deep=25)
+            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
-            self.experiment_data = self.sustitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
+            self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
 
     def deep_get_long_key(self,section_data,long_key):
         parameters_dict = dict()
