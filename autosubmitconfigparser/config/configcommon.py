@@ -554,15 +554,27 @@ class AutosubmitConfig(object):
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
         return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
-
-    def load_config_folder(self,current_data,yaml_folder,ignore_minimal=False):
+    def get_yaml_filenames_to_load(self,yaml_folder,ignore_minimal=False):
+        filenames_to_load = []
         if ignore_minimal:
             for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"} and not (str(p).endswith("minimal.yml") or str(p).endswith("minimal.yaml") )]:
-                    current_data = self.load_config_file(current_data,yaml_file)
+                filenames_to_load.append(str(yaml_file))
         else:
             for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"}]:
-                    current_data = self.load_config_file(current_data,yaml_file)
-        return current_data
+                filenames_to_load.append(str(yaml_file))
+        return filenames_to_load
+
+
+    def load_config_folder(self,current_data,yaml_folder,ignore_minimal=False):
+        """
+        Load a config folder and return pre and post config
+        :param current_data:
+        :param yaml_folder:
+        :param ignore_minimal:
+        :return:
+        """
+        filenames_to_load = self.get_yaml_filenames_to_load(yaml_folder,ignore_minimal)
+        return self.load_custom_config(current_data, filenames_to_load)
 
     def parse_custom_conf_directive(self,custom_conf_directive):
         filenames_to_load = dict()
@@ -947,7 +959,7 @@ class AutosubmitConfig(object):
             if platform.upper() == self.hpcarch.upper():
                 main_platform_issues = True
         if not main_platform_issues:
-            Log.warning("Some defined platforms have the following issues: {0}\nThe main platform is OK",str(self.wrong_config.get("Platform",[])))
+            Log.warning("Some defined platforms have the following issues: {0}",str(self.wrong_config.get("Platform",[])))
             self.wrong_config.pop("Platform",None)
             if not no_log:
                 Log.result('Platforms sections: OK')
@@ -1177,8 +1189,9 @@ class AutosubmitConfig(object):
         #parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
         parameters['ROOTDIR'] = os.path.join(
             BasicConfig.LOCAL_ROOT_DIR, self.expid)
-        parameters['PROJDIR'] = self.get_project_dir()
-
+        # get_project_dir expects self.experiment_data to be loaded
+        #parameters['PROJDIR'] = self.get_project_dir()
+        parameters['PROJDIR'] = os.path.join(parameters['ROOTDIR'],"proj",parameters.get('PROJECT', {}).get('PROJECT_DESTINATION', "project_files"))
         return parameters
     def load_custom_config(self,current_data,filenames_to_load):
         """
@@ -1199,18 +1212,16 @@ class AutosubmitConfig(object):
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
                 # Load a folder or a file
                 if not filename.is_file():
-                    # Load a folder and unify the current_data with the loaded data
-                    current_data = self.unify_conf(self.sustitute_dynamic_variables(current_data), self.load_config_folder(current_data,filename))
+                    # Load a folder by calling recursively to this function as a list of files
+                    current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
                 else:
                     # Load a file and unify the current_data with the loaded data
-                    current_data = self.unify_conf(self.sustitute_dynamic_variables(current_data), self.load_config_file(current_data,filename))
-                # Load next level if any
-                current_data = self.sustitute_dynamic_variables(current_data)
-                custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
-
-                filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
-                current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
-                current_data_post = self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"]))
+                    current_data = self.sustitute_dynamic_variables(self.unify_conf(self.sustitute_dynamic_variables(current_data), self.load_config_file(current_data,filename)))
+                    # Load next level if any
+                    custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
+                    filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
+                    current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
+                    current_data_post = self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"]))
 
         return current_data_pre, current_data_post
 
@@ -1243,14 +1254,20 @@ class AutosubmitConfig(object):
         #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
         if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
-            starter_conf = self.load_config_folder({},self.conf_folder_yaml)
+            starter_conf = {}
+            for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
+                starter_conf = self.sustitute_dynamic_variables(
+                    self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
             starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.sustitute_dynamic_variables(starter_conf, max_deep=25)
             # Reset current loaded files as the first data doesnt count
             # Is the tracker of the files that have been loaded. This is needed to avoid infinite loops
             self.current_loaded_files = {}
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
-            non_minimal_conf = self.load_config_folder({},self.conf_folder_yaml,ignore_minimal=True)
+            non_minimal_conf = {}
+            for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
+                non_minimal_conf = self.sustitute_dynamic_variables(
+                    self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
             non_minimal_conf = self.sustitute_dynamic_variables(non_minimal_conf, max_deep=25)
             self.current_loaded_files = {}
@@ -1258,9 +1275,9 @@ class AutosubmitConfig(object):
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
             # Loads all configuration associated with the project data "pre"
-            custom_conf_pre = self.load_custom_config_section(self.load_common_parameters({}),filenames_to_load["PRE"])
+            custom_conf_pre = self.load_custom_config_section(starter_conf,filenames_to_load["PRE"])
             # Loads all configuration associated with the user data "post"
-            custom_conf_post = self.load_custom_config_section(self.load_common_parameters({}),filenames_to_load["POST"])
+            custom_conf_post = self.load_custom_config_section(starter_conf,filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
             self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
             # UNIFY ALL data with the user data
