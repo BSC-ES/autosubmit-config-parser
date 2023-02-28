@@ -67,7 +67,6 @@ class AutosubmitConfig(object):
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
-        self.current_loaded_files = dict()
 
     @property
     def jobs_data(self):
@@ -545,22 +544,33 @@ class AutosubmitConfig(object):
             x.append(e)
         return x
 
-    def load_config_file(self, current_folder_data,yaml_file, max_deep=25):
+    def load_config_file(self, current_folder_data,yaml_file):
         """
         Load a config file and parse it
+        :param current_folder_data: current folder data
+        :param yaml_file: yaml file to load
+        :return: unified config file
         """
+
         #check if path is file o folder
         # load yaml file with ruamel.yaml
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
         return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
     def get_yaml_filenames_to_load(self,yaml_folder,ignore_minimal=False):
+        """
+        Get all yaml files in a folder and return a list with the filenames
+        :param yaml_folder: folder to search for yaml files
+        :param ignore_minimal: ignore minimal files
+        :return: list of filenames
+        """
         filenames_to_load = []
         if ignore_minimal:
-            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"} and not (str(p).endswith("minimal.yml") or str(p).endswith("minimal.yaml") )]:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if
+                              p.suffix in {".yml", ".yaml"} and not p.name.endswith(("minimal.yml", "minimal.yaml"))]:
                 filenames_to_load.append(str(yaml_file))
         else:
-            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("**/*") if p.suffix in {".yml", ".yaml"}]:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]:
                 filenames_to_load.append(str(yaml_file))
         return filenames_to_load
 
@@ -568,10 +578,10 @@ class AutosubmitConfig(object):
     def load_config_folder(self,current_data,yaml_folder,ignore_minimal=False):
         """
         Load a config folder and return pre and post config
-        :param current_data:
-        :param yaml_folder:
-        :param ignore_minimal:
-        :return:
+        :param current_data: current data to be updated
+        :param yaml_folder: folder to load config
+        :param ignore_minimal: ignore minimal config files
+        :return: pre and post config
         """
         filenames_to_load = self.get_yaml_filenames_to_load(yaml_folder,ignore_minimal)
         return self.load_custom_config(current_data, filenames_to_load)
@@ -601,9 +611,12 @@ class AutosubmitConfig(object):
                         filenames_to_load["POST"] = custom_conf_directive["POST"].split(' ')
         return filenames_to_load
 
-    def unify_conf(self,current_data,new_data,max_deep=25):
+    def unify_conf(self,current_data,new_data):
         '''
         Unifies all configuration files into a single dictionary.
+        :param current_data: dict with current configuration
+        :param new_data: dict with new configuration
+        :return: dict with new configuration taking priority over current configuration
         '''
         # Basic data
         current_data = self.deep_update(current_data, new_data)
@@ -958,6 +971,10 @@ class AutosubmitConfig(object):
         for platform,error in self.wrong_config.get("Platform",[]):
             if platform.upper() == self.hpcarch.upper():
                 main_platform_issues = True
+
+        # Delete the platform section if there are no issues with the main platform and thus autosubmit can procced. TODO: Improve this when we have a better config validator.
+        # This is a workaround to avoid autosubmit to stop when there is an uncomplete platform section( per example, an user file platform that only has an USER keyword set) that doesn't affect to the experiment itself.
+        # During running, if there are issues in any experiment active platform autosubmit will stop and the user will be notified.
         if not main_platform_issues:
             Log.warning("Some defined platforms have the following issues: {0}",str(self.wrong_config.get("Platform",[])))
             self.wrong_config.pop("Platform",None)
@@ -1204,8 +1221,7 @@ class AutosubmitConfig(object):
         current_data_post = {}
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
-            filename = filename.strip(",")  # Remove commas if any
-            filename = filename.strip(" ")  # Remove spaces if any
+            filename = filename.strip(", ")  # Remove commas and spaces if any
             filename = Path(filename)  # Convert to Path obj
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
@@ -1227,7 +1243,7 @@ class AutosubmitConfig(object):
 
     def load_custom_config_section(self,current_data,filenames_to_load):
         """
-        Loads a section (PRE O POST ), simple str are also PRE data of the custom config files
+        Loads a section (PRE or POST ), simple str are also PRE data of the custom config files
         :param current_data: data until now
         :param filenames_to_load: files to load in this section
         :return:
@@ -1252,7 +1268,9 @@ class AutosubmitConfig(object):
         #  TODO What we should really reload? right now is all files , hard to track the changes in files with custom_config of custom_config
         #if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
         #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
-        if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0 or force_load:
+        reload = False
+        # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
+        if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("ALLOW_RELOAD_FILES", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
