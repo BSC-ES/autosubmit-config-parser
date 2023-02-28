@@ -53,85 +53,20 @@ class AutosubmitConfig(object):
 
     def __init__(self, expid, basic_config=BasicConfig, parser_factory=YAMLParserFactory()):
         self.ignore_undefined_platforms = False
+        self.ignore_file_path = False
         self.expid = expid
         self.basic_config = basic_config
         self.basic_config.read()
         self.parser_factory = parser_factory
         self.experiment_data = {}
         self.data_loops = list()
-        self._conf_parser = None
-        self._conf_parser_file = Path(self.basic_config.LOCAL_ROOT_DIR) / expid / "conf" / ("autosubmit_" + expid + ".yml")
-        self._conf_parser_file_modtime = None
-        self._exp_parser = None
-        self._exp_parser_file = Path(self.basic_config.LOCAL_ROOT_DIR) / expid / "conf" / ("expdef_" + expid + ".yml")
-        self._exp_parser_file_modtime = None
 
-        self._platforms_parser = None
-        self._platforms_parser_file = Path(self.basic_config.LOCAL_ROOT_DIR) / expid / "conf" / ("platforms_" + expid + ".yml")
-        self._platforms_parser_file_modtime = None
+        self.current_loaded_files = dict()
+        self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
 
-        self._jobs_parser = None
-        self._jobs_parser_file = Path(self.basic_config.LOCAL_ROOT_DIR) / expid / "conf" / ("jobs_" + expid + ".yml")
-        self._jobs_parser_file_modtime = None
-        self._proj_parser = None
-        self._proj_parser_file = Path(self.basic_config.LOCAL_ROOT_DIR) / expid / "conf" / ("proj_" + expid +".yml")
-        self._proj_parser_file_modtime = None
-
-        self._original_parser_files = []
-        self._original_parser_files.append(self._conf_parser_file)
-        self._original_parser_files.append(self._exp_parser_file)
-        self._original_parser_files.append(self._platforms_parser_file)
-        self._original_parser_files.append(self._jobs_parser_file)
-        self._original_parser_files.append(self._proj_parser_file)
-        self._original_parser_files_modtime = []
-        self._original_parser_files_modtime.append(self._conf_parser_file_modtime)
-        self._original_parser_files_modtime.append(self._exp_parser_file_modtime)
-        self._original_parser_files_modtime.append(self._platforms_parser_file_modtime)
-        self._original_parser_files_modtime.append(self._jobs_parser_file_modtime)
-        self._original_parser_files_modtime.append(self._proj_parser_file_modtime)
-
-        self._custom_parser_files = []
-        self._custom_parser_files_modtime = []
-
-        self.ignore_file_path = False
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
-        #todo ?? threads are loading all parameters -> reduce memory usage
-    @property
-    def jobs_parser(self):
-        return self._jobs_parser
-
-    @property
-    def experiment_file(self):
-        """
-        Returns experiment's config file name
-        """
-        return self._exp_parser_file
-
-    @property
-    def platforms_parser(self):
-        """
-        Returns experiment's platforms parser object
-
-        :return: platforms config parser object
-        :rtype: SafeConfigParser
-        """
-        return self._platforms_parser
-
-    @property
-    def platforms_file(self):
-        """
-        Returns experiment's platforms config file name
-
-        :return: platforms config file's name
-        :rtype: str
-        """
-        return self._platforms_parser_file
-
-    @property
-    def unified_data(self):
-        return self.experiment_data
 
     @property
     def jobs_data(self):
@@ -141,35 +76,6 @@ class AutosubmitConfig(object):
     def platforms_data(self):
         return self.experiment_data["PLATFORMS"]
 
-    @property
-    def project_file(self):
-        """
-        Returns project's config file name
-        """
-        return self._proj_parser_file
-
-    def check_proj_file(self):
-        """
-        Add a section header to the project's configuration file (if not exists)
-        """
-        if os.path.exists(self._proj_parser_file):
-            with open(self._proj_parser_file, 'rb+') as f:
-                first_line = f.readline()
-                if not re.match('^\[[^\[\]\# \t\n]*\][ \t]*$|^[ \t]+\[[^\[\]# \t\n]*\]', first_line):
-                    content = f.read()
-                    f.seek(0, 0)
-                    f.write('[DEFAULT]'.rstrip('\r\n') +
-                            '\n' + first_line + content)
-                    f.close()
-
-    @property
-    def jobs_file(self):
-        """
-        Returns project's jobs file name
-        """
-        return self._jobs_parser_file
-
-
     def get_wrapper_export(self, wrapper={}):
         """
          Returns modules variable from wrapper
@@ -178,6 +84,7 @@ class AutosubmitConfig(object):
          :rtype: string
          """
         return wrapper.get('EXPORT', self.experiment_data["WRAPPERS"].get("EXPORT",""))
+
     def get_project_submodules_depth(self):
         """
         Returns the max depth of submodule at the moment of cloning
@@ -637,50 +544,87 @@ class AutosubmitConfig(object):
             x.append(e)
         return x
 
+    def load_config_file(self, current_folder_data,yaml_file):
+        """
+        Load a config file and parse it
+        :param current_folder_data: current folder data
+        :param yaml_file: yaml file to load
+        :return: unified config file
+        """
 
-    def unify_conf(self):
-        '''
-        Unifies all configuration files into a single dictionary. Custom files will be able to override the default configuration.
-        '''
-        if self._conf_parser.data is not None and len(self._conf_parser.data) > 0:
-            self._conf_parser.data = self.normalize_variables(self._conf_parser.data)
-        if self._exp_parser.data is not None and len(self._exp_parser.data) > 0:
-            self._exp_parser.data = self.normalize_variables(self._exp_parser.data)
-        if self._jobs_parser.data is not None and len(self._jobs_parser.data) > 0:
-            self._jobs_parser.data = self.normalize_variables(self._jobs_parser.data)
-        if self._platforms_parser.data is not None and len(self._platforms_parser.data) > 0:
-            self._platforms_parser.data = self.normalize_variables(self._platforms_parser.data)
-        if self._conf_parser.data is not None and len(self._conf_parser.data) > 0:
-            self._conf_parser.data = self.deep_normalize(self._conf_parser.data)
-        if self._exp_parser.data is not None and len(self._exp_parser.data) > 0:
-            self._exp_parser.data = self.deep_normalize(self._exp_parser.data)
-        if self._jobs_parser.data is not None and len(self._jobs_parser.data) > 0:
-            self._jobs_parser.data = self.deep_normalize(self._jobs_parser.data)
-        if self._platforms_parser.data is not None and len(self._platforms_parser.data) > 0:
-            self._platforms_parser.data = self.deep_normalize(self._platforms_parser.data)
-        self.experiment_data = dict()
-        self.experiment_data = self.deep_update(self._conf_parser.data,self._exp_parser.data)
-        self.experiment_data = self.deep_update(self.experiment_data,self._jobs_parser.data)
-        self.experiment_data = self.deep_update(self.experiment_data,self._platforms_parser.data)
-        if self._proj_parser_file.exists():
-            self._proj_parser.data = self.deep_normalize(self._proj_parser.data)
-            self.normalize_variables(self._proj_parser.data)
-            self.experiment_data = self.deep_update(self.experiment_data,self._proj_parser.data)
-        #Check if there is "FOR" clausure (Recursive search)
-        self.deep_read_loops(self.experiment_data)
-        #Parse loops in original config
-        self.parse_data_loops(self.experiment_data,self.data_loops)
+        #check if path is file o folder
+        # load yaml file with ruamel.yaml
+        new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
+        return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
-        if len(self._custom_parser) > 0:
-            for c_parser in self._custom_parser:
-                c_parser.data = self.deep_normalize(c_parser.data)
-                self.normalize_variables(c_parser.data)
-                self.experiment_data = self.deep_update(self.experiment_data,c_parser.data)
-            #Parser loops in custom config
-            self.deep_read_loops(self.experiment_data)
-            self.parse_data_loops(self.experiment_data, self.data_loops)
+    def get_yaml_filenames_to_load(self,yaml_folder,ignore_minimal=False):
+        """
+        Get all yaml files in a folder and return a list with the filenames
+        :param yaml_folder: folder to search for yaml files
+        :param ignore_minimal: ignore minimal files
+        :return: list of filenames
+        """
+        filenames_to_load = []
+        if ignore_minimal:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if
+                              p.suffix in {".yml", ".yaml"} and not p.name.endswith(("minimal.yml", "minimal.yaml"))]:
+                filenames_to_load.append(str(yaml_file))
+        else:
+            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]:
+                filenames_to_load.append(str(yaml_file))
+        return filenames_to_load
+
+
+    def load_config_folder(self,current_data,yaml_folder,ignore_minimal=False):
+        """
+        Load a config folder and return pre and post config
+        :param current_data: current data to be updated
+        :param yaml_folder: folder to load config
+        :param ignore_minimal: ignore minimal config files
+        :return: pre and post config
+        """
+        filenames_to_load = self.get_yaml_filenames_to_load(yaml_folder,ignore_minimal)
+        return self.load_custom_config(current_data, filenames_to_load)
+
+    def parse_custom_conf_directive(self,custom_conf_directive):
+        filenames_to_load = dict()
+        filenames_to_load["PRE"] = []
+        filenames_to_load["POST"] = []
+        if custom_conf_directive is not None:
+            # Check if directive is a dictionary
+            if type(custom_conf_directive) is not dict:
+                if type(custom_conf_directive) is str and custom_conf_directive != "":
+                    if ',' in custom_conf_directive:
+                        filenames_to_load["PRE"] = custom_conf_directive.split(',')
+                    else:
+                        filenames_to_load["PRE"] = custom_conf_directive.split(' ')
+            else:
+                if custom_conf_directive.get('PRE', "") != "":
+                    if ',' in custom_conf_directive:
+                        filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(',')
+                    else:
+                        filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(' ')
+                if custom_conf_directive.get('POST', "") != "":
+                    if ',' in custom_conf_directive:
+                        filenames_to_load["POST"] = custom_conf_directive["POST"].split(',')
+                    else:
+                        filenames_to_load["POST"] = custom_conf_directive["POST"].split(' ')
+        return filenames_to_load
+
+    def unify_conf(self,current_data,new_data):
+        '''
+        Unifies all configuration files into a single dictionary.
+        :param current_data: dict with current configuration
+        :param new_data: dict with new configuration
+        :return: dict with new configuration taking priority over current configuration
+        '''
+        # Basic data
+        current_data = self.deep_update(current_data, new_data)
+        # Parser loops in custom config
+        current_data = self.deep_read_loops(current_data)
+        current_data = self.parse_data_loops(current_data, self.data_loops)
         self.dynamic_variables = list(set(self.dynamic_variables))
-        self.experiment_data = self.sustitute_dynamic_variables(self.experiment_data,max_deep=25)
+        return current_data
 
     def parse_data_loops(self,exp_data,data_loops):
         section_data = list()
@@ -734,10 +678,10 @@ class AutosubmitConfig(object):
                 new_exp_data[level_name] = level_data
             else:
                 new_exp_data = next_section
-            self.experiment_data.update(new_exp_data)
-            exp_data = self.experiment_data
+            exp_data.update(new_exp_data)
             pass
         self.data_loops = []
+        return exp_data
     def get_placeholders(self,val,key):
 
         aux_name = val.split("/")
@@ -770,7 +714,7 @@ class AutosubmitConfig(object):
         else:
             dict_keys_type = "short"
         return dict_keys_type
-    def sustitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
+    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
         """
         Substitute dynamic variables in the experiment data
         :parameter
@@ -830,7 +774,7 @@ class AutosubmitConfig(object):
             max_deep = max_deep - 1
         self.dynamic_variables = backup_variables
         return parameters
-    def sustitute_placeholder_variables(self,key,val,parameters):
+    def substitute_placeholder_variables(self,key,val,parameters):
         substituted = False
         data = parameters
         placeholders=self.get_placeholders(val, False)
@@ -864,27 +808,27 @@ class AutosubmitConfig(object):
                 self.data_loops.append(for_keys)
             elif isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
+        return data
 
 
 
 
 
 
-    def check_mandatory_conf_files(self,refresh=False,no_log=False):
-        #self.unify_conf()
+    def check_mandatory_parameters(self,refresh=False,no_log=False):
         self.check_expdef_conf(refresh,no_log=no_log)
         self.check_platforms_conf(no_log=no_log)
         self.check_jobs_conf(no_log=no_log)
         self.check_autosubmit_conf(refresh,no_log=no_log)
 
-    def check_conf_files(self, running_time=False,first_load=True,refresh=False,no_log=False):
+    def check_conf_files(self, running_time=False,force_load=True,refresh=False,no_log=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
         :param running_time: True if the function is called during the execution of the program
         :type running_time: bool
-        :param first_load: True if the function is called during the first load of the program
-        :type first_load: bool
+        :param force_load: True if the function is called during the first load of the program
+        :type force_load: bool
         :param refresh: True if the function is called during the refresh of the program
         :type refresh: bool
         :param no_log: True if the function is called during describe
@@ -899,7 +843,7 @@ class AutosubmitConfig(object):
         self.ignore_undefined_platforms = running_time
 
         try:
-            self.reload(first_load)
+            self.reload(force_load)
         except IOError as e:
             raise AutosubmitError(
                 "I/O Issues con config files", 6016, str(e))
@@ -908,12 +852,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_conf_files(refresh,no_log=no_log)
-        try:
-            if self.get_project_type():
-                self.check_proj()
-        except:
-            pass
+        self.check_mandatory_parameters(refresh,no_log=no_log)
         # End of checkers.
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
@@ -989,8 +928,7 @@ class AutosubmitConfig(object):
                                                              "invalid e-mail"]]
         if "Autosubmit" not in self.wrong_config:
             if not no_log:
-                Log.result('{0} OK'.format(
-                    os.path.basename(self._conf_parser_file)))
+                Log.result('Autosubmit general sections OK')
             return True
         else:
             return True
@@ -1029,10 +967,19 @@ class AutosubmitConfig(object):
                                                    "Mandatory SCRATCH_DIR parameter not found"]]
         if not main_platform_found:
             self.wrong_config["Expdef"] += [["Default","Main platform is not defined! check if [HPCARCH = {0}] has any typo".format(self.hpcarch)]]
-        if "Platform" not in self.wrong_config:
+        main_platform_issues = False
+        for platform,error in self.wrong_config.get("Platform",[]):
+            if platform.upper() == self.hpcarch.upper():
+                main_platform_issues = True
+
+        # Delete the platform section if there are no issues with the main platform and thus autosubmit can procced. TODO: Improve this when we have a better config validator.
+        # This is a workaround to avoid autosubmit to stop when there is an uncomplete platform section( per example, an user file platform that only has an USER keyword set) that doesn't affect to the experiment itself.
+        # During running, if there are issues in any experiment active platform autosubmit will stop and the user will be notified.
+        if not main_platform_issues:
+            Log.warning("Some defined platforms have the following issues: {0}",str(self.wrong_config.get("Platform",[])))
+            self.wrong_config.pop("Platform",None)
             if not no_log:
-                Log.result('{0} OK'.format(
-                    os.path.basename(self._platforms_parser_file)))
+                Log.result('Platforms sections: OK')
             return True
         return False
 
@@ -1099,7 +1046,7 @@ class AutosubmitConfig(object):
                                                "Mandatory RUNNING parameter is invalid"]]
         if "Jobs" not in self.wrong_config:
             if not no_log:
-                Log.result('{0} OK'.format(os.path.basename(self._jobs_parser_file)))
+                Log.result('Jobs sections OK')
             return True
         return False
 
@@ -1186,31 +1133,10 @@ class AutosubmitConfig(object):
                 self.ignore_file_path = False
         if "Expdef" not in self.wrong_config:
             if not no_log:
-                Log.result('{0} OK'.format(
-                    os.path.basename(self._exp_parser_file)))
+                Log.result("Expdef config file is correct")
             return True
         return False
 
-    def check_proj(self,no_log=False):
-        """
-        Checks project config file
-        :no_log if True, it doesn't print any log message
-        :type no_log: bool
-        :return: True if everything is correct, False if it founds any error
-        :rtype: bool
-        """
-        try:
-            if not self._proj_parser_file:
-                self._proj_parser = None
-                return True
-            else:
-                self._proj_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._proj_parser_file)
-            return True
-        except Exception as e:
-            self.wrong_config["Proj"] += [['project_files',
-                                           "FILE_PROJECT_CONF parameter is invalid"]]
-            return False
 
     def check_wrapper_conf(self,wrappers=dict(),no_log=False):
         """
@@ -1270,114 +1196,119 @@ class AutosubmitConfig(object):
         else:
             modified = False
         return modified,file_mod_time
-    def reload(self,first_load=False):
+    def load_common_parameters(self,parameters):
         """
-        Creates parser objects for configuration files
+        Loads common parameters not specific to a job neither a platform
+        :param parameters:
+        :return:
         """
-        any_file_changed = False
-        modified = False
-        # check if original_files has been edited
-        for config_file in range(0,len(self._original_parser_files)):
-            try:
-                if self._original_parser_files[config_file].name != self._proj_parser_file.name and self._original_parser_files[config_file].exists():
-                    modified, self._original_parser_files_modtime[config_file] = self.file_modified(self._original_parser_files[config_file], self._original_parser_files_modtime[config_file])
+
+        #parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
+        parameters['ROOTDIR'] = os.path.join(
+            BasicConfig.LOCAL_ROOT_DIR, self.expid)
+        # get_project_dir expects self.experiment_data to be loaded
+        #parameters['PROJDIR'] = self.get_project_dir()
+        parameters['PROJDIR'] = os.path.join(parameters['ROOTDIR'],"proj",parameters.get('PROJECT', {}).get('PROJECT_DESTINATION', "project_files"))
+        return parameters
+    def load_custom_config(self,current_data,filenames_to_load):
+        """
+        Loads custom config files
+        :param current_data: dict with current data
+        :param filenames_to_load: list of filenames to load
+        :return: current_data_pre,current_data_post with unified data
+        """
+        current_data_pre = {}
+        current_data_post = {}
+        # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
+        for filename in filenames_to_load:
+            filename = filename.strip(", ")  # Remove commas and spaces if any
+            filename = Path(filename)  # Convert to Path obj
+            if filename.exists() and str(filename) not in self.current_loaded_files:
+                # Check if this file is already loaded. If not, load it
+                self.current_loaded_files[str(filename)] = filename.stat().st_mtime
+                # Load a folder or a file
+                if not filename.is_file():
+                    # Load a folder by calling recursively to this function as a list of files
+                    current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
                 else:
-                    if self._proj_parser_file.exists():
-                        modified, self._original_parser_files_modtime[config_file] = self.file_modified(
-                            self._original_parser_files[config_file], self._original_parser_files_modtime[config_file])
-                if modified:
-                    any_file_changed = True
-            except:
-                #Doesn't exists
-                pass
-        # check if custom_files has been edited
-        for config_file in range(0,len(self._custom_parser_files)):
-            modified,self._custom_parser_files_modtime[config_file] = self.file_modified(self._custom_parser_files[config_file],self._custom_parser_files_modtime[config_file])
-            if modified:
-                any_file_changed = True
+                    # Load a file and unify the current_data with the loaded data
+                    current_data = self.substitute_dynamic_variables(self.unify_conf(self.substitute_dynamic_variables(current_data), self.load_config_file(current_data,filename)))
+                    # Load next level if any
+                    custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
+                    filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
+                    current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
+                    current_data_post = self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"]))
 
-        if any_file_changed or first_load:
-            try:
-                self._conf_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._conf_parser_file)
-                self._platforms_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._platforms_parser_file)
+        return current_data_pre, current_data_post
 
-                self._jobs_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._jobs_parser_file)
-                self._exp_parser = AutosubmitConfig.get_parser(
-                    self.parser_factory, self._exp_parser_file)
-                if first_load:
-                    self._custom_parser = []
-                    if self._exp_parser.data is not None and len(self._exp_parser.data) > 0:
-                        self._exp_parser.data = self.deep_normalize(self._exp_parser.data)
-                    else:
-                        self._exp_parser.data = {}
-                    if self._conf_parser.data is not None and len(self._conf_parser.data) > 0:
-                        self._conf_parser.data = self.deep_normalize(self._conf_parser.data)
-                    else:
-                        self._conf_parser.data = {}
-                    if self._jobs_parser.data is not None and len(self._jobs_parser.data) > 0:
-                        self._jobs_parser.data = self.deep_normalize(self._jobs_parser.data)
-                    else:
-                        self._jobs_parser.data = {}
-                    if self._platforms_parser.data is not None and len(self._platforms_parser.data) > 0:
-                        self._platforms_parser.data = self.deep_normalize(self._platforms_parser.data)
-                    else:
-                        self._platforms_parser.data = {}
-                    default_section = self._exp_parser.data.get("DEFAULT",None)
-                    default_path = Path(self.basic_config.LOCAL_ROOT_DIR) / self.expid
-                    custom_folder_path = default_path / "conf" / "custom_conf"
-                    if not custom_folder_path.exists():
-                        try:
-                            os.mkdir(custom_folder_path)
-                            os.chmod(custom_folder_path, 0o770)
-                        except:
-                            pass
-                    if default_section is not None and len(str(default_section)) > 0:
-                        default_section["CUSTOM_CONFIG"] = default_section.get("CUSTOM_CONFIG",str(custom_folder_path))
-                        custom_config = re.sub('%(?<!%%)' + "ROOTDIR" + '%(?!%%)', str(default_path), default_section["CUSTOM_CONFIG"], flags=re.I)
-                    else:
-                        custom_config = str(default_path / "conf" / "custom_conf")
-                    self._custom_parser_files = []
-                    self._custom_parser_files_modtime = []
-                    # Parse folder. Should always exists as first item.
-                    if ',' in custom_config:
-                        custom_config = custom_config.split(',')
-                    elif ' ' in custom_config:
-                        custom_config = custom_config.split(' ')
-                    else:
-                        custom_config = [custom_config]
-                    custom_folder_path = [x for x in Path(custom_config[0]).rglob("*.yml") ] + [x for x in Path(custom_config[0]).rglob("*.yaml") ]
-                    if len(custom_config) > 1:
-                        custom_folder_path.extend([Path(x) for x in custom_config[1:] ])
-                    for f in custom_folder_path:
-                        if not (self._proj_parser_file.exists() and f.samefile(self._proj_parser_file)) \
-                                and not (self._jobs_parser_file.exists() and f.samefile(self._jobs_parser_file)) \
-                                and not (self._platforms_parser_file.exists() and f.samefile(self._platforms_parser_file)) \
-                                and not (self._exp_parser_file.exists() and f.samefile(self._exp_parser_file)) \
-                                and not (self._conf_parser_file.exists() and f.samefile(self._conf_parser_file)):
-                            self._custom_parser_files.append(f)
-                            self._custom_parser_files_modtime.append(None)
+    def load_custom_config_section(self,current_data,filenames_to_load):
+        """
+        Loads a section (PRE or POST ), simple str are also PRE data of the custom config files
+        :param current_data: data until now
+        :param filenames_to_load: files to load in this section
+        :return:
+        """
+        # This is a recursive call
+        current_data_pre,current_data_post = self.load_custom_config(current_data, filenames_to_load)
+        # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
+        return self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
 
-                for custom_file in self._custom_parser_files:
-                    self._custom_parser.append(AutosubmitConfig.get_parser(
-                    self.parser_factory, custom_file))
-            except IOError as e:
-                raise AutosubmitError("IO issues during the parsing of configuration files",6014,str(e))
-            except Exception as e:
-                raise AutosubmitCritical(
-                    "{0}\nCheck configuration indentation or look for repeated parameter\nCheck if you have any uncommented value that should be commented".format(str(e)), 7014)
-            try:
-                if not self._proj_parser_file:
-                    self._proj_parser = None
-                else:
-                    self._proj_parser = AutosubmitConfig.get_parser(
-                        self.parser_factory, self._proj_parser_file)
+    def reload(self,force_load=False):
+        """
+        Reloads the configuration files
+        :param force_load: If True, reloads all the files, if False, reloads only the modified files
+        """
+        # Check if the files have been modified or if they need a reload
+        load = False
+        files_to_reload = []
+        # Reload only the files that have been modified
+        for yaml_name,last_known_modtime in self.current_loaded_files.items():
+            if Path(yaml_name).stat().st_mtime > last_known_modtime:
+                files_to_reload.append(yaml_name)
+        #  TODO What we should really reload? right now is all files , hard to track the changes in files with custom_config of custom_config
+        #if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
+        #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
+        reload = False
+        # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
+        if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("ALLOW_RELOAD_FILES", True) ) or len(self.current_loaded_files) == 0 or force_load:
+            # Load all the files starting from the $expid/conf folder
+            starter_conf = {}
+            for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
+                starter_conf = self.substitute_dynamic_variables(
+                    self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
+            starter_conf = self.load_common_parameters(starter_conf)
+            starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
+            # Reset current loaded files as the first data doesnt count
+            # Is the tracker of the files that have been loaded. This is needed to avoid infinite loops
+            self.current_loaded_files = {}
+            # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
+            non_minimal_conf = {}
+            for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
+                non_minimal_conf = self.substitute_dynamic_variables(
+                    self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
+            non_minimal_conf = self.load_common_parameters(non_minimal_conf)
+            non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
+            self.current_loaded_files = {}
+            # Start loading the custom config files
+            # Gets the files to load
+            filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
+            # Loads all configuration associated with the project data "pre"
+            custom_conf_pre = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR"]},filenames_to_load["PRE"])
+            # Loads all configuration associated with the user data "post"
+            custom_conf_post = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR"]},filenames_to_load["POST"])
+            # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
+            self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
+            # UNIFY ALL data with the user data
+            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
+            user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
+            self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
+            # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
+            if self.experiment_data.get("DEFAULT",{}).get("EXPID",None) is None:
+                self.experiment_data["DEFAULT"]["EXPID"] = starter_conf.get("DEFAULT",{}).get("EXPID","")
+            if self.experiment_data.get("DEFAULT",{}).get("HPCARCH",None) is None:
+                self.experiment_data["DEFAULT"]["HPCARCH"] = starter_conf.get("DEFAULT",{}).get("HPCARCH","local")
 
-            except IOError as e:
-                raise AutosubmitError("IO issues during the parsing of configuration files",6014,str(e))
-            self.unify_conf()
+
     def deep_get_long_key(self,section_data,long_key):
         parameters_dict = dict()
         for key, val in section_data.items():
@@ -1394,7 +1325,10 @@ class AutosubmitConfig(object):
         """
         parameters_dict =  dict()
         for key in data.keys():
-            parameters_dict.update(self.deep_get_long_key(data.get(key, {}),key))
+            if isinstance(data.get(key, {}), collections.abc.Mapping ):
+                parameters_dict.update(self.deep_get_long_key(data.get(key, {}),key))
+            else:
+                parameters_dict[key] = data.get(key, {})
         return parameters_dict
 
     def load_parameters(self):
@@ -1841,14 +1775,15 @@ class AutosubmitConfig(object):
         :param autosubmit_version: autosubmit's version
         :type autosubmit_version: str
         """
+        version_file = os.path.join(self.conf_folder_yaml,"version.yml")
         try:
-            content = open(self._conf_parser_file, 'r').read()
+            content = open(version_file, 'r').read()
             if re.search('AUTOSUBMIT_VERSION:.*', content):
                 content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),"AUTOSUBMIT_VERSION: {0}".format(autosubmit_version) )
         except:
             content = "CONFIG:\n  AUTOSUBMIT_VERSION: " + autosubmit_version + "\n"
-        open(self._conf_parser_file, 'w').write(content)
-        os.chmod(self._conf_parser_file, 0o755)
+        open(version_file,'w').write(content)
+        os.chmod(version_file, 0o755)
 
     def get_version(self):
         """

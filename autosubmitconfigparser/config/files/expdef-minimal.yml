@@ -1,11 +1,16 @@
 CONFIG:
   AUTOSUBMIT_VERSION: 4.0.0b
+  USE_EXPERIMENT_JOBS: False # default TRUE unless custom_conf is defined
+  USE_EXPERIMENT_PLATFORMS: False # default TRUE unless custom_conf is defined
+  USE_EXPERIMENT_AUTOSUBMIT_CONF: False # default TRUE unless custom_conf is defined
+  USE_EXPERIMENT_PROJECT_CONF: False # default TRUE unless custom_conf is defined
 DEFAULT:
     EXPID: ""
     HPCARCH: ""
     #ADD, note that %ROOTDIR% is an special AS_PLACEHOLDER that points to the expid folder.
     #Syntax: <model-specific_configuration_folder_path>,<user-file>,<user-file2_path>
     CUSTOM_CONFIG: ""
+
 PROJECT:
     #CHANGE
     PROJECT_TYPE: "git"
