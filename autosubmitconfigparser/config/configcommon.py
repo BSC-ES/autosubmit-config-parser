@@ -67,6 +67,7 @@ class AutosubmitConfig(object):
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
+        self.starter_conf = dict()
 
     @property
     def jobs_data(self):
@@ -821,7 +822,7 @@ class AutosubmitConfig(object):
         self.check_jobs_conf(no_log=no_log)
         self.check_autosubmit_conf(refresh,no_log=no_log)
 
-    def check_conf_files(self, running_time=False,force_load=True,refresh=False,no_log=False):
+    def check_conf_files(self, running_time=False,force_load=True,refresh=False,no_log=False,only_experiment_data=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
@@ -833,7 +834,8 @@ class AutosubmitConfig(object):
         :type refresh: bool
         :param no_log: True if the function is called during describe
         :type no_log: bool
-
+        :param only_experiment_data: True in create experiment when no proj data is loaded
+        :type only_experiment_data: bool
         :return: True if everything is correct, False if it finds any error
         :rtype: bool
         """
@@ -843,7 +845,7 @@ class AutosubmitConfig(object):
         self.ignore_undefined_platforms = running_time
 
         try:
-            self.reload(force_load)
+            self.reload(force_load,only_experiment_data=only_experiment_data)
         except IOError as e:
             raise AutosubmitError(
                 "I/O Issues con config files", 6016, str(e))
@@ -1253,7 +1255,7 @@ class AutosubmitConfig(object):
         # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
         return self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
 
-    def reload(self,force_load=False):
+    def reload(self,force_load=False,only_experiment_data = False):
         """
         Reloads the configuration files
         :param force_load: If True, reloads all the files, if False, reloads only the modified files
@@ -1273,16 +1275,18 @@ class AutosubmitConfig(object):
         if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("ALLOW_RELOAD_FILES", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
-            starter_loaded_files = {}
+            self.current_loaded_files = {} # reset loaded files
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
-                starter_loaded_files[str(filename)] = Path(filename).stat().st_mtime
                 starter_conf = self.substitute_dynamic_variables(
                     self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
             starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
+
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
+            non_minimal_files = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
+                non_minimal_files[str(filename)] = Path(filename).stat().st_mtime
                 non_minimal_conf = self.substitute_dynamic_variables(
                     self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
@@ -1295,18 +1299,21 @@ class AutosubmitConfig(object):
             # Loads all configuration associated with the user data "post"
             custom_conf_post = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR"]},filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
-            self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
+            if not only_experiment_data:
+                self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
+            else:
+                self.experiment_data = starter_conf
             # UNIFY ALL data with the user data
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
             self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
-            self.current_loaded_files.update(starter_loaded_files)
+            self.current_loaded_files.update(non_minimal_files)
 
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
-            if self.experiment_data.get("DEFAULT",{}).get("EXPID",None) is None:
-                self.experiment_data["DEFAULT"]["EXPID"] = starter_conf.get("DEFAULT",{}).get("EXPID","")
-            if self.experiment_data.get("DEFAULT",{}).get("HPCARCH",None) is None:
-                self.experiment_data["DEFAULT"]["HPCARCH"] = starter_conf.get("DEFAULT",{}).get("HPCARCH","local")
+            for key in starter_conf.keys():
+                if key not in self.experiment_data.keys():
+                    self.experiment_data[key] = starter_conf[key]
+
 
 
     def deep_get_long_key(self,section_data,long_key):
@@ -1517,21 +1524,19 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         try:
-            value = self.get_section(['PROJECT', 'PROJECT_DESTINATION'])
+            value = self.experiment_data.get("PROJECT",{}).get("PROJECT_DESTINATION","project_files")
             if not value:
-                if self.get_project_type().lower() == "local":
-                    value = os.path.split(self.get_local_project_path())[1]
-                elif self.get_project_type().lower() == "svn":
-                    value = self.get_svn_project_url().split('/')[-1]
-                elif self.get_project_type().lower() == "git":
+                if self.experiment_data.get("PROJECT",{}).get("PROJECT_TYPE","").lower() == "local":
+                    value = os.path.split(self.experiment_data.get("LOCAL",{}).get("PROJECT_PATH",""))[-1]
+                elif self.experiment_data.get("PROJECT",{}).get("PROJECT_TYPE","").lower() == "svn":
+                    value = self.experiment_data.get("SVN",{}).get("PROJECT_URL","").split('/')[-1]
+                elif self.experiment_data.get("PROJECT",{}).get("PROJECT_TYPE","").lower() == "git":
                     value = self.experiment_data.get("GIT",{}).get("PROJECT_ORIGIN","").split('/')[-1]
                     if "." in value:
                         value=value.split('.')[-2]
 
-            if value != "":
-                return value
-            else:
-                return "project_files"
+            return value
+
         except Exception as exp:
             Log.debug(str(exp))
             Log.debug(traceback.format_exc())
