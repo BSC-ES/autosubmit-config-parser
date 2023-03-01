@@ -1288,7 +1288,7 @@ class AutosubmitConfig(object):
                     self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
             non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
-            minimal_loaded_files = self.current_loaded_files
+            starter_loaded_files = self.current_loaded_files
             self.current_loaded_files = {}
             # Start loading the custom config files
             # Gets the files to load
@@ -1308,7 +1308,7 @@ class AutosubmitConfig(object):
                 self.experiment_data["DEFAULT"]["EXPID"] = starter_conf.get("DEFAULT",{}).get("EXPID","")
             if self.experiment_data.get("DEFAULT",{}).get("HPCARCH",None) is None:
                 self.experiment_data["DEFAULT"]["HPCARCH"] = starter_conf.get("DEFAULT",{}).get("HPCARCH","local")
-            self.current_loaded_files.update(minimal_loaded_files)
+            self.current_loaded_files.update(starter_loaded_files)
 
 
     def deep_get_long_key(self,section_data,long_key):
