@@ -1273,15 +1273,13 @@ class AutosubmitConfig(object):
         if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("ALLOW_RELOAD_FILES", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
+            starter_loaded_files = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
+                starter_loaded_files[str(filename)] = Path(filename).stat().st_mtime
                 starter_conf = self.substitute_dynamic_variables(
                     self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
             starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
-            # Reset current loaded files as the first data doesnt count
-            # Is the tracker of the files that have been loaded. This is needed to avoid infinite loops
-            starter_loaded_files = self.current_loaded_files
-            self.current_loaded_files = {}
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
@@ -1289,7 +1287,6 @@ class AutosubmitConfig(object):
                     self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
             non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
-            self.current_loaded_files = {}
             # Start loading the custom config files
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
@@ -1303,12 +1300,13 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
             self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
+            self.current_loaded_files.update(starter_loaded_files)
+
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             if self.experiment_data.get("DEFAULT",{}).get("EXPID",None) is None:
                 self.experiment_data["DEFAULT"]["EXPID"] = starter_conf.get("DEFAULT",{}).get("EXPID","")
             if self.experiment_data.get("DEFAULT",{}).get("HPCARCH",None) is None:
                 self.experiment_data["DEFAULT"]["HPCARCH"] = starter_conf.get("DEFAULT",{}).get("HPCARCH","local")
-            self.current_loaded_files.update(starter_loaded_files)
 
 
     def deep_get_long_key(self,section_data,long_key):
