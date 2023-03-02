@@ -556,6 +556,8 @@ class AutosubmitConfig(object):
         #check if path is file o folder
         # load yaml file with ruamel.yaml
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
+        if type(new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", "")) is list:
+            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = ",".join(new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
         return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
     def get_yaml_filenames_to_load(self,yaml_folder,ignore_minimal=False):
@@ -728,6 +730,8 @@ class AutosubmitConfig(object):
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
         backup_variables = self.dynamic_variables
+        pattern = '%[a-zA-Z0-9_.]*%'
+        keys = ""
         while len(self.dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in self.dynamic_variables:
@@ -738,7 +742,6 @@ class AutosubmitConfig(object):
                 else:
                     keys = dynamic_var[1]
                     # get substring of key between %%
-                    pattern = '%[a-zA-Z0-9_.]*%'
                     match = (re.search(pattern, keys))
                     if match is not None:
                         rest_of_keys = keys[match.end():]
@@ -748,11 +751,13 @@ class AutosubmitConfig(object):
                             keys = keys[1:-1].split(".")
                         else:
                             keys = [keys[1:-1]]
-                    aux_dict = parameters
-                    for k in keys:
-                        aux_dict = aux_dict.get(k,{})
-                    if len(aux_dict) > 0:
-                        value = str(aux_dict)+str(rest_of_keys)
+                        aux_dict = parameters
+                        for k in keys:
+                            aux_dict = aux_dict.get(k,{})
+                        if len(aux_dict) > 0:
+                            value = str(aux_dict)+str(rest_of_keys)
+                        else:
+                            value = None
                     else:
                         value = None
                 if value is not None:
@@ -765,12 +770,17 @@ class AutosubmitConfig(object):
                             substituted = False
                     else:
                         # See input and output below todo
-                        substituted = False
                         parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+
+                        substituted = False
                 else:
+                    # This may be True instead of False
                     substituted = False
                 if not substituted:
-                    dynamic_variables.append(dynamic_var)
+                    if value is not None:
+                        dynamic_variables.append((dynamic_var[0],value))
+                    else:
+                        dynamic_variables.append(dynamic_var)
             self.dynamic_variables = dynamic_variables
             max_deep = max_deep - 1
         self.dynamic_variables = backup_variables
@@ -1276,11 +1286,13 @@ class AutosubmitConfig(object):
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
+            starter_conf = self.load_common_parameters(starter_conf)
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
                 starter_conf = self.substitute_dynamic_variables(
                     self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
-            starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
+            if type(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG","")) is list:
+                starter_conf["DEFAULT"]["CUSTOM_CONFIG"] = ",".join(starter_conf["DEFAULT"]["CUSTOM_CONFIG"])
 
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
