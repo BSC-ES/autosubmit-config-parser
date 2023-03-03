@@ -1,3 +1,4 @@
+
 CONFIG:
   AUTOSUBMIT_VERSION: 4.0.0b
   TOTALJOBS: 20
@@ -5,8 +6,6 @@ CONFIG:
 DEFAULT:
   EXPID: ""
   HPCARCH: ""
-  #ADD, note that %ROOTDIR% is an special AS_PLACEHOLDER that points to the expid folder.
-  #Syntax: <model-specific_configuration_folder_path>,<user-file>,<user-file2_path>
   #hint: use %PROJDIR% to point to the project folder (where the project is cloned)
   CUSTOM_CONFIG: ""
 project:
@@ -14,3 +13,5 @@ project:
   PROJECT_DESTINATION: "local_project"
 local:
   PROJECT_PATH: 'TO_FILL'
+
+

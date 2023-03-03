@@ -544,6 +544,16 @@ class AutosubmitConfig(object):
                 e = e.replace(old, new)
             x.append(e)
         return x
+    def convert_list_to_string(self, data):
+        """
+        Convert a list to a string
+        """
+        for key, val in data.items():
+            if isinstance(val, list):
+                data[key] = ",".join(val)
+            elif isinstance(val, dict):
+                self.convert_list_to_string(data[key])
+        return data
 
     def load_config_file(self, current_folder_data,yaml_file):
         """
@@ -556,8 +566,8 @@ class AutosubmitConfig(object):
         #check if path is file o folder
         # load yaml file with ruamel.yaml
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        if type(new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", "")) is list:
-            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = ",".join(new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
+        if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
+            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
         return self.unify_conf(current_folder_data,self.deep_normalize(new_file.data))
 
     def get_yaml_filenames_to_load(self,yaml_folder,ignore_minimal=False):
@@ -603,12 +613,12 @@ class AutosubmitConfig(object):
                         filenames_to_load["PRE"] = custom_conf_directive.split(' ')
             else:
                 if custom_conf_directive.get('PRE', "") != "":
-                    if ',' in custom_conf_directive:
+                    if ',' in custom_conf_directive["PRE"]:
                         filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(',')
                     else:
                         filenames_to_load["PRE"] = custom_conf_directive["PRE"].split(' ')
                 if custom_conf_directive.get('POST', "") != "":
-                    if ',' in custom_conf_directive:
+                    if ',' in custom_conf_directive["POST"]:
                         filenames_to_load["POST"] = custom_conf_directive["POST"].split(',')
                     else:
                         filenames_to_load["POST"] = custom_conf_directive["POST"].split(' ')
@@ -717,7 +727,19 @@ class AutosubmitConfig(object):
         else:
             dict_keys_type = "short"
         return dict_keys_type
-    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None):
+    def clean_dynamic_variables(self,pattern):
+        '''
+        Cleans dynamic variables
+        :return:
+        '''
+        dynamic_variables = []
+        for dynamic_var in self.dynamic_variables:
+            # if not placeholder in dynamic_var[1], then it is not a dynamic variable
+            match = (re.search(pattern, dynamic_var[1]))
+            if match is not None:
+                dynamic_variables.append(dynamic_var)
+        self.dynamic_variables = dynamic_variables
+    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None,not_in_data=""):
         """
         Substitute dynamic variables in the experiment data
         :parameter
@@ -729,13 +751,16 @@ class AutosubmitConfig(object):
         # Check if the parameters key provided are long(%DEFAULT.EXPID%) or short(DEFAULT[EXPID]) if it is not specified.
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
-        backup_variables = self.dynamic_variables
         pattern = '%[a-zA-Z0-9_.]*%'
         keys = ""
+        backup_variables = self.dynamic_variables
+        max_deep = max_deep + len(self.dynamic_variables)
+
         while len(self.dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in self.dynamic_variables:
-                rest_of_keys = ""
+                rest_of_keys_start = ""
+                rest_of_keys_end = ""
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     value = parameters.get(str(dynamic_var[1][1:-1]),None)
@@ -744,7 +769,8 @@ class AutosubmitConfig(object):
                     # get substring of key between %%
                     match = (re.search(pattern, keys))
                     if match is not None:
-                        rest_of_keys = keys[match.end():]
+                        rest_of_keys_start = keys[:match.start()]
+                        rest_of_keys_end = keys[match.end():]
                         keys = keys[match.start():match.end()]
 
                         if "." in keys:
@@ -755,7 +781,8 @@ class AutosubmitConfig(object):
                         for k in keys:
                             aux_dict = aux_dict.get(k,{})
                         if len(aux_dict) > 0:
-                            value = str(aux_dict)+str(rest_of_keys)
+                            full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
+                            value = full_value
                         else:
                             value = None
                     else:
@@ -784,6 +811,7 @@ class AutosubmitConfig(object):
             self.dynamic_variables = dynamic_variables
             max_deep = max_deep - 1
         self.dynamic_variables = backup_variables
+        self.clean_dynamic_variables(pattern)
         return parameters
     def substitute_placeholder_variables(self,key,val,parameters):
         substituted = False
@@ -853,7 +881,8 @@ class AutosubmitConfig(object):
             Log.info('\nChecking configuration files...')
         self.ignore_file_path = running_time
         self.ignore_undefined_platforms = running_time
-
+        self.wrong_config = defaultdict(list)
+        self.warn_config = defaultdict(list)
         try:
             self.reload(force_load,only_experiment_data=only_experiment_data)
         except IOError as e:
@@ -1234,13 +1263,19 @@ class AutosubmitConfig(object):
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
             filename = filename.strip(", ")  # Remove commas and spaces if any
-            filename = Path(filename)  # Convert to Path obj
+            current_data["AS_TEMP"] = {}
+            current_data["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
+            self.dynamic_variables.append(("AS_TEMP.FILENAME_TO_LOAD", filename))
+            current_data = self.substitute_dynamic_variables(current_data)
+            filename = Path(current_data["AS_TEMP"]["FILENAME_TO_LOAD"])
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
                 # Load a folder or a file
                 if not filename.is_file():
                     # Load a folder by calling recursively to this function as a list of files
+                    if "AS_TEMP" in current_data:
+                        del current_data["AS_TEMP"]
                     current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
                 else:
                     # Load a file and unify the current_data with the loaded data
@@ -1248,9 +1283,10 @@ class AutosubmitConfig(object):
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
-                    current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
-                    current_data_post = self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"]))
-
+                    if "AS_TEMP" in current_data:
+                        del current_data["AS_TEMP"]
+                    current_data_pre = self.unify_conf(current_data_pre,self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data))
+                    current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"])))
         return current_data_pre, current_data_post
 
     def load_custom_config_section(self,current_data,filenames_to_load):
@@ -1286,21 +1322,17 @@ class AutosubmitConfig(object):
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
-            starter_conf = self.load_common_parameters(starter_conf)
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
-                starter_conf = self.substitute_dynamic_variables(
-                    self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename))))
-            starter_conf = self.substitute_dynamic_variables(starter_conf, max_deep=25)
-            if type(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG","")) is list:
-                starter_conf["DEFAULT"]["CUSTOM_CONFIG"] = ",".join(starter_conf["DEFAULT"]["CUSTOM_CONFIG"])
+                starter_conf = self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename)))
+            starter_conf = self.load_common_parameters(starter_conf)
+            starter_conf = self.substitute_dynamic_variables(starter_conf)
 
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
             non_minimal_files = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml,ignore_minimal=True):
                 non_minimal_files[str(filename)] = Path(filename).stat().st_mtime
-                non_minimal_conf = self.substitute_dynamic_variables(
-                    self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename))))
+                non_minimal_conf = self.unify_conf(non_minimal_conf, self.load_config_file(non_minimal_conf, Path(filename)))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
             non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
             # Start loading the custom config files
@@ -1325,6 +1357,8 @@ class AutosubmitConfig(object):
             for key in starter_conf.keys():
                 if key not in self.experiment_data.keys():
                     self.experiment_data[key] = starter_conf[key]
+            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
+
 
 
 
