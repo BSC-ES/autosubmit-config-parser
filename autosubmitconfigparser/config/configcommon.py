@@ -763,30 +763,32 @@ class AutosubmitConfig(object):
                 rest_of_keys_end = ""
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
-                    value = parameters.get(str(dynamic_var[1][1:-1]),None)
+                    keys = parameters.get(str(dynamic_var[0][1:-1]),None)
+                    if keys is None:
+                        keys = parameters.get(str(dynamic_var[0]), None)
                 else:
                     keys = dynamic_var[1]
                     # get substring of key between %%
-                    match = (re.search(pattern, keys))
-                    if match is not None:
-                        rest_of_keys_start = keys[:match.start()]
-                        rest_of_keys_end = keys[match.end():]
-                        keys = keys[match.start():match.end()]
+                match = (re.search(pattern, keys))
+                if match is not None:
+                    rest_of_keys_start = keys[:match.start()]
+                    rest_of_keys_end = keys[match.end():]
+                    keys = keys[match.start():match.end()]
 
-                        if "." in keys:
-                            keys = keys[1:-1].split(".")
-                        else:
-                            keys = [keys[1:-1]]
-                        aux_dict = parameters
-                        for k in keys:
-                            aux_dict = aux_dict.get(k,{})
-                        if len(aux_dict) > 0:
-                            full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
-                            value = full_value
-                        else:
-                            value = None
+                    if "." in keys:
+                        keys = keys[1:-1].split(".")
+                    else:
+                        keys = [keys[1:-1]]
+                    aux_dict = parameters
+                    for k in keys:
+                        aux_dict = aux_dict.get(k,{})
+                    if len(aux_dict) > 0:
+                        full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
+                        value = full_value
                     else:
                         value = None
+                else:
+                    value = None
                 if value is not None:
                     if dict_keys_type == "long":
                         dict_key = parameters.get(str(dynamic_var[0]), {})
