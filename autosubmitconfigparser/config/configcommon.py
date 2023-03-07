@@ -1347,10 +1347,11 @@ class AutosubmitConfig(object):
                 self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
             else:
                 self.experiment_data = starter_conf
-            # UNIFY ALL data with the user data
+            # This part is useless, as it is already done
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
             self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
+            ###
             self.current_loaded_files.update(non_minimal_files)
 
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
