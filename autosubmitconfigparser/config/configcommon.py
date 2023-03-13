@@ -548,11 +548,12 @@ class AutosubmitConfig(object):
         """
         Convert a list to a string
         """
-        for key, val in data.items():
-            if isinstance(val, list):
-                data[key] = ",".join(val)
-            elif isinstance(val, dict):
-                self.convert_list_to_string(data[key])
+        if type(data) is dict:
+            for key, val in data.items():
+                if isinstance(val, list):
+                    data[key] = ",".join(val)
+                elif isinstance(val, dict):
+                    self.convert_list_to_string(data[key])
         return data
 
     def load_config_file(self, current_folder_data,yaml_file):
