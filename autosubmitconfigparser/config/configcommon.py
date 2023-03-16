@@ -770,7 +770,10 @@ class AutosubmitConfig(object):
                 else:
                     keys = dynamic_var[1]
                     # get substring of key between %%
-                match = (re.search(pattern, keys))
+                if keys is not None:
+                    match = (re.search(pattern, keys))
+                else:
+                    match = None
                 if match is not None:
                     rest_of_keys_start = keys[:match.start()]
                     rest_of_keys_end = keys[match.end():]
