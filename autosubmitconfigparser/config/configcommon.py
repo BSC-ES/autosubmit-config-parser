@@ -1269,11 +1269,14 @@ class AutosubmitConfig(object):
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
             filename = filename.strip(", ")  # Remove commas and spaces if any
+            if filename.startswith("~"):
+                filename = os.path.expanduser(filename)
             current_data["AS_TEMP"] = {}
             current_data["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
             self.dynamic_variables.append(("AS_TEMP.FILENAME_TO_LOAD", filename))
             current_data = self.substitute_dynamic_variables(current_data)
             filename = Path(current_data["AS_TEMP"]["FILENAME_TO_LOAD"])
+
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
@@ -1283,6 +1286,8 @@ class AutosubmitConfig(object):
                     if "AS_TEMP" in current_data:
                         del current_data["AS_TEMP"]
                     current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
+                    current_data = self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data))
+                    current_data = self.substitute_dynamic_variables(self.unify_conf(current_data,current_data_post))
                 else:
                     # Load a file and unify the current_data with the loaded data
                     current_data = self.substitute_dynamic_variables(self.unify_conf(self.substitute_dynamic_variables(current_data), self.load_config_file(current_data,filename)))
@@ -1364,6 +1369,8 @@ class AutosubmitConfig(object):
             for key in starter_conf.keys():
                 if key not in self.experiment_data.keys():
                     self.experiment_data[key] = starter_conf[key]
+            if "AS_TEMP" in self.experiment_data.keys():
+                del self.experiment_data["AS_TEMP"]
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
 
 
