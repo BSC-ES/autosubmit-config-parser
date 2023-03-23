@@ -485,7 +485,9 @@ class AutosubmitConfig(object):
                 tmp = self.deep_update(unified_config.get(key, {}), val)
                 unified_config[key] = tmp
             elif isinstance(val, list):
-                unified_config[key] = (unified_config.get(key, []) + val)
+                current_list = set(unified_config.get(key, []))
+                if current_list != set(val):
+                    unified_config[key] = val
             else:
                 unified_config[key] = new_dict[key]
         return unified_config
@@ -1318,7 +1320,6 @@ class AutosubmitConfig(object):
         :param force_load: If True, reloads all the files, if False, reloads only the modified files
         """
         # Check if the files have been modified or if they need a reload
-        load = False
         files_to_reload = []
         # Reload only the files that have been modified
         for yaml_name,last_known_modtime in self.current_loaded_files.items():
@@ -1327,7 +1328,6 @@ class AutosubmitConfig(object):
         #  TODO What we should really reload? right now is all files , hard to track the changes in files with custom_config of custom_config
         #if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
         #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
-        reload = False
         # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
         if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("ALLOW_RELOAD_FILES", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
@@ -1372,9 +1372,6 @@ class AutosubmitConfig(object):
             if "AS_TEMP" in self.experiment_data.keys():
                 del self.experiment_data["AS_TEMP"]
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
-
-
-
 
     def deep_get_long_key(self,section_data,long_key):
         parameters_dict = dict()
