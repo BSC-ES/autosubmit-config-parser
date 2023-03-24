@@ -738,7 +738,7 @@ class AutosubmitConfig(object):
         dynamic_variables = []
         for dynamic_var in self.dynamic_variables:
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            match = (re.search(pattern, dynamic_var[1]))
+            match = (re.search(pattern, dynamic_var[1],flags=re.IGNORECASE))
             if match is not None:
                 dynamic_variables.append(dynamic_var)
         self.dynamic_variables = dynamic_variables
@@ -773,7 +773,7 @@ class AutosubmitConfig(object):
                     keys = dynamic_var[1]
                     # get substring of key between %%
                 if keys is not None:
-                    match = (re.search(pattern, keys))
+                    match = (re.search(pattern, keys,flags=re.IGNORECASE))
                 else:
                     match = None
                 if match is not None:
@@ -787,7 +787,7 @@ class AutosubmitConfig(object):
                         keys = [keys[1:-1]]
                     aux_dict = parameters
                     for k in keys:
-                        aux_dict = aux_dict.get(k,{})
+                        aux_dict = aux_dict.get(k.upper(),{})
                     if len(aux_dict) > 0:
                         full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
                         value = full_value
@@ -1381,6 +1381,19 @@ class AutosubmitConfig(object):
             else:
                 parameters_dict[long_key+"."+key] = val
         return parameters_dict
+    def normalize_parameters_keys(self,parameters,default_parameters= {}):
+        """
+        Normalize the parameters keys to be exportable in the templates case-insensitive.
+        :param parameters: dictionary containing the parameters
+        :param default_parameters: dictionary containing the default parameters, they must remain in lower-case
+        :return: upper-case parameters
+        """
+        upper_case_parameters = dict()
+        for key in parameters.keys():
+            #if key is not instance of default_parameters
+            if key not in default_parameters.keys():
+                upper_case_parameters[key.upper()] = parameters[key]
+        return upper_case_parameters
     def deep_parameters_export(self,data):
         """
         Export all variables of this experiment.
@@ -1393,6 +1406,7 @@ class AutosubmitConfig(object):
                 parameters_dict.update(self.deep_get_long_key(data.get(key, {}),key))
             else:
                 parameters_dict[key] = data.get(key, {})
+        parameters_dict = self.normalize_parameters_keys(parameters_dict)
         return parameters_dict
 
     def load_parameters(self):
@@ -1990,7 +2004,7 @@ class AutosubmitConfig(object):
         content = open(input_file,'r',encoding=locale.getlocale()[1]).read()
         regex = r"\=( )*\[[\[\]\'_0-9.\"#A-Za-z \-,]*\]"
 
-        matches = re.finditer(regex, content)
+        matches = re.finditer(regex, content,flags=re.IGNORECASE)
 
         for matchNum, match in enumerate(matches, start=1):
             print(match.group())
@@ -2270,7 +2284,7 @@ class AutosubmitConfig(object):
 
     @staticmethod
     def is_valid_mail_address(mail_address):
-        if re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail_address):
+        if re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail_address,flags=re.IGNORECASE):
             return True
         else:
             return False
@@ -2321,7 +2335,7 @@ class AutosubmitConfig(object):
             if ext == ".tmpl":
                 with open(githook_file, 'r') as f:
                     content = f.read()
-                matches = re.findall('%(?<!%%)\w+%(?!%%)', content)
+                matches = re.findall('%(?<!%%)\w+%(?!%%)', content,flags=re.IGNORECASE)
                 for match in matches:
                     # replace all '%(?<!%%)\w+%(?!%%)' with parameters value
                     content = content.replace(match, parameters.get(match[1:-1], ""))
