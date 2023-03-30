@@ -1331,7 +1331,7 @@ class AutosubmitConfig(object):
         # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
         if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
-            Log.result("Reloading configuration files, due a change in the following files: {}".format(files_to_reload))
+            Log.result(f"Reloading configuration files, due a change in the following files: {files_to_reload}")
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
