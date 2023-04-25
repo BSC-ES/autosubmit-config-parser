@@ -862,13 +862,13 @@ class AutosubmitConfig(object):
 
 
 
-    def check_mandatory_parameters(self,refresh=False,no_log=False):
-        self.check_expdef_conf(refresh,no_log=no_log)
-        self.check_platforms_conf(no_log=no_log)
-        self.check_jobs_conf(no_log=no_log)
-        self.check_autosubmit_conf(refresh,no_log=no_log)
+    def check_mandatory_parameters(self,only_experiment_data=False,no_log=False):
+        self.check_expdef_conf(no_log)
+        self.check_platforms_conf(no_log)
+        self.check_jobs_conf(no_log)
+        self.check_autosubmit_conf(no_log)
 
-    def check_conf_files(self, running_time=False,force_load=True,refresh=False,no_log=False,only_experiment_data=False):
+    def check_conf_files(self, running_time=False,force_load=True,no_log=False,only_experiment_data=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
@@ -901,7 +901,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_parameters(refresh,no_log=no_log)
+        self.check_mandatory_parameters(only_experiment_data,no_log=no_log)
         # End of checkers.
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
@@ -919,7 +919,7 @@ class AutosubmitConfig(object):
             raise AutosubmitCritical(
                 "There was an error while showing the config log messages", 7014, str(e))
 
-    def check_autosubmit_conf(self,refresh=False,no_log=False):
+    def check_autosubmit_conf(self,no_log=False):
         """
         Checks experiment's autosubmit configuration file.
         :param refresh: True if the function is called during the refresh of the program
@@ -936,27 +936,25 @@ class AutosubmitConfig(object):
             if parser_data["CONFIG"].get('AUTOSUBMIT_VERSION',-1.1) == -1.1:
                 self.wrong_config["Autosubmit"] += [['config',
                                                      "AUTOSUBMIT_VERSION parameter not found"]]
-            if not refresh:
 
-                if parser_data["CONFIG"].get('MAXWAITINGJOBS',-1) == -1:
-                    self.wrong_config["Autosubmit"] += [['config',
-                                                         "MAXWAITINGJOBS parameter not found or non-integer"]]
-                if parser_data["CONFIG"].get('TOTALJOBS',-1) == -1:
-                    self.wrong_config["Autosubmit"] += [['config',
-                                                         "TOTALJOBS parameter not found or non-integer"]]
-                #if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
-                #    self.set_safetysleeptime(10)
-                #else:
-                #    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
-                if type(parser_data["CONFIG"].get('RETRIALS',0)) != int:
-                    parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS',0))
+            if parser_data["CONFIG"].get('MAXWAITINGJOBS',-1) == -1:
+                self.wrong_config["Autosubmit"] += [['config',
+                                                     "MAXWAITINGJOBS parameter not found or non-integer"]]
+            if parser_data["CONFIG"].get('TOTALJOBS',-1) == -1:
+                self.wrong_config["Autosubmit"] += [['config',
+                                                     "TOTALJOBS parameter not found or non-integer"]]
+            #if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
+            #    self.set_safetysleeptime(10)
+            #else:
+            #    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
+            if type(parser_data["CONFIG"].get('RETRIALS',0)) != int:
+                parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS',0))
 
         if parser_data.get("STORAGE",None) is None:
             parser_data["STORAGE"] = {}
         if parser_data["STORAGE"].get('TYPE',"pkl") not in ['pkl', 'db']:
             self.wrong_config["Autosubmit"] += [['storage',
                                                  "TYPE parameter not found"]]
-
         wrappers_info = parser_data.get("WRAPPERS",{})
         if wrappers_info:
             self.check_wrapper_conf(wrappers_info)
@@ -1100,7 +1098,7 @@ class AutosubmitConfig(object):
             return True
         return False
 
-    def check_expdef_conf(self,refresh=False,no_log=False):
+    def check_expdef_conf(self,no_log=False):
         """
         Checks experiment's experiment configuration file.
         :param refresh: if True, it doesn't check the mandatory parameters
@@ -1115,33 +1113,31 @@ class AutosubmitConfig(object):
         if parser.get('DEFAULT',"") == "":
             self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT section doesn't exists"]]
         else:
-            if not parser['DEFAULT'].get('EXPID',""):
+            if not parser.get('DEFAULT').get('EXPID',""):
                 self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.EXPID parameter is invalid"]]
 
             self.hpcarch = parser['DEFAULT'].get('HPCARCH',"").upper()
             if not self.hpcarch:
                 self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory DEFAULT.HPCARCH parameter is invalid"]]
-        if not refresh:
-
-            if parser.get('EXPERIMENT',"") == "":
-                self.wrong_config["Expdef"] += [['EXPERIMENT',"Mandatory EXPERIMENT section doesn't exists"]]
-            else:
-                if not parser['EXPERIMENT'].get('DATELIST',""):
-                    self.wrong_config["Expdef"] += [['DEFAULT', "Mandatory EXPERIMENT.DATELIST parameter is invalid"]]
-                if not parser['EXPERIMENT'].get('MEMBERS',""):
-                    self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory EXPERIMENT.MEMBERS parameter is invalid"]]
-                if parser['EXPERIMENT'].get('CHUNKSIZEUNIT',"").lower() not in ['year', 'month', 'day', 'hour']:
-                    self.wrong_config["Expdef"] += [['experiment',"Mandatory EXPERIMENT.CHUNKSIZEUNIT choice is invalid"]]
-                if type(parser['EXPERIMENT'].get('CHUNKSIZE',"-1")) not in [int]:
-                    if parser['EXPERIMENT']['CHUNKSIZE'] == "-1":
-                        self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CHUNKSIZE is not defined"]]
-                    parser['EXPERIMENT']['CHUNKSIZE'] = int(parser['EXPERIMENT']['CHUNKSIZE'])
-                if type(parser['EXPERIMENT'].get('NUMCHUNKS',"-1")) not in [int]:
-                    if parser['EXPERIMENT']['NUMCHUNKS'] == "-1":
-                        self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.NUMCHUNKS is not defined"]]
-                    parser['EXPERIMENT']['NUMCHUNKS'] = int(parser['EXPERIMENT']['NUMCHUNKS'])
-                if parser['EXPERIMENT'].get('CALENDAR',"").lower() not in ['standard','noleap']:
-                    self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CALENDAR choice is invalid"]]
+        if parser.get('EXPERIMENT',"") == "":
+            self.wrong_config["Expdef"] += [['EXPERIMENT',"Mandatory EXPERIMENT section doesn't exists"]]
+        else:
+            if not parser['EXPERIMENT'].get('DATELIST',""):
+                self.wrong_config["Expdef"] += [['DEFAULT', "Mandatory EXPERIMENT.DATELIST parameter is invalid"]]
+            if not parser['EXPERIMENT'].get('MEMBERS',""):
+                self.wrong_config["Expdef"] += [['DEFAULT',"Mandatory EXPERIMENT.MEMBERS parameter is invalid"]]
+            if parser['EXPERIMENT'].get('CHUNKSIZEUNIT',"").lower() not in ['year', 'month', 'day', 'hour']:
+                self.wrong_config["Expdef"] += [['experiment',"Mandatory EXPERIMENT.CHUNKSIZEUNIT choice is invalid"]]
+            if type(parser['EXPERIMENT'].get('CHUNKSIZE',"-1")) not in [int]:
+                if parser['EXPERIMENT']['CHUNKSIZE'] == "-1":
+                    self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CHUNKSIZE is not defined"]]
+                parser['EXPERIMENT']['CHUNKSIZE'] = int(parser['EXPERIMENT']['CHUNKSIZE'])
+            if type(parser['EXPERIMENT'].get('NUMCHUNKS',"-1")) not in [int]:
+                if parser['EXPERIMENT']['NUMCHUNKS'] == "-1":
+                    self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.NUMCHUNKS is not defined"]]
+                parser['EXPERIMENT']['NUMCHUNKS'] = int(parser['EXPERIMENT']['NUMCHUNKS'])
+            if parser['EXPERIMENT'].get('CALENDAR',"").lower() not in ['standard','noleap']:
+                self.wrong_config["Expdef"] += [['experiment', "Mandatory EXPERIMENT.CALENDAR choice is invalid"]]
         if parser.get('PROJECT',"") == "":
             self.wrong_config["Expdef"] += [['PROJECT',"Mandatory PROJECT section doesn't exists"]]
             project_type = ""
@@ -1223,7 +1219,7 @@ class AutosubmitConfig(object):
                         self.wrong_config["WRAPPERS"] += [[wrapper_name,
                                                           "MAX_PROCESSORS no exist in the horizontal-wrapper platform"]]
                 if 'vertical' in self.get_wrapper_type(wrapper_values):
-                    if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_WALLCLOCK',""):
+                    if not self.experiment_data.get("PLATFORMS",{}).get(platform_name,{}).get('MAX_WALLCLOCK',""):
                         self.wrong_config["WRAPPERS"] += [[wrapper_name,
                                                           "MAX_WALLCLOCK no exist in the vertical-wrapper platform"]]
             if "WRAPPERS" not in self.wrong_config:
