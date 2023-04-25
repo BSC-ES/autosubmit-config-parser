@@ -1025,7 +1025,8 @@ class AutosubmitConfig(object):
         # This is a workaround to avoid autosubmit to stop when there is an uncomplete platform section( per example, an user file platform that only has an USER keyword set) that doesn't affect to the experiment itself.
         # During running, if there are issues in any experiment active platform autosubmit will stop and the user will be notified.
         if not main_platform_issues:
-            Log.warning("Some defined platforms have the following issues: {0}",str(self.wrong_config.get("Platform",[])))
+            if self.wrong_config.get('Platform',None) is not None:
+                Log.warning(f"Some defined platforms have the following issues: {self.wrong_config.get('Platform',[])}")
             self.wrong_config.pop("Platform",None)
             if not no_log:
                 Log.result('Platforms sections: OK')
@@ -1331,7 +1332,8 @@ class AutosubmitConfig(object):
         # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
         if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True) ) or len(self.current_loaded_files) == 0 or force_load:
             # Load all the files starting from the $expid/conf folder
-            Log.result(f"Reloading configuration files, due a change in the following files: {files_to_reload}")
+            if len(files_to_reload) > 0:
+                Log.result(f"Reloading configuration files, due a change in the following files: {files_to_reload}")
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
