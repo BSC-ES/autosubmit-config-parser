@@ -2151,6 +2151,7 @@ class AutosubmitConfig(object):
         :rtype: string
         """
         return wrapper.get( 'PARTITION', self.experiment_data["WRAPPERS"].get("PARTITION",""))
+
     def get_min_wrapped_jobs(self, wrapper={}):
         """
          Returns the minium number of jobs that can be wrapped together as configured in autosubmit's config file

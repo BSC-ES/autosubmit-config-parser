@@ -24,7 +24,7 @@ except ImportError:
     from configparser import SafeConfigParser
 import os
 
-
+import inspect
 class BasicConfig:
     """
     Class to manage configuration for Autosubmit path, database and default values for new experiments
@@ -32,6 +32,13 @@ class BasicConfig:
 
     def __init__(self):
         pass
+    def props(self):
+        pr = {}
+        for name in dir(self):
+            value = getattr(self, name)
+            if not name.startswith('__') and not inspect.ismethod(value) and not inspect.isfunction(value):
+                pr[name] = value
+        return pr
 
     DB_DIR = os.path.join(os.path.expanduser('~'), 'debug', 'autosubmit')
     STRUCTURES_DIR = os.path.join(
