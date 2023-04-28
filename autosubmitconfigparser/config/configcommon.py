@@ -250,7 +250,7 @@ class AutosubmitConfig(object):
 
     def get_memory(self, section):
         """
-        Gets memory needed for the given job type
+        Gets memory needed for the given job typemissing_
         :param section: job type
         :type section: str
         :return: memory needed
@@ -1369,6 +1369,7 @@ class AutosubmitConfig(object):
             self.deep_add_missing_starter_conf(self.experiment_data,starter_conf)
 
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
+            self.experiment_data = self.normalize_variables(self.experiment_data)
             pass
 
     def deep_add_missing_starter_conf(self,experiment_data,starter_conf):
