@@ -1363,14 +1363,27 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
             ###
             self.current_loaded_files.update(non_minimal_files)
-
-            # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
-            for key in starter_conf.keys():
-                if key not in self.experiment_data.keys():
-                    self.experiment_data[key] = starter_conf[key]
             if "AS_TEMP" in self.experiment_data.keys():
                 del self.experiment_data["AS_TEMP"]
+            # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
+            self.deep_add_missing_starter_conf(self.experiment_data,starter_conf)
+
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
+            pass
+
+    def deep_add_missing_starter_conf(self,experiment_data,starter_conf):
+        """
+        Add the missing keys from starter_conf to experiment_data
+        :param experiment_data:
+        :param starter_conf:
+        :return:
+        """
+        for key in starter_conf.keys():
+            if key not in experiment_data.keys():
+                experiment_data[key] = starter_conf[key]
+            elif isinstance(starter_conf[key], collections.abc.Mapping):
+                experiment_data[key] = self.deep_add_missing_starter_conf(experiment_data[key],starter_conf[key])
+        return experiment_data
 
     def deep_get_long_key(self,section_data,long_key):
         parameters_dict = dict()
