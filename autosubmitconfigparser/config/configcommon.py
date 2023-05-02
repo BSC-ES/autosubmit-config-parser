@@ -250,7 +250,7 @@ class AutosubmitConfig(object):
 
     def get_memory(self, section):
         """
-        Gets memory needed for the given job typemissing_
+        Gets memory needed for the given job type
         :param section: job type
         :type section: str
         :return: memory needed
