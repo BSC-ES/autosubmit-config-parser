@@ -625,6 +625,13 @@ class AutosubmitConfig(object):
                         filenames_to_load["POST"] = custom_conf_directive["POST"].split(',')
                     else:
                         filenames_to_load["POST"] = custom_conf_directive["POST"].split(' ')
+        aux_filenames_to_load = filenames_to_load.copy()
+        for file_to_load in aux_filenames_to_load["PRE"]:
+            if file_to_load in self.current_loaded_files:
+                del filenames_to_load[file_to_load]
+        for file_to_load in aux_filenames_to_load["POST"]:
+            if file_to_load in self.current_loaded_files:
+                del filenames_to_load[file_to_load]
         return filenames_to_load
 
     def unify_conf(self,current_data,new_data):
@@ -1263,8 +1270,11 @@ class AutosubmitConfig(object):
         :param filenames_to_load: list of filenames to load
         :return: current_data_pre,current_data_post with unified data
         """
+
         current_data_pre = {}
         current_data_post = {}
+        if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
+            del current_data["DEFAULT"]["CUSTOM_CONFIG"]
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
             filename = filename.strip(", ")  # Remove commas and spaces if any
@@ -1297,7 +1307,10 @@ class AutosubmitConfig(object):
                         del current_data["AS_TEMP"]
                     current_data_pre = self.unify_conf(current_data_pre,self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data))
                     current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"])))
-        return current_data_pre, current_data_post
+        if len(current_data_pre) == 0 and len(current_data_post) == 0:
+            return current_data, current_data
+        else:
+            return current_data_pre, current_data_post
 
     def load_custom_config_section(self,current_data,filenames_to_load):
         """
@@ -1349,9 +1362,10 @@ class AutosubmitConfig(object):
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
             # Loads all configuration associated with the project data "pre"
-            custom_conf_pre = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR"]},filenames_to_load["PRE"])
+            #custom_conf_pre = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR","DEFAULT"]},filenames_to_load["PRE"])
+            custom_conf_pre = self.load_custom_config_section(starter_conf, filenames_to_load["PRE"])
             # Loads all configuration associated with the user data "post"
-            custom_conf_post = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR"]},filenames_to_load["POST"])
+            custom_conf_post = self.load_custom_config_section(starter_conf,filenames_to_load["POST"])
             # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
             if not only_experiment_data:
                 self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
