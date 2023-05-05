@@ -29,7 +29,7 @@ dependencies:
   - setuptools>=60.8.2
   - six>=1.10.0
   - xlib>=0.21
-  - ruamel.yaml
+  - ruamel.yaml==0.17.21
   - pythondialog
   - pytest
   - nose
