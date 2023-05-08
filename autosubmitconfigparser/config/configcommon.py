@@ -480,6 +480,11 @@ class AutosubmitConfig(object):
         Update a nested dictionary or similar mapping.
         Modify ``source`` in place.
         """
+        if not isinstance(unified_config,collections.abc.Mapping):
+            unified_config = {}
+        for key in new_dict.keys():
+            if key not in unified_config:
+                unified_config[key] = ""
         for key, val in new_dict.items():
             if isinstance(val, collections.abc.Mapping ):
                 tmp = self.deep_update(unified_config.get(key, {}), val)
@@ -628,10 +633,13 @@ class AutosubmitConfig(object):
         aux_filenames_to_load = filenames_to_load.copy()
         for file_to_load in aux_filenames_to_load["PRE"]:
             if file_to_load in self.current_loaded_files:
-                del filenames_to_load[file_to_load]
+                f_list = filenames_to_load["PRE"]
+                f_list.remove(file_to_load)
         for file_to_load in aux_filenames_to_load["POST"]:
             if file_to_load in self.current_loaded_files:
-                del filenames_to_load[file_to_load]
+                if file_to_load in self.current_loaded_files:
+                    f_list = filenames_to_load["POST"]
+                    f_list.remove(file_to_load)
         return filenames_to_load
 
     def unify_conf(self,current_data,new_data):
@@ -1270,30 +1278,26 @@ class AutosubmitConfig(object):
         :param filenames_to_load: list of filenames to load
         :return: current_data_pre,current_data_post with unified data
         """
-
         current_data_pre = {}
+        current_data_aux = {}
         current_data_post = {}
-        if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
-            del current_data["DEFAULT"]["CUSTOM_CONFIG"]
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
             filename = filename.strip(", ")  # Remove commas and spaces if any
             if filename.startswith("~"):
                 filename = os.path.expanduser(filename)
-            current_data["AS_TEMP"] = {}
-            current_data["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
+            current_data_aux = self.unify_conf(self.starter_conf,current_data)
+            current_data_aux["AS_TEMP"] = {}
+            current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
             self.dynamic_variables.append(("AS_TEMP.FILENAME_TO_LOAD", filename))
-            current_data = self.substitute_dynamic_variables(current_data)
-            filename = Path(current_data["AS_TEMP"]["FILENAME_TO_LOAD"])
-
+            current_data_aux = self.substitute_dynamic_variables(current_data_aux)
+            filename = Path(current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"])
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
                 # Load a folder or a file
                 if not filename.is_file():
                     # Load a folder by calling recursively to this function as a list of files
-                    if "AS_TEMP" in current_data:
-                        del current_data["AS_TEMP"]
                     current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
                     current_data = self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data))
                     current_data = self.substitute_dynamic_variables(self.unify_conf(current_data,current_data_post))
@@ -1303,14 +1307,19 @@ class AutosubmitConfig(object):
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
-                    if "AS_TEMP" in current_data:
-                        del current_data["AS_TEMP"]
-                    current_data_pre = self.unify_conf(current_data_pre,self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data))
-                    current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"])))
-        if len(current_data_pre) == 0 and len(current_data_post) == 0:
-            return current_data, current_data
-        else:
-            return current_data_pre, current_data_post
+                    if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
+                        del current_data["DEFAULT"]["CUSTOM_CONFIG"]
+                    if len(filenames_to_load_level["PRE"]) > 0:
+                        current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
+                    else:
+                        current_data_pre = current_data
+                    if len(filenames_to_load_level["POST"]) > 0:
+                        current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data_pre,self.load_custom_config_section(current_data_pre, filenames_to_load_level["POST"])))
+                    else:
+                        current_data_post = current_data_pre
+
+        del current_data_aux
+        return current_data_pre, current_data_post
 
     def load_custom_config_section(self,current_data,filenames_to_load):
         """
@@ -1322,7 +1331,7 @@ class AutosubmitConfig(object):
         # This is a recursive call
         current_data_pre,current_data_post = self.load_custom_config(current_data, filenames_to_load)
         # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
-        return self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data_post))
+        return self.substitute_dynamic_variables(self.unify_conf(self.unify_conf(current_data_pre,current_data),current_data_post))
 
     def reload(self,force_load=False,only_experiment_data = False):
         """
@@ -1349,7 +1358,7 @@ class AutosubmitConfig(object):
                 starter_conf = self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename)))
             starter_conf = self.load_common_parameters(starter_conf)
             starter_conf = self.substitute_dynamic_variables(starter_conf)
-
+            self.starter_conf = starter_conf
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
             non_minimal_files = {}
@@ -1361,17 +1370,14 @@ class AutosubmitConfig(object):
             # Start loading the custom config files
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
-            # Loads all configuration associated with the project data "pre"
-            #custom_conf_pre = self.load_custom_config_section({key:starter_conf[key] for key in ["PROJDIR","ROOTDIR","DEFAULT"]},filenames_to_load["PRE"])
-            custom_conf_pre = self.load_custom_config_section(starter_conf, filenames_to_load["PRE"])
-            # Loads all configuration associated with the user data "post"
-            custom_conf_post = self.load_custom_config_section(starter_conf,filenames_to_load["POST"])
-            # Unify the dictionaries PROJ(PRE) - $EXPID/CONF - PROJ(POST)
+            #debug
             if not only_experiment_data:
-                self.experiment_data = self.unify_conf(self.unify_conf(custom_conf_pre,non_minimal_conf),custom_conf_post)
+                # Loads all configuration associated with the project data "pre"
+                custom_conf_pre = self.load_custom_config_section({}, filenames_to_load["PRE"])
+                # Loads all configuration associated with the user data "post"
+                self.experiment_data = self.load_custom_config_section(self.unify_conf(custom_conf_pre,non_minimal_conf),filenames_to_load["POST"])
             else:
                 self.experiment_data = starter_conf
-            # This part is useless, as it is already done
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             user_data = self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
             self.experiment_data = self.substitute_dynamic_variables(self.unify_conf(self.experiment_data,user_data))
