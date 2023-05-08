@@ -1298,7 +1298,7 @@ class AutosubmitConfig(object):
                 # Load a folder or a file
                 if not filename.is_file():
                     # Load a folder by calling recursively to this function as a list of files
-                    current_data_pre,current_data_post = self.load_config_folder(current_data,filename)
+                    current_data_pre,current_data_post = self.load_config_folder(copy.deepcopy(current_data),filename)
                     current_data = self.substitute_dynamic_variables(self.unify_conf(current_data_pre,current_data))
                     current_data = self.substitute_dynamic_variables(self.unify_conf(current_data,current_data_post))
                 else:
@@ -1310,13 +1310,15 @@ class AutosubmitConfig(object):
                     if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
                         del current_data["DEFAULT"]["CUSTOM_CONFIG"]
                     if len(filenames_to_load_level["PRE"]) > 0:
-                        current_data_pre = self.unify_conf(self.load_custom_config_section(current_data, filenames_to_load_level["PRE"]),current_data)
+                        current_data_pre = self.unify_conf(current_data_pre,self.load_custom_config_section(copy.deepcopy(current_data), filenames_to_load_level["PRE"]))
                     else:
                         current_data_pre = current_data
+                    current_data = self.unify_conf(current_data_pre, current_data)
+
                     if len(filenames_to_load_level["POST"]) > 0:
-                        current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data_pre,self.load_custom_config_section(current_data_pre, filenames_to_load_level["POST"])))
+                        current_data_post = self.unify_conf(current_data_post,self.unify_conf(current_data,self.load_custom_config_section(current_data, filenames_to_load_level["POST"])))
                     else:
-                        current_data_post = current_data_pre
+                        current_data_post = current_data
 
         del current_data_aux
         return current_data_pre, current_data_post
