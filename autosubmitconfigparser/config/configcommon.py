@@ -508,8 +508,12 @@ class AutosubmitConfig(object):
             dependencies = job_data.get("DEPENDENCIES",{})
             custom_directives = job_data.get("CUSTOM_DIRECTIVES","")
             if type(dependencies) == str:
-                for dependency in dependencies.split(" "):
+                for dependency in dependencies.upper().split(" "):
                     aux_dependencies[dependency] = {}
+                dependencies = aux_dependencies
+            elif type(dependencies) == dict:
+                for dependency in dependencies.keys():
+                    aux_dependencies[dependency.upper()] = dependencies[dependency]
                 dependencies = aux_dependencies
             if type(custom_directives) != str:
                 data_fixed["JOBS"][job]["CUSTOM_DIRECTIVES"] = str(custom_directives)
