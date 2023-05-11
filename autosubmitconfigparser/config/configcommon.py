@@ -1312,7 +1312,8 @@ class AutosubmitConfig(object):
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
                     if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
-                        del current_data["DEFAULT"]["CUSTOM_CONFIG"]
+                        # del current_data["DEFAULT"]["CUSTOM_CONFIG"]
+                        pass
                     if len(filenames_to_load_level["PRE"]) > 0:
                         current_data_pre = self.unify_conf(current_data_pre,self.load_custom_config_section(copy.deepcopy(current_data), filenames_to_load_level["PRE"]))
                     else:
