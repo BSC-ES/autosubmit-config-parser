@@ -881,13 +881,13 @@ class AutosubmitConfig(object):
 
 
 
-    def check_mandatory_parameters(self,only_experiment_data=False,no_log=False):
+    def check_mandatory_parameters(self,no_log=False):
         self.check_expdef_conf(no_log)
         self.check_platforms_conf(no_log)
         self.check_jobs_conf(no_log)
         self.check_autosubmit_conf(no_log)
 
-    def check_conf_files(self, running_time=False,force_load=True,no_log=False,only_experiment_data=False):
+    def check_conf_files(self, running_time=False,force_load=True,no_log=False):
         """
         Checks configuration files (autosubmit, experiment jobs and platforms), looking for invalid values, missing
         required options. Print results in log
@@ -899,8 +899,6 @@ class AutosubmitConfig(object):
         :type refresh: bool
         :param no_log: True if the function is called during describe
         :type no_log: bool
-        :param only_experiment_data: True in create experiment when no proj data is loaded
-        :type only_experiment_data: bool
         :return: True if everything is correct, False if it finds any error
         :rtype: bool
         """
@@ -911,7 +909,7 @@ class AutosubmitConfig(object):
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         try:
-            self.reload(force_load,only_experiment_data=only_experiment_data)
+            self.reload(force_load)
         except IOError as e:
             raise AutosubmitError(
                 "I/O Issues con config files", 6016, str(e))
@@ -920,7 +918,7 @@ class AutosubmitConfig(object):
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)",7040,str(e))
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
-        self.check_mandatory_parameters(only_experiment_data,no_log=no_log)
+        self.check_mandatory_parameters(no_log=no_log)
         # End of checkers.
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
