@@ -28,5 +28,5 @@ xlib
 Pygments
 packaging>=19
 typing>=3.7
-ruamel.yaml==0.17.31
+ruamel.yaml
 argsparse

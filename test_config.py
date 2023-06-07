@@ -2,8 +2,8 @@
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 import os
 # Init the configuration object where expid = experiment identifier that you want to load
-expid = "a04d"
-as_conf = AutosubmitConfig("a04d")
+expid = "a00e"
+as_conf = AutosubmitConfig("a00e")
 # This will load the data from the experiment
 as_conf.reload(True)
 
