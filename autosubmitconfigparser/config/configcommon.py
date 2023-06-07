@@ -19,7 +19,6 @@
 import shutil
 import numbers
 
-
 import os
 import re
 import subprocess
@@ -52,6 +51,7 @@ class AutosubmitConfig(object):
     """
 
     def __init__(self, expid, basic_config=BasicConfig, parser_factory=YAMLParserFactory()):
+        self.data_changed = False
         self.ignore_undefined_platforms = False
         self.ignore_file_path = False
         self.expid = expid
@@ -59,7 +59,9 @@ class AutosubmitConfig(object):
         self.basic_config.read()
         self.parser_factory = parser_factory
         self.experiment_data = {}
+        self.last_experiment_data = {}
         self.data_loops = list()
+
 
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
@@ -1220,7 +1222,12 @@ class AutosubmitConfig(object):
             else:
                 jobs_in_wrapper = jobs_in_wrapper.split(" ")
             for section in jobs_in_wrapper:
-                platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
+                try:
+                    platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
+                except:
+                    self.wrong_config["WRAPPERS"] += [[wrapper_name,
+                                                      "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
+                    continue
                 if platform_name == "":
                     platform_name = self.get_platform().upper()
                 if platform_name == "LOCAL":
@@ -1337,7 +1344,7 @@ class AutosubmitConfig(object):
         # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
         return self.substitute_dynamic_variables(self.unify_conf(self.unify_conf(current_data_pre,current_data),current_data_post))
 
-    def reload(self,force_load=False,only_experiment_data = False):
+    def reload(self,force_load=False,only_experiment_data = False,save= False):
         """
         Reloads the configuration files
         :param force_load: If True, reloads all the files, if False, reloads only the modified files
@@ -1345,17 +1352,12 @@ class AutosubmitConfig(object):
         # Check if the files have been modified or if they need a reload
         files_to_reload = []
         # Reload only the files that have been modified
-        for yaml_name,last_known_modtime in self.current_loaded_files.items():
-            if Path(yaml_name).stat().st_mtime > last_known_modtime:
-                files_to_reload.append(yaml_name)
-        #  TODO What we should really reload? right now is all files , hard to track the changes in files with custom_config of custom_config
-        #if (len(self.current_loaded_files) > 0 and len(files_to_reload) > 0) and not force_load:
-        #    self.experiment_data = self.load_config_folder(self.experiment_data,files_to_reload)
-        # Check if reload is allowed, new parameter # TODO doc users may want to change configuration without affecting to the current autosubmit run
-        if ( len(files_to_reload) > 0 and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True) ) or len(self.current_loaded_files) == 0 or force_load:
+        self.load_last_run() # from unified conf if any.
+        # Only reload the data if there are changes or there is no data loaded yet
+        if len(self.current_loaded_files) == 0 or force_load or (self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
+            files_to_reload = self.current_loaded_files.keys()
+        if len(files_to_reload) > 0:
             # Load all the files starting from the $expid/conf folder
-            if len(files_to_reload) > 0:
-                Log.result(f"Reloading configuration files, due a change in the following files: {files_to_reload}")
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
@@ -1374,7 +1376,6 @@ class AutosubmitConfig(object):
             # Start loading the custom config files
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(starter_conf.get("DEFAULT",{}).get("CUSTOM_CONFIG",None))
-            #debug
             if not only_experiment_data:
                 # Loads all configuration associated with the project data "pre"
                 custom_conf_pre = self.load_custom_config_section({}, filenames_to_load["PRE"])
@@ -1389,11 +1390,83 @@ class AutosubmitConfig(object):
                 del self.experiment_data["AS_TEMP"]
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data,starter_conf)
-
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.normalize_variables(self.experiment_data)
-            pass
+    def load_last_run(self):
+        self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
+        if not self.metadata_folder.exists():
+            os.makedirs(self.metadata_folder)
+            os.chmod(self.metadata_folder, 0o775)
+        if not os.access(self.metadata_folder, os.W_OK):
+            print(f"WARNING: Can't save the experiment data into {self.metadata_folder}, no write permissions")
+        else:
+            # Load data from last run
+            if (Path(self.metadata_folder) / "experiment_data.yml").exists():
+                with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
+                    self.last_experiment_data = yaml.load(stream)
+                self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
+            else:
+                self.last_experiment_data = {}
+    def save(self):
+        """
+        Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
+        :return: True if the data has changed, False otherwise
+        """
+        changed = False
+        # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
+        # metadata folder is inside the experiment folder / conf folder / metadata folder
+        # If this function is called before load_last_run, we need to load the last run
+        if len(self.last_experiment_data) > 0:
+            self.load_last_run()
+        if self.data_changed:
+            # Backup the old file
+            if (Path(self.metadata_folder) / "experiment_data.yml").exists():
+                shutil.copy(Path(self.metadata_folder) / "experiment_data.yml", Path(self.metadata_folder) / "experiment_data.yml.bak")
+            with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
+                yaml.dump(self.experiment_data, stream, default_flow_style=False)
+            print(f"Saving experiment data into {self.metadata_folder}")
+        else:
+            print(f"Experiment data has not changed, no save is needed")
+        return self.data_changed
+    def detailed_deep_diff(self, current_data, last_run_data, differences={}):
+        """
+        Returns a dictionary with for each key, the difference between the current configuration and the last_run_data
+        :param current_data: dictionary with the current data
+        :param last_run_data: dictionary with the last_run_data data
+        :return: differences: dictionary
+        """
+        for key, val in current_data.items():
+            if isinstance(val, collections.abc.Mapping):
+                if key not in last_run_data.keys():
+                    differences[key] = val
+                else:
+                    self.detailed_deep_diff(last_run_data[key], val, differences)
+            else:
+                if key not in last_run_data.keys() or last_run_data[key] != val:
+                    differences[key] = val
+        return differences
 
+    def quick_deep_diff(self, current_data, last_run_data, changed = False):
+        """
+        Returns if there is any difference between the current configuration and the stored one
+        :param last_run_data: dictionary with the stored data
+        :return: changed: boolean, True if the configuration has changed
+        """
+
+        if changed:
+            return True
+        for key, val in current_data.items():
+            if isinstance(val, collections.abc.Mapping):
+                if key not in last_run_data.keys():
+                    changed = True
+                    break
+                else:
+                    changed = self.quick_deep_diff(last_run_data[key], val, changed)
+            else:
+                if key not in last_run_data.keys() or last_run_data[key] != val:
+                    changed = True
+                    break
+        return changed
     def deep_add_missing_starter_conf(self,experiment_data,starter_conf):
         """
         Add the missing keys from starter_conf to experiment_data
