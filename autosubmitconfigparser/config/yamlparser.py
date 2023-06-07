@@ -1,7 +1,3 @@
-try:
-    from ruamel.yaml import CLoader as Loader, CDumper as Dumper
-except ImportError:
-    from ruamel.yaml import Loader, Dumper
 from ruamel.yaml import YAML
 
 class YAMLParserFactory:

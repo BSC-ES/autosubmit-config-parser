@@ -1354,9 +1354,9 @@ class AutosubmitConfig(object):
         # Reload only the files that have been modified
         self.load_last_run() # from unified conf if any.
         # Only reload the data if there are changes or there is no data loaded yet
-        if len(self.current_loaded_files) == 0 or force_load or (self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
+        if force_load or (self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
             files_to_reload = self.current_loaded_files.keys()
-        if len(files_to_reload) > 0:
+        if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0 :
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             self.current_loaded_files = {} # reset loaded files
