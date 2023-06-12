@@ -1407,6 +1407,7 @@ class AutosubmitConfig(object):
                 self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
             else:
                 self.last_experiment_data = {}
+                self.data_changed = True
     def save(self):
         """
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
@@ -1416,7 +1417,7 @@ class AutosubmitConfig(object):
         # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
         # metadata folder is inside the experiment folder / conf folder / metadata folder
         # If this function is called before load_last_run, we need to load the last run
-        if len(self.last_experiment_data) > 0:
+        if len(self.last_experiment_data) == 0:
             self.load_last_run()
         if self.data_changed:
             # Backup the old file
