@@ -1403,7 +1403,7 @@ class AutosubmitConfig(object):
             # Load data from last run
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
-                    self.last_experiment_data = yaml.load(stream)
+                    self.last_experiment_data = yaml.load(stream, Loader=yaml.SafeLoader)
                 self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
             else:
                 self.last_experiment_data = {}
@@ -1419,7 +1419,7 @@ class AutosubmitConfig(object):
         # If this function is called before load_last_run, we need to load the last run
         if len(self.last_experiment_data) == 0:
             self.load_last_run()
-        if self.data_changed:
+        if self.data_changed or not (Path(self.metadata_folder) / "experiment_data.yml").exists():
             # Backup the old file
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 shutil.copy(Path(self.metadata_folder) / "experiment_data.yml", Path(self.metadata_folder) / "experiment_data.yml.bak")
