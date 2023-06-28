@@ -818,6 +818,8 @@ class AutosubmitConfig(object):
                         if len(dict_key) > 0:
                             substituted = True
                             parameters[str(dynamic_var[0])] = value
+                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
+                                dynamic_variables.append((dynamic_var[0], value))
                         else:
                             substituted = False
                     else:
