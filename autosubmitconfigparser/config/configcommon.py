@@ -776,15 +776,12 @@ class AutosubmitConfig(object):
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
         pattern = '%[a-zA-Z0-9_.]*%'
-        keys = ""
         backup_variables = self.dynamic_variables
         max_deep = max_deep + len(self.dynamic_variables)
 
         while len(self.dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in self.dynamic_variables:
-                rest_of_keys_start = ""
-                rest_of_keys_end = ""
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][1:-1]),None)
@@ -801,8 +798,7 @@ class AutosubmitConfig(object):
                     rest_of_keys_start = keys[:match.start()]
                     rest_of_keys_end = keys[match.end():]
                     keys = keys[match.start():match.end()]
-
-                    if "." in keys:
+                    if "." in keys and dict_keys_type != "long":
                         keys = keys[1:-1].split(".")
                     else:
                         keys = [keys[1:-1]]
@@ -825,9 +821,7 @@ class AutosubmitConfig(object):
                         else:
                             substituted = False
                     else:
-                        # See input and output below todo
                         parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-
                         substituted = False
                 else:
                     # This may be True instead of False
