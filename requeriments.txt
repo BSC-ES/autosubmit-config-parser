@@ -1,3 +1,4 @@
+cython
 configobj>=5.0.6
 argparse>=1.4.0
 python-dateutil>=2.8.2
@@ -16,7 +17,7 @@ cryptography>=36.0.1
 setuptools>=60.8.2
 xlib>=0.21
 pip>=22.0.3
-ruamel.yaml
+ruamel.yaml==0.17.21
 pythondialog
 pytest
 nose
@@ -28,5 +29,4 @@ xlib
 Pygments
 packaging>=19
 typing>=3.7
-ruamel.yaml==0.17.31
-argsparse
+
