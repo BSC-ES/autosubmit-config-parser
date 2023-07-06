@@ -1930,7 +1930,7 @@ class AutosubmitConfig(object):
         full_project_path = as_conf.get_project_dir()
         try:
             output = subprocess.check_output("cd {0}; git rev-parse --abbrev-ref HEAD".format(full_project_path),
-                                             shell=True)
+                                             shell=True, text=True)
         except subprocess.CalledProcessError as e:
             raise AutosubmitCritical(
                 "Failed to retrieve project branch...", 7014, str(e))
@@ -1939,7 +1939,7 @@ class AutosubmitConfig(object):
         Log.debug("Project branch is: " + project_branch)
         try:
             output = subprocess.check_output(
-                "cd {0}; git rev-parse HEAD".format(full_project_path), shell=True)
+                "cd {0}; git rev-parse HEAD".format(full_project_path), shell=True, text=True)
         except subprocess.CalledProcessError as e:
             raise AutosubmitCritical(
                 "Failed to retrieve project commit SHA...", 7014, str(e))
@@ -1956,7 +1956,7 @@ class AutosubmitConfig(object):
                                       "PROJECT_COMMIT: " + project_sha)
         open(self._exp_parser_file, 'wb').write(content)
         Log.debug(
-            "Project commit SHA succesfully registered to the configuration file.")
+            "Project commit SHA successfully registered to the configuration file.")
         return True
 
     def get_svn_project_url(self):
