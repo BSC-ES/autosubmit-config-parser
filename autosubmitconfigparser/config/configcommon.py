@@ -1413,7 +1413,7 @@ class AutosubmitConfig(object):
         # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
         # metadata folder is inside the experiment folder / conf folder / metadata folder
         # If this function is called before load_last_run, we need to load the last run
-        if len(self.last_experiment_data) == 0:
+        if self.last_experiment_data and len(self.last_experiment_data) == 0:
             self.load_last_run()
         if self.data_changed or not (Path(self.metadata_folder) / "experiment_data.yml").exists():
             # Backup the old file
@@ -1454,7 +1454,7 @@ class AutosubmitConfig(object):
             return True
         for key, val in current_data.items():
             if isinstance(val, collections.abc.Mapping):
-                if key not in last_run_data.keys():
+                if not last_run_data or key not in last_run_data.keys():
                     changed = True
                     break
                 else:
