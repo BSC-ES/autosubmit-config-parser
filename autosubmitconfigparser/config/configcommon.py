@@ -68,6 +68,7 @@ class AutosubmitConfig(object):
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
+        self.special_dynamic_variables = list() # variables that will be sustituted after all files is loaded
         self.starter_conf = dict()
 
     @property
@@ -658,8 +659,11 @@ class AutosubmitConfig(object):
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        current_data = self.parse_data_loops(current_data, self.data_loops)
         self.dynamic_variables = list(set(self.dynamic_variables))
+        self.special_dynamic_variables = list(set(self.special_dynamic_variables))
+        current_data = self.deep_normalize(current_data)
+        current_data = self.substitute_dynamic_variables(current_data) # before read the for loops
+        current_data = self.parse_data_loops(current_data, self.data_loops)
         return current_data
 
     def parse_data_loops(self,experiment_data,data_loops):
@@ -682,6 +686,11 @@ class AutosubmitConfig(object):
             for_sections = current_data.pop("FOR")
             # Calculates new name
             # And adds the dynamic values if any
+            for key, value in for_sections.items():
+                if type(value) == str:
+                    value_ = value.strip("[]")
+                    value_ = [ v.strip(" ") for v in value_.split(",") ]
+                    for_sections[key] = value_
             for name_index in range(len(for_sections["NAME"])):
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index])
                 pointer_to_last_data[section_ending_name] = copy.deepcopy(current_data)
@@ -725,40 +734,58 @@ class AutosubmitConfig(object):
         else:
             dict_keys_type = "short"
         return dict_keys_type
-    def clean_dynamic_variables(self,pattern):
-        '''
-        Cleans dynamic variables
+    def clean_dynamic_variables(self,pattern,in_the_end = False):
+        """
+        Clean dynamic variables
+        :param pattern:
+        :param in_the_end:
         :return:
-        '''
+        """
         dynamic_variables = []
-        for dynamic_var in self.dynamic_variables:
+        if in_the_end:
+            dynamic_variables_ = self.special_dynamic_variables
+        else:
+            dynamic_variables_ = self.dynamic_variables
+
+        for dynamic_var in dynamic_variables_:
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
             match = (re.search(pattern, dynamic_var[1],flags=re.IGNORECASE))
             if match is not None:
                 dynamic_variables.append(dynamic_var)
-        self.dynamic_variables = dynamic_variables
-    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None,not_in_data=""):
+        if in_the_end:
+            self.special_dynamic_variables = dynamic_variables
+        else:
+            self.dynamic_variables = dynamic_variables
+    def substitute_dynamic_variables(self,parameters=None,max_deep=25,dict_keys_type=None,not_in_data="",in_the_end = False):
         """
         Substitute dynamic variables in the experiment data
         :parameter
         :return:
         """
 
+        if not in_the_end:
+            dynamic_variables_ = self.dynamic_variables
+            pattern = '%[a-zA-Z0-9_.]*%'
+            start_long = 1
+        else:
+            dynamic_variables_ = self.special_dynamic_variables
+            pattern = '%\^[a-zA-Z0-9_.]*%'
+            start_long = 2
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
         # Check if the parameters key provided are long(%DEFAULT.EXPID%) or short(DEFAULT[EXPID]) if it is not specified.
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
-        pattern = '%[a-zA-Z0-9_.]*%'
-        backup_variables = self.dynamic_variables
-        max_deep = max_deep + len(self.dynamic_variables)
 
-        while len(self.dynamic_variables) > 0 and max_deep > 0:
+        backup_variables = dynamic_variables_
+        max_deep = max_deep + len(dynamic_variables_)
+
+        while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
-            for dynamic_var in self.dynamic_variables:
+            for dynamic_var in dynamic_variables_:
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
-                    keys = parameters.get(str(dynamic_var[0][1:-1]),None)
+                    keys = parameters.get(str(dynamic_var[0][start_long:-1]),None)
                     if keys is None:
                         keys = parameters.get(str(dynamic_var[0]), None)
                 else:
@@ -773,12 +800,14 @@ class AutosubmitConfig(object):
                     rest_of_keys_end = keys[match.end():]
                     keys = keys[match.start():match.end()]
                     if "." in keys and dict_keys_type != "long":
-                        keys = keys[1:-1].split(".")
+                        keys = keys[start_long:-1].split(".")
                     else:
-                        keys = [keys[1:-1]]
+                        keys = [keys[start_long:-1]]
                     aux_dict = parameters
                     for k in keys:
                         aux_dict = aux_dict.get(k.upper(),{})
+                        if type(aux_dict) == int:
+                            aux_dict = str(aux_dict)
                     if len(aux_dict) > 0:
                         full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
                         value = full_value
@@ -807,10 +836,17 @@ class AutosubmitConfig(object):
                         dynamic_variables.append((dynamic_var[0],value))
                     else:
                         dynamic_variables.append(dynamic_var)
-            self.dynamic_variables = dynamic_variables
+            if in_the_end:
+                self.special_dynamic_variables = dynamic_variables
+            else:
+                self.dynamic_variables = dynamic_variables
             max_deep = max_deep - 1
-        self.dynamic_variables = backup_variables
-        self.clean_dynamic_variables(pattern)
+        if in_the_end:
+            self.special_dynamic_variables = backup_variables
+            self.clean_dynamic_variables(pattern,in_the_end)
+        else:
+            self.dynamic_variables = backup_variables
+            self.clean_dynamic_variables(pattern)
         return parameters
     def substitute_placeholder_variables(self,key,val,parameters):
         substituted = False
@@ -840,11 +876,22 @@ class AutosubmitConfig(object):
         """
         for key, val in data.items():
             # Placeholders variables
-            if not isinstance(val, collections.abc.Mapping) and "%" in str(val):
+            # Pattern to search a string starting with % and ending with % allowing the chars [],._ to exist in the middle
+            dynamic_var_pattern = '%[a-zA-Z0-9_.]*%'
+            # Pattern to search a string starting with %^ and ending with %
+            special_dynamic_var_pattern = '%\^[a-zA-Z0-9_.]*%'
+
+            if not isinstance(val, collections.abc.Mapping) and re.search(dynamic_var_pattern, str(val),flags=re.IGNORECASE) is not None:
                 self.dynamic_variables.append((long_key+key, val))
+            elif not isinstance(val, collections.abc.Mapping) and re.search(special_dynamic_var_pattern, str(val),flags=re.IGNORECASE) is not None:
+                self.special_dynamic_variables.append((long_key+key, val))
             if key == "FOR":
+                # special case: check dynamic variables in the for loop
+                for for_sections,for_values in data[key].items():
+                    if re.search(dynamic_var_pattern, str(for_values), flags=re.IGNORECASE) is not None:
+                        self.dynamic_variables.append((long_key+key, str(for_values)))
                 self.data_loops.append(for_keys)
-            elif isinstance(val, collections.abc.Mapping ):
+            if isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
         return data
 
@@ -1288,6 +1335,10 @@ class AutosubmitConfig(object):
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
                     if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
                         del current_data["DEFAULT"]["CUSTOM_CONFIG"]
+                    filenames_to_load_level["PRE"] = [to_load for to_load in filenames_to_load_level["PRE"] if
+                                                      to_load not in self.current_loaded_files]
+                    filenames_to_load_level["POST"] = [to_load for to_load in filenames_to_load_level["POST"] if
+                                                      to_load not in self.current_loaded_files]
                     if len(filenames_to_load_level["PRE"]) > 0:
                         current_data_pre = self.unify_conf(current_data_pre,self.load_custom_config_section(copy.deepcopy(current_data), filenames_to_load_level["PRE"]))
                     else:
@@ -1362,6 +1413,8 @@ class AutosubmitConfig(object):
             self.deep_add_missing_starter_conf(self.experiment_data,starter_conf)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.normalize_variables(self.experiment_data)
+            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data,in_the_end=True)
+
     def load_last_run(self):
         self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
         if not self.metadata_folder.exists():
