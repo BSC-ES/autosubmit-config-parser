@@ -14,33 +14,32 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+import collections
+import copy
+import datetime
+import json
+import locale
+import numbers
+import os
+import re
 # You should have received a copy of the GNU General Public License
 # along with Autosubmit.  If not, see <http://www.gnu.org/licenses/>.
 import shutil
-import numbers
-
-import os
-import re
 import subprocess
 import traceback
-import json
-import ruamel.yaml as yaml
-from .basicconfig import BasicConfig
-from .yamlparser import YAMLParserFactory
-from configobj import ConfigObj
-from log.log import Log,AutosubmitCritical,AutosubmitError
-
-from pyparsing import nestedExpr
-
-from bscearth.utils.date import parse_date
-
 from collections import defaultdict
-import collections
-import datetime
-import copy
 from datetime import datetime, timedelta
 from pathlib import Path
-import locale
+
+import ruamel.yaml as yaml
+from bscearth.utils.date import parse_date
+from configobj import ConfigObj
+from pyparsing import nestedExpr
+
+from log.log import Log, AutosubmitCritical, AutosubmitError
+from .basicconfig import BasicConfig
+from .yamlparser import YAMLParserFactory
+
 
 class AutosubmitConfig(object):
     """
@@ -663,62 +662,37 @@ class AutosubmitConfig(object):
         self.dynamic_variables = list(set(self.dynamic_variables))
         return current_data
 
-    def parse_data_loops(self,exp_data,data_loops):
-        section_data = list()
+    def parse_data_loops(self,experiment_data,data_loops):
+        """
+        This function, looks for the FOR keyword, to generates N amount of subsections of the same section.
+        Looks for the "NAME" keyword, inside this FOR keyword to determine the name of the new sections
+        Experiment_data is the dictionary that contains all the sections, a subsection could be located at the root but also in a nested section
+        :param experiment_data: dictionary with all the sections
+        :param data_loops: list of lists with the path to the section that contains the FOR keyword
+        :return: Original experiment_data with the sections in the data_loops updated changing the FOR by multiple new sections
+        """
         for loops in data_loops:
-            #Extract section affected
-            current_data = exp_data.pop(loops[0])
-            section_data.append(current_data)
-            #Extract nested-section if any
-            for section in loops[1:]:
-                current_data = current_data.pop(section)
-                section_data.append(current_data)
-
+            pointer_to_last_data = experiment_data
+            for section in loops[:-1]:
+                pointer_to_last_data = pointer_to_last_data[section]
             section_basename = loops[-1]
-            for_sections = section_data[-1].pop("FOR")
-            #Delete old key
-            loops.pop()
-            # Delete old data
-            section_data.pop()
-            new_sections = dict()
-            section_ending_name = for_sections.get("NAME",[])
-            for_sections.pop("NAME")
-            n_sections_to_create = len(for_sections[list(for_sections)[0]])
-            if len(section_ending_name) == 0:
-                for i in range(0,n_sections_to_create):
-                    section_ending_name.append(str(i))
-            full_name = []
-            new_data = dict()
-
-            for i in range(0,n_sections_to_create):
-                full_name.append(section_basename + "_" + str(section_ending_name[i]))
-                new_data[full_name[i]] = copy.deepcopy(current_data)
-
-            # Last level must contain the new info
-            last_data = section_data.pop(-1)
-            last_level = loops.pop(-1)
-            #Fill new camps
-
-            for i in range(0, n_sections_to_create):
-                for key,val_list in for_sections.items():
-                    new_data[full_name[i]][key] = val_list[i]
-            #update last dict level
-            last_data.update(new_data)
-            # backtracking
-            next_section = dict()
-            next_section[last_level] = last_data
-            new_exp_data = next_section
-            while len(loops) > 0:
-                level_name = loops.pop(-1)
-                level_data = section_data.pop(-1)
-                level_data.update(new_exp_data)
-                new_exp_data[level_name] = level_data
-            else:
-                new_exp_data = next_section
-            exp_data.update(new_exp_data)
-            pass
+            current_data = copy.deepcopy(pointer_to_last_data[loops[-1]])
+            # Remove the original section  keyword from original data
+            pointer_to_last_data.pop(loops[-1])
+            for_sections = current_data.pop("FOR")
+            # Calculates new name
+            # And adds the dynamic values if any
+            for name_index in range(len(for_sections["NAME"])):
+                section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index])
+                pointer_to_last_data[section_ending_name] = copy.deepcopy(current_data)
+                for key,value in for_sections.items():
+                    if key != "NAME":
+                        pointer_to_last_data[section_ending_name][key] = value[name_index]
+            # Delete pointer, because we are going to use it in the next loop for a different section so we need to delete the pointer to avoid overwriting
+            del pointer_to_last_data
         self.data_loops = []
-        return exp_data
+        return experiment_data
+
     def get_placeholders(self,val,key):
 
         aux_name = val.split("/")
