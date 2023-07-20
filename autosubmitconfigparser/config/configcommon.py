@@ -649,12 +649,12 @@ class AutosubmitConfig(object):
         return filenames_to_load
 
     def unify_conf(self,current_data,new_data):
-        '''
+        """
         Unifies all configuration files into a single dictionary.
         :param current_data: dict with current configuration
         :param new_data: dict with new configuration
         :return: dict with new configuration taking priority over current configuration
-        '''
+        """
         # Basic data
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
@@ -777,12 +777,13 @@ class AutosubmitConfig(object):
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
 
-        backup_variables = dynamic_variables_
+        backup_variables = copy.deepcopy(dynamic_variables_)
         max_deep = max_deep + len(dynamic_variables_)
 
         while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in dynamic_variables_:
+                value = None
                 #get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]),None)
@@ -819,27 +820,25 @@ class AutosubmitConfig(object):
                     if dict_keys_type == "long":
                         dict_key = parameters.get(str(dynamic_var[0]), {})
                         if len(dict_key) > 0:
-                            substituted = True
                             parameters[str(dynamic_var[0])] = value
                             if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
                                 dynamic_variables.append((dynamic_var[0], value))
-                        else:
-                            substituted = False
                     else:
                         parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-                        substituted = False
-                else:
-                    # This may be True instead of False
-                    substituted = False
-                if not substituted:
-                    if value is not None:
-                        dynamic_variables.append((dynamic_var[0],value))
-                    else:
-                        dynamic_variables.append(dynamic_var)
-            if in_the_end:
-                self.special_dynamic_variables = dynamic_variables
-            else:
-                self.dynamic_variables = dynamic_variables
+                if value is None:
+                    dynamic_variables.append(dynamic_var)
+                elif "%" in value:
+                    dynamic_variables.append((dynamic_var[0], value))
+            # checksum of each element
+            if len(dynamic_variables) == len(dynamic_variables_):
+                same_as_previous_step = True
+                for index,ele in enumerate(dynamic_variables):
+                    if ele[1] != dynamic_variables_[index][1]:
+                        same_as_previous_step = False
+                        break
+                if same_as_previous_step:
+                    max_deep = 0
+            dynamic_variables_ = dynamic_variables
             max_deep = max_deep - 1
         if in_the_end:
             self.special_dynamic_variables = backup_variables
@@ -891,7 +890,7 @@ class AutosubmitConfig(object):
                     if re.search(dynamic_var_pattern, str(for_values), flags=re.IGNORECASE) is not None:
                         self.dynamic_variables.append((long_key+key, str(for_values)))
                 self.data_loops.append(for_keys)
-            if isinstance(val, collections.abc.Mapping ):
+            elif isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
         return data
 
@@ -1823,6 +1822,8 @@ class AutosubmitConfig(object):
         if type(date_value) is not list:
             if not date_value.startswith("["):
                 string = '[{0}]'.format(date_value)
+            else:
+                string = date_value
             split_string = nestedExpr('[', ']').parseString(string).asList()
             string_date = None
             for split in split_string[0]:
