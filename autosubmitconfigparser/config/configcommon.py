@@ -593,11 +593,11 @@ class AutosubmitConfig(object):
         """
         filenames_to_load = []
         if ignore_minimal:
-            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if
-                              p.suffix in {".yml", ".yaml"} and not p.name.endswith(("minimal.yml", "minimal.yaml"))]:
+            for yaml_file in sorted([p.resolve() for p in Path(yaml_folder).glob("*") if
+                              p.suffix in {".yml", ".yaml"} and not p.name.endswith(("minimal.yml", "minimal.yaml"))]):
                 filenames_to_load.append(str(yaml_file))
         else:
-            for yaml_file in [p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]:
+            for yaml_file in sorted([p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]):
                 filenames_to_load.append(str(yaml_file))
         return filenames_to_load
 
