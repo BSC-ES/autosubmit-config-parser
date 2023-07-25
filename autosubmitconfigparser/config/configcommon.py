@@ -197,7 +197,7 @@ class AutosubmitConfig(object):
         :return: wallclock increase per chunk
         :rtype: str
         """
-        return self.get_section([section, 'WCHUNKINC'], "")
+        return self.jobs_data.get(section,{}).get('WCHUNKINC',"")
 
     def get_synchronize(self, section):
         """
