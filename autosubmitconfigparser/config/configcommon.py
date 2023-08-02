@@ -56,6 +56,8 @@ class AutosubmitConfig(object):
         self.expid = expid
         self.basic_config = basic_config
         self.basic_config.read()
+        if not Path(BasicConfig.LOCAL_ROOT_DIR, expid).exists():
+            raise IOError(f"Experiment {expid} does not exist")
         self.parser_factory = parser_factory
         self.experiment_data = {}
         self.last_experiment_data = {}
@@ -64,7 +66,8 @@ class AutosubmitConfig(object):
 
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
-
+        if not Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf").exists():
+            raise IOError(f"Experiment {expid}/conf does not exist")
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = list()
