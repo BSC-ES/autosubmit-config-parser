@@ -1415,21 +1415,26 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data,in_the_end=True)
 
     def load_last_run(self):
-        self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
-        if not self.metadata_folder.exists():
-            os.makedirs(self.metadata_folder)
-            os.chmod(self.metadata_folder, 0o775)
-        if not os.access(self.metadata_folder, os.W_OK):
-            print(f"WARNING: Can't save the experiment data into {self.metadata_folder}, no write permissions")
-        else:
-            # Load data from last run
-            if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
-                    self.last_experiment_data = yaml.load(stream, Loader=yaml.SafeLoader)
-                self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
+        try:
+            self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
+            if not self.metadata_folder.exists():
+                os.makedirs(self.metadata_folder)
+                os.chmod(self.metadata_folder, 0o775)
+            if not os.access(self.metadata_folder, os.W_OK):
+                print(f"WARNING: Can't save the experiment data into {self.metadata_folder}, no write permissions")
             else:
-                self.last_experiment_data = {}
-                self.data_changed = True
+                # Load data from last run
+                if (Path(self.metadata_folder) / "experiment_data.yml").exists():
+                    with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
+                        self.last_experiment_data = yaml.load(stream, Loader=yaml.SafeLoader)
+                    self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
+                else:
+                    self.last_experiment_data = {}
+                    self.data_changed = True
+        except IOError as e:
+            self.last_experiment_data = {}
+            self.data_changed = True
+            Log.warning(f"Can't load the last experiment data: {e}")
     def save(self):
         """
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
