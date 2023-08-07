@@ -1486,17 +1486,20 @@ class AutosubmitConfig(object):
 
         if changed:
             return True
-        for key, val in current_data.items():
-            if isinstance(val, collections.abc.Mapping):
-                if not last_run_data or key not in last_run_data.keys():
-                    changed = True
-                    break
+        try:
+            for key, val in current_data.items():
+                if isinstance(val, collections.abc.Mapping):
+                    if not last_run_data or key not in last_run_data.keys():
+                        changed = True
+                        break
+                    else:
+                        changed = self.quick_deep_diff(last_run_data[key], val, changed)
                 else:
-                    changed = self.quick_deep_diff(last_run_data[key], val, changed)
-            else:
-                if key not in last_run_data.keys() or last_run_data[key] != val:
-                    changed = True
-                    break
+                    if key not in last_run_data.keys() or last_run_data[key] != val:
+                        changed = True
+                        break
+        except Exception as e:
+            changed = True
         return changed
     def deep_add_missing_starter_conf(self,experiment_data,starter_conf):
         """
