@@ -687,13 +687,10 @@ class AutosubmitConfig(object):
             # Remove the original section  keyword from original data
             pointer_to_last_data.pop(loops[-1])
             for_sections = current_data.pop("FOR")
-            # Calculates new name
-            # And adds the dynamic values if any
-            for key, value in for_sections.items():
-                if type(value) == str:
-                    value_ = value.strip("[]")
-                    value_ = [ v.strip(" ") for v in value_.split(",") ]
-                    for_sections[key] = value_
+            for for_section, for_values in for_sections.items():
+                for_values = str(for_values).strip("[]")
+                for_values = [v.strip("' ") for v in for_values.split(",")]
+                for_sections[for_section] = for_values
             for name_index in range(len(for_sections["NAME"])):
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index])
                 pointer_to_last_data[section_ending_name] = copy.deepcopy(current_data)
@@ -889,9 +886,12 @@ class AutosubmitConfig(object):
                 self.special_dynamic_variables.append((long_key+key, val))
             if key == "FOR":
                 # special case: check dynamic variables in the for loop
-                for for_sections,for_values in data[key].items():
-                    if re.search(dynamic_var_pattern, str(for_values), flags=re.IGNORECASE) is not None:
-                        self.dynamic_variables.append((long_key+key+"."+str(for_sections), str(for_values)))
+                for for_section,for_values in data[key].items():
+                    for_values = str(for_values).strip("[]")
+                    for_values = for_values.replace("'","")
+                    data[key][for_section] = for_values
+                    if re.search(dynamic_var_pattern, for_values, flags=re.IGNORECASE) is not None:
+                        self.dynamic_variables.append((long_key+key+"."+for_section, for_values))
                 self.data_loops.append(for_keys)
             elif isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
