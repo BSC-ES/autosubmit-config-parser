@@ -891,7 +891,7 @@ class AutosubmitConfig(object):
                 # special case: check dynamic variables in the for loop
                 for for_sections,for_values in data[key].items():
                     if re.search(dynamic_var_pattern, str(for_values), flags=re.IGNORECASE) is not None:
-                        self.dynamic_variables.append((long_key+key, str(for_values)))
+                        self.dynamic_variables.append((long_key+key+"."+str(for_sections), str(for_values)))
                 self.data_loops.append(for_keys)
             elif isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
