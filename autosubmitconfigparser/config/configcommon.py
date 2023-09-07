@@ -495,9 +495,12 @@ class AutosubmitConfig(object):
                 tmp = self.deep_update(unified_config.get(key, {}), val)
                 unified_config[key] = tmp
             elif isinstance(val, list):
-                current_list = set(unified_config.get(key, []))
-                if current_list != set(val):
+                if len(val) > 0 and isinstance(val[0], collections.abc.Mapping) :
                     unified_config[key] = val
+                else:
+                    current_list = set(unified_config.get(key, []))
+                    if current_list != set(val):
+                        unified_config[key] = val
             else:
                 unified_config[key] = new_dict[key]
         return unified_config
@@ -688,8 +691,9 @@ class AutosubmitConfig(object):
             pointer_to_last_data.pop(loops[-1])
             for_sections = current_data.pop("FOR")
             for for_section, for_values in for_sections.items():
-                for_values = str(for_values).strip("[]")
-                for_values = [v.strip("' ") for v in for_values.split(",")]
+                if not isinstance(for_values[0], dict):
+                    for_values = str(for_values).strip("[]")
+                    for_values = [v.strip("' ") for v in for_values.split(",")]
                 for_sections[for_section] = for_values
             for name_index in range(len(for_sections["NAME"])):
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index])
@@ -887,11 +891,15 @@ class AutosubmitConfig(object):
             if key == "FOR":
                 # special case: check dynamic variables in the for loop
                 for for_section,for_values in data[key].items():
-                    for_values = str(for_values).strip("[]")
-                    for_values = for_values.replace("'","")
+                    if len(for_values) == 0:
+                        raise AutosubmitCritical("Empty for loop in section {0}".format(long_key+key), 7014)
+                    if not isinstance(for_values[0],dict):
+                        for_values = str(for_values).strip("[]")
+                        for_values = for_values.replace("'","")
+                        if re.search(dynamic_var_pattern, for_values, flags=re.IGNORECASE) is not None:
+                            self.dynamic_variables.append((long_key+key+"."+for_section, for_values))
+
                     data[key][for_section] = for_values
-                    if re.search(dynamic_var_pattern, for_values, flags=re.IGNORECASE) is not None:
-                        self.dynamic_variables.append((long_key+key+"."+for_section, for_values))
                 self.data_loops.append(for_keys)
             elif isinstance(val, collections.abc.Mapping ):
                 self.deep_read_loops(data.get(key, {}),for_keys+[key],long_key=long_key+key+".")
