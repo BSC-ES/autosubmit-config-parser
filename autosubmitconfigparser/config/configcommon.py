@@ -2229,7 +2229,6 @@ class AutosubmitConfig(object):
         :return: safety sleep time
         :rtype: int
         """
-        #todo
         return wrapper.get('INNER_RETRIALS', self.experiment_data["WRAPPERS"].get("INNER_RETRIALS",0))
 
     def get_wrapper_policy(self, wrapper={}):
