@@ -498,8 +498,8 @@ class AutosubmitConfig(object):
                 if len(val) > 0 and isinstance(val[0], collections.abc.Mapping) :
                     unified_config[key] = val
                 else:
-                    current_list = set(unified_config.get(key, []))
-                    if current_list != set(val):
+                    current_list = unified_config.get(key, [])
+                    if current_list != val:
                         unified_config[key] = val
             else:
                 unified_config[key] = new_dict[key]
