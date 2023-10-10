@@ -181,6 +181,12 @@ class BasicConfig:
         BasicConfig.__read_file_config(os.path.join(
             os.path.expanduser('~'), '.' + filename))
         BasicConfig.__read_file_config(os.path.join('', '.' + filename))
+        # Check if the environment variable is defined
+        if 'AUTOSUBMIT_CONFIGURATION' in os.environ:
+            config_file_path = os.environ['AUTOSUBMIT_CONFIGURATION']
+            # Call read_file_config with the value of the environment variable
+            BasicConfig.__read_file_config(config_file_path)
 
         BasicConfig._update_config()
         return
+
