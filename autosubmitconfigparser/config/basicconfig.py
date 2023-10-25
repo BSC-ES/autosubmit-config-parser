@@ -87,7 +87,7 @@ class BasicConfig:
             return
         else:
             BasicConfig.CONFIG_FILE_FOUND = True
-        #Log.debug('Reading config from ' + file_path)
+        #print('Reading config from ' + file_path)
         parser = SafeConfigParser()
         parser.optionxform = str
         parser.read(file_path)
@@ -176,16 +176,20 @@ class BasicConfig:
         directory and last for current path.
         """
         filename = 'autosubmitrc'
-
-        BasicConfig.__read_file_config(os.path.join('/etc', filename))
-        BasicConfig.__read_file_config(os.path.join(
-            os.path.expanduser('~'), '.' + filename))
-        BasicConfig.__read_file_config(os.path.join('', '.' + filename))
-        # Check if the environment variable is defined
-        if 'AUTOSUBMIT_CONFIGURATION' in os.environ:
+        if 'AUTOSUBMIT_CONFIGURATION' in os.environ and os.path.exists(os.environ['AUTOSUBMIT_CONFIGURATION']):
             config_file_path = os.environ['AUTOSUBMIT_CONFIGURATION']
             # Call read_file_config with the value of the environment variable
             BasicConfig.__read_file_config(config_file_path)
+        else:
+            if os.path.exists(os.path.join('', '.' + filename)):
+                BasicConfig.__read_file_config(os.path.join('', '.' + filename))
+            elif os.path.exists(os.path.join(os.path.expanduser('~'), '.' + filename)):
+                BasicConfig.__read_file_config(os.path.join(
+                    os.path.expanduser('~'), '.' + filename))
+            else:
+                BasicConfig.__read_file_config(os.path.join('/etc', filename))
+
+            # Check if the environment variable is defined
 
         BasicConfig._update_config()
         return
