@@ -1662,9 +1662,10 @@ class AutosubmitConfig(object):
         :return: jobs_list
         :rtype: str
         """
-
-        return self.get_section(['RERUN', 'RERUN_JOBLIST'], "")
-
+        try:
+            return self.get_section(['RERUN', 'RERUN_JOBLIST'], "")
+        except:
+            return ""
     def get_file_project_conf(self):
         """
         Returns path to project config file from experiment config file
