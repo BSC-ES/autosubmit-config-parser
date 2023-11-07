@@ -1491,7 +1491,8 @@ class AutosubmitConfig(object):
         :param last_run_data: dictionary with the stored data
         :return: changed: boolean, True if the configuration has changed
         """
-
+        if not current_data:
+            return True
         if changed:
             return True
         try:
