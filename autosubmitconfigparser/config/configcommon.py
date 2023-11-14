@@ -153,6 +153,12 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         return str(self.get_section([section, 'X11'], "false")).lower()
+    
+    @classmethod
+    def _flatten_section(cls, section):
+        if not isinstance(section, list):
+            return [section]
+        return [x for sub in section for x in cls._flatten_section(sub)]
 
     def get_section(self, section, d_value="", must_exists = False ):
         """
@@ -167,7 +173,7 @@ class AutosubmitConfig(object):
         :rtype: str
 
         """
-        section = [s.upper() for s in section]
+        section = [s.upper() for s in self._flatten_section(section)]
         # For text redeability
         section_str = str(section[0])
         for sect in section[1:]:
