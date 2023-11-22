@@ -62,8 +62,6 @@ class AutosubmitConfig(object):
         self.experiment_data = {}
         self.last_experiment_data = {}
         self.data_loops = list()
-
-
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
         if not Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf").exists():
@@ -1383,7 +1381,6 @@ class AutosubmitConfig(object):
         # Check if the files have been modified or if they need a reload
         files_to_reload = []
         # Reload only the files that have been modified
-        self.load_last_run() # from unified conf if any.
         # Only reload the data if there are changes or there is no data loaded yet
         if force_load or (self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
             files_to_reload = self.current_loaded_files.keys()
@@ -1424,6 +1421,7 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.normalize_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data,in_the_end=True)
+            self.load_last_run() # from unified conf if any.
 
     def load_last_run(self):
         try:
@@ -1446,6 +1444,7 @@ class AutosubmitConfig(object):
             self.last_experiment_data = {}
             self.data_changed = True
             Log.warning(f"Can't load the last experiment data: {e}")
+
     def save(self):
         """
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
