@@ -1421,7 +1421,7 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.normalize_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data,in_the_end=True)
-            self.load_last_run() # from unified conf if any.
+        self.load_last_run()
 
     def load_last_run(self):
         try:
@@ -1463,8 +1463,6 @@ class AutosubmitConfig(object):
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
                 yaml.dump(self.experiment_data, stream, default_flow_style=False)
             print(f"Saving experiment data into {self.metadata_folder}")
-        else:
-            print(f"Experiment data has not changed, no save is needed")
         return self.data_changed
     def detailed_deep_diff(self, current_data, last_run_data, differences={}):
         """
@@ -1491,7 +1489,7 @@ class AutosubmitConfig(object):
         :return: changed: boolean, True if the configuration has changed
         """
         if not current_data:
-            return True
+            return changed
         if changed:
             return True
         try:
@@ -1503,7 +1501,7 @@ class AutosubmitConfig(object):
                     else:
                         changed = self.quick_deep_diff(last_run_data[key], val, changed)
                 else:
-                    if key not in last_run_data.keys() or last_run_data[key] != val:
+                    if key not in last_run_data.keys() or str(last_run_data[key]).lower() != str(val).lower():
                         changed = True
                         break
         except Exception as e:
