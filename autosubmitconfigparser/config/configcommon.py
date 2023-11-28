@@ -1471,6 +1471,8 @@ class AutosubmitConfig(object):
         :param last_run_data: dictionary with the last_run_data data
         :return: differences: dictionary
         """
+        if current_data is None:
+            current_data = {}
         for key, val in current_data.items():
             if isinstance(val, collections.abc.Mapping):
                 if key not in last_run_data.keys():
