@@ -1460,8 +1460,14 @@ class AutosubmitConfig(object):
             # Backup the old file
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 shutil.copy(Path(self.metadata_folder) / "experiment_data.yml", Path(self.metadata_folder) / "experiment_data.yml.bak")
-            with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                yaml.dump(self.experiment_data, stream, default_flow_style=False)
+            try:
+                with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
+                    yaml.dump(self.experiment_data, stream, default_flow_style=False)
+            except:
+                if (Path(self.metadata_folder) / "experiment_data.yml").exists():
+                    os.remove(Path(self.metadata_folder) / "experiment_data.yml")
+                self.data_changed = True
+                self.last_experiment_data = {}
             print(f"Saving experiment data into {self.metadata_folder}")
         return self.data_changed
     def detailed_deep_diff(self, current_data, last_run_data, differences={}):
