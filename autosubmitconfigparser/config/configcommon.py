@@ -30,6 +30,7 @@ import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import List, Union
 
 import ruamel.yaml as yaml
 from bscearth.utils.date import parse_date
@@ -1771,14 +1772,20 @@ class AutosubmitConfig(object):
         """
         return self.get_section(['GIT', 'REMOTE_CLONE_ROOT'], "")
 
-    def get_submodules_list(self):
+    def get_submodules_list(self) -> Union[List[str], bool]:
         """
-        Returns submodules list from experiment's config file
-        Default is --recursive
+        Returns submodules list from experiment's config file.
+        Default is --recursive.
+        Can be disabled by setting the configuration key to ``False``.
         :return: submodules to load
-        :rtype: list
+        :rtype: Union[List[str], bool]
         """
-        return self.get_section(['GIT', 'PROJECT_SUBMODULES'], "").split(" ")
+        project_submodules: Union[str, bool] = self.get_section(['GIT', 'PROJECT_SUBMODULES'], "")
+        if project_submodules is False:
+            return project_submodules
+        if not isinstance(project_submodules, str):
+            raise ValueError(f'GIT.PROJECT_SUBMODULES must be false (bool) or a string')
+        return project_submodules.split(" ")
 
     def get_fetch_single_branch(self):
         """
