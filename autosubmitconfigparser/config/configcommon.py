@@ -1490,7 +1490,8 @@ class AutosubmitConfig(object):
             else:
                 if key not in last_run_data.keys() or last_run_data[key] != val:
                     differences[key] = val
-            final[key] = differences
+            if differences:
+                final[key] = differences
 
         return final
 
