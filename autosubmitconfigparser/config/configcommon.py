@@ -1471,30 +1471,6 @@ class AutosubmitConfig(object):
             print(f"Saving experiment data into {self.metadata_folder}")
         return self.data_changed
 
-    def detailed_diff(self, current_data, last_run_data, differences={}):
-        """
-        Returns a dictionary with for each key, the difference between the current configuration and the last_run_data
-        :param current_data: dictionary with the current data
-        :param last_run_data: dictionary with the last_run_data data
-        :return: differences: dictionary
-        """
-        if current_data is None:
-            current_data = {}
-        final = {}
-        for key, val in current_data.items():
-            if isinstance(val, collections.abc.Mapping):
-                if key not in last_run_data.keys():
-                    differences[key] = val
-                else:
-                    differences = self.detailed_diff(last_run_data[key], val, differences)
-            else:
-                if key not in last_run_data.keys() or last_run_data[key] != val:
-                    differences[key] = val
-            if differences:
-                final[key] = differences
-
-        return final
-
     def detailed_deep_diff(self, current_data, last_run_data, differences={}):
         """
         Returns a dictionary with for each key, the difference between the current configuration and the last_run_data
