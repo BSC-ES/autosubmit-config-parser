@@ -767,11 +767,11 @@ class AutosubmitConfig(object):
 
         if not in_the_end:
             dynamic_variables_ = self.dynamic_variables
-            pattern = '%[a-zA-Z0-9_.]*%'
+            pattern = '%[a-zA-Z0-9_.-]*%'
             start_long = 1
         else:
             dynamic_variables_ = self.special_dynamic_variables
-            pattern = '%\^[a-zA-Z0-9_.]*%'
+            pattern = '%\^[a-zA-Z0-9_.-]*%'
             start_long = 2
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
@@ -878,9 +878,9 @@ class AutosubmitConfig(object):
         for key, val in data.items():
             # Placeholders variables
             # Pattern to search a string starting with % and ending with % allowing the chars [],._ to exist in the middle
-            dynamic_var_pattern = '%[a-zA-Z0-9_.]*%'
+            dynamic_var_pattern = '%[a-zA-Z0-9_.-]*%'
             # Pattern to search a string starting with %^ and ending with %
-            special_dynamic_var_pattern = '%\^[a-zA-Z0-9_.]*%'
+            special_dynamic_var_pattern = '%\^[a-zA-Z0-9_.-]*%'
 
             if not isinstance(val, collections.abc.Mapping) and re.search(dynamic_var_pattern, str(val),flags=re.IGNORECASE) is not None:
                 self.dynamic_variables.append((long_key+key, val))
@@ -2561,7 +2561,7 @@ class AutosubmitConfig(object):
         :return: parsed content
         :rtype: str
         """
-        matches = re.findall('%(?<!%%)[a-zA-Z0-9_.]+%(?!%%)', content,flags=re.I)
+        matches = re.findall('%(?<!%%)[a-zA-Z0-9_.-]+%(?!%%)', content,flags=re.I)
         for match in matches:
             # replace all '%(?<!%%)\w+%(?!%%)' with parameters value
             content = content.replace(match, parameters.get(match[1:-1], ""))
