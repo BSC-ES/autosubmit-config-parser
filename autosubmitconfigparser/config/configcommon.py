@@ -508,11 +508,20 @@ class AutosubmitConfig(object):
         Apply some memory internal variables to normalize it format. (right now only dependencies)
         """
         data_fixed = data
-
+        wrappers = data_fixed.get("WRAPPERS", {})
+        for wrapper in wrappers.keys():
+            jobs_in_wrapper = wrappers[wrapper].get("JOBS_IN_WRAPPER", "")
+            if "[" in jobs_in_wrapper:  # if it is a list in string format ( due "%" in the string )
+                jobs_in_wrapper = jobs_in_wrapper.strip("[]")
+                jobs_in_wrapper = jobs_in_wrapper.replace("'", "")
+                jobs_in_wrapper = jobs_in_wrapper.replace(" ", "")
+                jobs_in_wrapper = jobs_in_wrapper.replace(",", " ")
+            data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper
         for job, job_data in data.get("JOBS",{}).items():
             aux_dependencies = dict()
             dependencies = job_data.get("DEPENDENCIES",{})
             custom_directives = job_data.get("CUSTOM_DIRECTIVES","")
+            # fix wrappers
             if type(dependencies) == str:
                 for dependency in dependencies.upper().split(" "):
                     aux_dependencies[dependency] = {}
@@ -1242,10 +1251,16 @@ class AutosubmitConfig(object):
                 continue
 
             jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER',"")
-            if "&" in jobs_in_wrapper:
-                jobs_in_wrapper = jobs_in_wrapper.split("&")
-            else:
-                jobs_in_wrapper = jobs_in_wrapper.split(" ")
+            if type(jobs_in_wrapper) != list:
+                if "[" in jobs_in_wrapper: # if it is a list in string format ( due "%" in the string )
+                    jobs_in_wrapper = jobs_in_wrapper.strip("[]")
+                    jobs_in_wrapper = jobs_in_wrapper.replace("'", "")
+                    jobs_in_wrapper = jobs_in_wrapper.replace(" ", "")
+                    jobs_in_wrapper = jobs_in_wrapper.split(",")
+                elif "&" in jobs_in_wrapper:
+                    jobs_in_wrapper = jobs_in_wrapper.split("&")
+                else:
+                    jobs_in_wrapper = jobs_in_wrapper.split(" ")
             for section in jobs_in_wrapper:
                 try:
                     platform_name = self.jobs_data[section].get('PLATFORM',"").upper()
