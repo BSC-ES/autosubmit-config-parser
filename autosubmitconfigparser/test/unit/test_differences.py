@@ -31,6 +31,7 @@ class FakeBasicConfig:
 class TestConfig(TestCase):
 
     def setUp(self):
+        self.as_conf_editable = None
         self.as_conf_small = None
         self.as_conf_complete = None
         self.experiment_id = 'random-id'
@@ -41,6 +42,7 @@ class TestConfig(TestCase):
             mock_exists.return_value = True
             self.as_conf_complete = AutosubmitConfig(self.experiment_id, self.config, YAMLParserFactory())
             self.as_conf_small = AutosubmitConfig(self.experiment_id, self.config, YAMLParserFactory())
+            self.as_conf_editable = AutosubmitConfig(self.experiment_id, self.config, YAMLParserFactory())
         self.as_conf_complete.experiment_data = {'CONFIG': {'AUTOSUBMIT_VERSION': '4.1.0', 'MAXWAITINGJOBS': 2, 'TOTALJOBS': 2, 'SAFETYSLEEPTIME': 10,
                     'RETRIALS': 0}, 'MAIL': {'NOTIFICATIONS': False, 'TO': None},
          'STORAGE': {'TYPE': 'pkl', 'COPY_REMOTE_LOGS': True}, 'DEFAULT': {'EXPID': 'a02j', 'HPCARCH': 'marenostrum4'},
@@ -139,3 +141,99 @@ class TestConfig(TestCase):
         new_data = {'CONFIG': {'AUTOSUBMIT_VERSION': '4.1.0', 'MAXWAITINGJOBS': 2, 'TOTALJOBS': 2, 'SAFETYSLEEPTIME': 10, 'TEST': 1}}
         differences = self.as_conf_small.detailed_deep_diff(new_data, self.as_conf_small.experiment_data, {})
         self.assertEqual(differences, {'TEST': {'test_value': 1}} )
+
+    def test_detailed_deep_imitate_autosubmit_usage(self):
+        # Real Usage
+        # The config_parser does a quick_diff of all data to detected if there are changes
+        # If there are changes, this function is called inside Autosubmit with the following args.
+            # self.as_conf.detailed_deep_diff:
+            # args:
+                #  - a section in current_loaded data. The sections to look for are:
+                    # EXPERIMENT (any)
+                    # CONFIG ( only interested in VERSION )
+                    # DEFAULT ( HPCARCH )
+                    # JOBS ( any ) and if jobs is modified:
+                        # JOBS.SECTION.name ( DEPENDENCIES )
+                #  - The same section in the previous run alias: ( conf/metadata/experiment_data.yml ) last_experiment_data
+
+        # The function returns a dictionary with the differences between the two sections
+        # Testing Experiment changes
+        self.as_conf_editable.experiment_data = {'EXPERIMENT':
+                            {'DATELIST': '20000101', 'MEMBERS': 'fc0', 'CHUNKSIZEUNIT': 'month', 'CHUNKSIZE': '4', 'NUMCHUNKS': '2', 'CHUNKINI': '', 'CALENDAR': 'standard'},
+                        'DEFAULT':
+                            {'EXPID': 'a02j', 'HPCARCH': 'marenostrum4'},
+                        'CONFIG':
+                            {'AUTOSUBMIT_VERSION': '4.1.0', 'MAXWAITINGJOBS': 2, 'TOTALJOBS': 2, 'SAFETYSLEEPTIME': 10, 'RETRIALS': 0},
+                        'JOBS':
+                            {
+                                'DN':
+                                    {'DEPENDENCIES': {'DN': {'SPLITS_FROM': {'ALL': {'SPLITS_TO': 'previous'}}}, 'SIM': {'STATUS': 'RUNNING'}},
+                                     'FILE': 'templates/dn.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'chunk', 'SPLITS': 31, 'WALLCLOCK': '00:15', 'ADDITIONAL_FILES': ['conf/mother_request.yml']},
+                                'INI':
+                                    {'DEPENDENCIES': {'REMOTE_SETUP': {}}, 'FILE': 'templates/ini.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'member', 'WALLCLOCK': '00:30', 'ADDITIONAL_FILES': []},
+                                'LOCAL_SETUP':
+                                    {'FILE': 'templates/local_setup.sh', 'PLATFORM': 'LOCAL', 'RUNNING': 'once', 'DEPENDENCIES': {}, 'ADDITIONAL_FILES': []},
+                                'REMOTE_SETUP':
+                                    {'DEPENDENCIES': {'SYNCHRONIZE': {}}, 'FILE': 'templates/remote_setup.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'once', 'WALLCLOCK': '02:00', 'ADDITIONAL_FILES': ['templates/fdb/confignative.yaml', 'templates/fdb/configregularll.yaml', 'templates/fdb/confighealpix.yaml']},
+                                'SIM':
+                                    {'DEPENDENCIES': {'INI': {}, 'SIM-1': {}}, 'FILE': '<to-be-replaced-by-user-conf>', 'PLATFORM': 'marenostrum4', 'WALLCLOCK': '00:30', 'RUNNING': 'chunk', 'ADDITIONAL_FILES': []},
+                            }
+                        }
+        self.as_conf_editable.last_experiment_data = self.as_conf_editable.experiment_data
+        changes = {}
+        changes["EXPERIMENT"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("EXPERIMENT", {}),
+                                                                     self.as_conf_editable.last_experiment_data.get("EXPERIMENT", {}))
+        changes["CONFIG"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("CONFIG", {}),
+                                                                     self.as_conf_editable.last_experiment_data.get("CONFIG", {}))
+        changes["DEFAULT"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("DEFAULT", {}),
+                                                                      self.as_conf_editable.last_experiment_data.get("DEFAULT", {}))
+        changes["JOBS"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("JOBS", {}),
+                                                                     self.as_conf_editable.last_experiment_data.get("JOBS", {}))
+        self.assertEqual(changes, {'EXPERIMENT': {}, 'CONFIG': {}, 'DEFAULT': {}, 'JOBS': {}})
+
+        # change experiment
+        self.as_conf_editable.last_experiment_data = {'EXPERIMENT':
+                            {'DATELIST': '20000101', 'MEMBERS': 'fc0', 'CHUNKSIZEUNIT': 'month', 'CHUNKSIZE': '4', 'NUMCHUNKS': '10', 'CHUNKINI': '', 'CALENDAR': 'standard'},
+                        'DEFAULT':
+                            {'EXPID': 'a02j', 'HPCARCH': 'marenostrum5'},
+                        'CONFIG':
+                            {'AUTOSUBMIT_VERSION': '4.1.0', 'MAXWAITINGJOBS': 2, 'TOTALJOBS': 40, 'SAFETYSLEEPTIME': 50, 'RETRIALS': 0},
+                        'JOBS':
+                            {
+                                'DN':
+                                    {'DEPENDENCIES': {'DN': {'SPLITS_FROM': {'ALL': {'SPLITS_TO': 'dummy'}}}, 'SIM': {'STATUS': 'RUNNING'}},
+                                     'FILE': 'templates/dn.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'chunk', 'SPLITS': 31, 'WALLCLOCK': '00:15', 'ADDITIONAL_FILES': ['conf/mother_request.yml']},
+                                'INI_RENAMED':
+                                    {'DEPENDENCIES': {'REMOTE_SETUP': {}}, 'FILE': 'templates/ini.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'member', 'WALLCLOCK': '00:30', 'ADDITIONAL_FILES': []},
+                                'LOCAL_SETUP':
+                                    {'FILE': 'templates/local_setup.sh', 'PLATFORM': 'LOCAL', 'RUNNING': 'once', 'DEPENDENCIES': {}, 'ADDITIONAL_FILES': []},
+                                'REMOTE_SETUP':
+                                    {'DEPENDENCIES': {'SYNCHRONIZE': {}}, 'FILE': 'templates/remote_setup.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'once', 'WALLCLOCK': '02:00', 'ADDITIONAL_FILES': ['templates/fdb/confignative.yaml', 'templates/fdb/configregularll.yaml', 'templates/fdb/confighealpix.yaml']},
+                                'SIM':
+                                    {'DEPENDENCIES': {'INI': {}, 'SIM-1': {}}, 'FILE': '<to-be-replaced-by-user-conf>', 'PLATFORM': 'marenostrum4', 'WALLCLOCK': '00:30', 'RUNNING': 'chunk', 'ADDITIONAL_FILES': []},
+                                'NEW_JOB':
+                                    {'DEPENDENCIES': {'INI': {}, 'SIM-1': {}}, 'FILE': '<to-be-replaced-by-user-conf>', 'PLATFORM': 'marenostrum4', 'WALLCLOCK': '00:30', 'RUNNING': 'chunk', 'ADDITIONAL_FILES': []},
+                            }
+                        }
+        #Changes
+        changes = {}
+        changes["EXPERIMENT"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("EXPERIMENT", {}), self.as_conf_editable.last_experiment_data.get("EXPERIMENT", {}))
+        changes["CONFIG"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("CONFIG", {}), self.as_conf_editable.last_experiment_data.get("CONFIG", {}))
+        changes["DEFAULT"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("DEFAULT", {}), self.as_conf_editable.last_experiment_data.get("DEFAULT", {}))
+        changes["JOBS"] = self.as_conf_editable.detailed_deep_diff(self.as_conf_editable.experiment_data.get("JOBS", {}), self.as_conf_editable.last_experiment_data.get("JOBS", {}))
+
+        expected_changes = {'EXPERIMENT': {'NUMCHUNKS': '2'},
+                            'CONFIG': {'SAFETYSLEEPTIME': 10, 'TOTALJOBS': 2},
+                            'DEFAULT': {'HPCARCH': 'marenostrum4'},
+                            'JOBS':
+                                {'DN':
+                                     {'DEPENDENCIES': {'DN': {'SPLITS_FROM': {'ALL': {'SPLITS_TO': 'dummy'}}}}},
+                                 'INI': {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {'REMOTE_SETUP': {}}, 'FILE': 'templates/ini.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'member', 'WALLCLOCK': '00:30'},
+                                 'INI_RENAMED': {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {'REMOTE_SETUP': {}}, 'FILE': 'templates/ini.sh', 'PLATFORM': 'marenostrum4-login', 'RUNNING': 'member', 'WALLCLOCK': '00:30'},
+                                 'NEW_JOB': {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {'INI': {}, 'SIM-1': {}}, 'FILE': '<to-be-replaced-by-user-conf>', 'PLATFORM': 'marenostrum4', 'RUNNING': 'chunk', 'WALLCLOCK': '00:30'},
+                                 }
+                            }
+
+        self.assertEqual(changes, expected_changes)
+
+

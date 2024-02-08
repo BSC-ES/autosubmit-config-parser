@@ -1487,15 +1487,20 @@ class AutosubmitConfig(object):
             print(f"Saving experiment data into {self.metadata_folder}")
         return self.data_changed
 
-    def detailed_deep_diff(self, current_data, last_run_data, differences={}):
+    def detailed_deep_diff(self, current_data, last_run_data, level = 0):
         """
         Returns a dictionary with for each key, the difference between the current configuration and the last_run_data
         :param current_data: dictionary with the current data
         :param last_run_data: dictionary with the last_run_data data
         :return: differences: dictionary
         """
+        differences = {}
         if current_data is None:
             current_data = {}
+        if last_run_data is None:
+            last_run_data = {}
+        # Check if current_data key is present on last_run_data
+        # If present, obtain the new value
         for key, val in current_data.items():
             if isinstance(val, collections.abc.Mapping):
                 if key not in last_run_data.keys():
@@ -1503,11 +1508,31 @@ class AutosubmitConfig(object):
                 else:
                     if type(last_run_data[key]) is not dict:
                         differences[key] = val
+                    elif len(last_run_data[key]) == 0:
+                        continue
                     else:
-                        differences = self.detailed_deep_diff(last_run_data[key], val, differences)
+                        diff = self.detailed_deep_diff(last_run_data[key], val, level)
+                        if diff:
+                            differences[key] = diff
             else:
                 if key not in last_run_data.keys() or last_run_data[key] != val:
                     differences[key] = val
+        # Now check the keys that are in last_run_data but not in current_data
+        # We don't want the old value
+        for key, val in last_run_data.items():
+            if isinstance(val, collections.abc.Mapping):
+                if key not in current_data.keys():
+                    differences[key] = val
+                else:
+                    if type(current_data[key]) is dict and len(current_data[key]) == 0:
+                        diff = self.detailed_deep_diff(current_data[key], val, level)
+                        if diff:
+                            differences[key] = diff
+            else:
+                if key not in current_data.keys():
+                    differences[key] = val
+        if not differences and level > 0:
+            return None
         return differences
 
     def quick_deep_diff(self, current_data, last_run_data, changed = False):
