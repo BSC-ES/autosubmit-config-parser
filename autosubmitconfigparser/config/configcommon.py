@@ -1501,7 +1501,10 @@ class AutosubmitConfig(object):
                 if key not in last_run_data.keys():
                     differences[key] = val
                 else:
-                    differences = self.detailed_deep_diff(last_run_data[key], val, differences)
+                    if type(last_run_data[key]) is not dict:
+                        differences[key] = val
+                    else:
+                        differences = self.detailed_deep_diff(last_run_data[key], val, differences)
             else:
                 if key not in last_run_data.keys() or last_run_data[key] != val:
                     differences[key] = val
