@@ -4,6 +4,8 @@ import pytest
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 
+"""Basic tests for ``AutosubmitConfig``."""
+
 
 def test_get_submodules_list_default_empty_list(autosubmit_config: Callable):
     """If nothing is provided, we get a list with an empty string."""
