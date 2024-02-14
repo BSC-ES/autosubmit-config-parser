@@ -1,6 +1,10 @@
 #import the main config library
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 import os
+import pytest
+
+pytest.skip("Run manually.", allow_module_level=True)
+
 # Init the configuration object where expid = experiment identifier that you want to load
 expid = "a00e"
 as_conf = AutosubmitConfig("a00e")
