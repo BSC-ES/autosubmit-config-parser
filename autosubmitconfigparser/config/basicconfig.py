@@ -21,7 +21,7 @@ try:
     from configparser import SafeConfigParser
 except ImportError:
     # noinspection PyCompatibility
-    from configparser import SafeConfigParser
+    from configparser import ConfigParser as SafeConfigParser
 import os
 
 import inspect
