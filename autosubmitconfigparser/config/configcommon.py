@@ -1473,19 +1473,16 @@ class AutosubmitConfig(object):
         # If this function is called before load_last_run, we need to load the last run
         if self.last_experiment_data and len(self.last_experiment_data) == 0:
             self.load_last_run()
-        if self.data_changed or not (Path(self.metadata_folder) / "experiment_data.yml").exists():
-            # Backup the old file
+        if (Path(self.metadata_folder) / "experiment_data.yml").exists():
+            shutil.copy(Path(self.metadata_folder) / "experiment_data.yml", Path(self.metadata_folder) / "experiment_data.yml.bak")
+        try:
+            with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
+                yaml.dump(self.experiment_data, stream, default_flow_style=False)
+        except:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                shutil.copy(Path(self.metadata_folder) / "experiment_data.yml", Path(self.metadata_folder) / "experiment_data.yml.bak")
-            try:
-                with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                    yaml.dump(self.experiment_data, stream, default_flow_style=False)
-            except:
-                if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                    os.remove(Path(self.metadata_folder) / "experiment_data.yml")
-                self.data_changed = True
-                self.last_experiment_data = {}
-            print(f"Saving experiment data into {self.metadata_folder}")
+                os.remove(Path(self.metadata_folder) / "experiment_data.yml")
+            self.data_changed = True
+            self.last_experiment_data = {}
         return self.data_changed
 
     def detailed_deep_diff(self, current_data, last_run_data, level = 0):
