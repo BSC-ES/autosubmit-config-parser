@@ -6,7 +6,6 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 install_requires = [
-    'argparse>=1.4.0',
     'bscearth.utils>=0.5.2',
     'configobj>=5.0.8',
     'configparser>=6.0.0',
@@ -42,7 +41,7 @@ extras_require = {
 
 setuptools.setup(
     name="autosubmitconfigparser",
-    version="1.0.57",
+    version="1.0.58",
     author="Daniel Beltran Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",

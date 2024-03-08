@@ -1,5 +1,4 @@
 ruamel.yaml==0.17.21
-argparse>=1.4.0
 mock
 pathlib
 bscearth.utils
