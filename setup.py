@@ -41,7 +41,7 @@ extras_require = {
 
 setuptools.setup(
     name="autosubmitconfigparser",
-    version="1.0.58",
+    version="1.0.59",
     author="Daniel Beltran Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",
