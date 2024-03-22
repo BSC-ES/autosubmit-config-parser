@@ -822,7 +822,7 @@ class AutosubmitConfig(object):
                         aux_dict = aux_dict.get(k.upper(),{})
                         if type(aux_dict) == int:
                             aux_dict = str(aux_dict)
-                    if len(aux_dict) > 0:
+                    if aux_dict and len(aux_dict) > 0:
                         full_value = str(rest_of_keys_start)+str(aux_dict)+str(rest_of_keys_end)
                         value = full_value
                     else:
