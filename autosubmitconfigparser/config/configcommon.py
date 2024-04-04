@@ -2111,7 +2111,7 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         if self.platforms_data.get(section,"false") != "false":
-            return self.platforms_data[section].get('DISABLE_RECOVERY_THREADS',"false").lower()
+            return str(self.platforms_data[section].get('DISABLE_RECOVERY_THREADS',"false")).lower()
         else:
             return "false"
     def get_max_processors(self):
