@@ -1506,7 +1506,7 @@ class AutosubmitConfig(object):
                 else:
                     if type(last_run_data[key]) is not dict:
                         differences[key] = val
-                    elif len(last_run_data[key]) == 0:
+                    elif len(last_run_data[key]) == 0 and len(last_run_data[key]) == len(current_data[key]):
                         continue
                     else:
                         diff = self.detailed_deep_diff(last_run_data[key], val, level)
