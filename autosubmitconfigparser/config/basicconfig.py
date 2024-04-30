@@ -65,6 +65,9 @@ class BasicConfig:
     ALLOWED_HOSTS = ''
     DENIED_HOSTS = ''
     CONFIG_FILE_FOUND = False
+    DATABASE_BACKEND = "sqlite"
+    DATABASE_CONN_URL = ""
+
     @staticmethod
     def _update_config():
         """
@@ -168,6 +171,10 @@ class BasicConfig:
         if parser.has_option('autosubmitapi', 'url'):
             BasicConfig.AUTOSUBMIT_API_URL = parser.get(
                 'autosubmitapi', 'url')
+        if parser.has_option('database', 'backend'):
+            BasicConfig.DATABASE_BACKEND = parser.get('database', 'backend')
+        if parser.has_option('database', 'connection_url'):
+            BasicConfig.DATABASE_CONN_URL = parser.get('database', 'connection_url')
 
     @staticmethod
     def read():
