@@ -2052,6 +2052,22 @@ class AutosubmitConfig(object):
                 re.search('HPCARCH:.*', content).group(0), "HPCARCH: " + hpc)
         open(self._exp_parser_file, 'w').write(content)
 
+    def set_last_as_command(self, command):
+        """
+        Set the last autosubmit command used in the experiment's config file
+        :param command: current autosubmit command
+        :return:
+        """
+        misc = os.path.join(self.conf_folder_yaml,"as_misc.yml")
+        try:
+            content = open(misc, 'r').read()
+            if re.search('COMMAND:.*', content):
+                content = content.replace(re.search('COMMAND:.*', content).group(0),"COMMAND: {0}".format(command) )
+        except:
+            content = "ASMISC:\n  COMMAND: " + command + "\n"
+        open(misc,'w').write(content)
+        os.chmod(misc, 0o755)
+
     def set_version(self, autosubmit_version):
         """
         Sets autosubmit's version in autosubmit's config file
