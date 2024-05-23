@@ -1119,7 +1119,7 @@ class AutosubmitConfig(object):
         for section in parser.get("JOBS", {}):
             section_data = parser["JOBS"][section]
             section_file_path = section_data.get('FILE', "")
-            if not section_file_path:
+            if not section_file_path and not section_data.get('SCRIPT', ""):
                 self.wrong_config["Jobs"] += [[section,
                                                "Mandatory FILE parameter not found"]]
             else:
