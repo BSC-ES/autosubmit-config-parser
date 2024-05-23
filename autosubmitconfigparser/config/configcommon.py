@@ -13,7 +13,8 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-
+# You should have received a copy of the GNU General Public License
+# along with Autosubmit.  If not, see <http://www.gnu.org/licenses/>.
 import collections
 import copy
 import datetime
@@ -22,8 +23,6 @@ import locale
 import numbers
 import os
 import re
-# You should have received a copy of the GNU General Public License
-# along with Autosubmit.  If not, see <http://www.gnu.org/licenses/>.
 import shutil
 import subprocess
 import traceback
@@ -594,7 +593,7 @@ class AutosubmitConfig(object):
                     self.convert_list_to_string(data[key])
         return data
 
-    def load_config_file(self, current_folder_data, yaml_file, load_misc = False):
+    def load_config_file(self, current_folder_data, yaml_file, load_misc=False):
         """
         Load a config file and parse it
         :param current_folder_data: current folder data
@@ -630,7 +629,6 @@ class AutosubmitConfig(object):
                     [p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]):
                 filenames_to_load.append(str(yaml_file))
         return filenames_to_load
-
 
     def load_config_folder(self, current_data, yaml_folder, ignore_minimal=False):
         """
@@ -1502,7 +1500,8 @@ class AutosubmitConfig(object):
         self.misc_data = {}
         self.misc_files = list(set(self.misc_files))
         for filename in self.misc_files:
-            self.misc_data = self.unify_conf(self.misc_data, self.load_config_file(self.misc_data, Path(filename),load_misc=True))
+            self.misc_data = self.unify_conf(self.misc_data,
+                                             self.load_config_file(self.misc_data, Path(filename), load_misc=True))
 
     def load_last_run(self):
         try:
@@ -2607,7 +2606,7 @@ class AutosubmitConfig(object):
         branch = self.get_git_project_branch()
         commit = self.get_git_project_commit()
         return origin_exists and (
-                    (branch is not None and len(str(branch)) > 0) or (commit is not None and len(str(commit)) > 0))
+                (branch is not None and len(str(branch)) > 0) or (commit is not None and len(str(commit)) > 0))
 
     def parse_githooks(self):
         """
