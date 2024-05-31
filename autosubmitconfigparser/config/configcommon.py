@@ -1300,7 +1300,7 @@ class AutosubmitConfig(object):
                     self.wrong_config["WRAPPERS"] += [[wrapper_name,
                                                        "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
                 if 'horizontal' in self.get_wrapper_type(wrapper_values):
-                    if not self.experiment_data["PLATFORMS"][platform_name].get('PROCESSORS_PER_NODE', "1"):
+                    if not self.experiment_data["PLATFORMS"][platform_name].get('PROCESSORS_PER_NODE', None):
                         self.wrong_config["WRAPPERS"] += [
                             [wrapper_name, "PROCESSORS_PER_NODE no exist in the horizontal-wrapper platform"]]
                     if not self.experiment_data["PLATFORMS"][platform_name].get('MAX_PROCESSORS', ""):
