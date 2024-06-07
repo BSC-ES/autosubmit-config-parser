@@ -512,6 +512,8 @@ class AutosubmitConfig(object):
         Apply some memory internal variables to normalize it format. (right now only dependencies)
         """
         data_fixed = data
+        if data.get("DEFAULT", {}).get("HPCARCH", None) is not None:
+            data["DEFAULT"]["HPCARCH"] = data["DEFAULT"]["HPCARCH"].upper()
         if data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             try:
                 data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(data["DEFAULT"]["CUSTOM_CONFIG"])
