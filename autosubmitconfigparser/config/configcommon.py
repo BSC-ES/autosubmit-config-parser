@@ -606,7 +606,11 @@ class AutosubmitConfig(object):
 
         # check if path is file o folder
         # load yaml file with ruamel.yaml
+
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
+        if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
+            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
+                new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
         new_file.data = self.deep_normalize(new_file.data)
         if new_file.data.get("AS_MISC", False) and not load_misc:
             self.misc_files.append(yaml_file)
