@@ -513,10 +513,10 @@ class AutosubmitConfig(object):
         """
         data_fixed = data
         if data.get("DEFAULT", {}).get("HPCARCH", None) is not None:
-            data["DEFAULT"]["HPCARCH"] = data["DEFAULT"]["HPCARCH"].upper()
+            data_fixed["DEFAULT"]["HPCARCH"] = data["DEFAULT"]["HPCARCH"].upper()
         if data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             try:
-                data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(data["DEFAULT"]["CUSTOM_CONFIG"])
+                data_fixed["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(data["DEFAULT"]["CUSTOM_CONFIG"])
             except:
                 pass
         wrappers = data_fixed.get("WRAPPERS", {})
@@ -528,7 +528,7 @@ class AutosubmitConfig(object):
                     jobs_in_wrapper = jobs_in_wrapper.replace("'", "")
                     jobs_in_wrapper = jobs_in_wrapper.replace(" ", "")
                     jobs_in_wrapper = jobs_in_wrapper.replace(",", " ")
-                data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper
+                data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper.upper()
         for job, job_data in data.get("JOBS", {}).items():
             aux_dependencies = dict()
             dependencies = job_data.get("DEPENDENCIES", {})
@@ -1293,7 +1293,7 @@ class AutosubmitConfig(object):
                     jobs_in_wrapper = jobs_in_wrapper.split(" ")
             for section in jobs_in_wrapper:
                 try:
-                    platform_name = self.jobs_data[section].get('PLATFORM', "").upper()
+                    platform_name = self.jobs_data[section.upper()].get('PLATFORM', "").upper()
                 except:
                     self.wrong_config["WRAPPERS"] += [[wrapper_name,
                                                        "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
