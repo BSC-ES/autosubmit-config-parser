@@ -2133,10 +2133,16 @@ class AutosubmitConfig(object):
         misc = os.path.join(self.conf_folder_yaml, "as_misc.yml")
         try:
             content = open(misc, 'r').read()
-            if re.search('COMMAND:.*', content):
-                content = content.replace(re.search('COMMAND:.*', content).group(0), "COMMAND: {0}".format(command))
+            if re.search('AS_MISC:.*', content):
+                content = content.replace(re.search('AS_MISC:.*', content).group(0), "AS_MISC: True")
+            else:
+                content = "AS_MISC: True\n" + content
+            if re.search('AS_COMMAND:.*', content):
+                content = content.replace(re.search('AS_COMMAND:.*', content).group(0), "AS_COMMAND: {0}".format(command))
+            else:
+                content = content + "AS_COMMAND: {0}\n".format(command)
         except:
-            content = "ASMISC:\n  COMMAND: " + command + "\n"
+            content = "AS_MISC: True\nAS_COMMAND: {0}\n".format(command)
         open(misc, 'w').write(content)
         os.chmod(misc, 0o755)
 
