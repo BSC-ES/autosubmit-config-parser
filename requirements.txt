@@ -1,6 +1,5 @@
 ruamel.yaml==0.17.21
 mock
-pathlib
 bscearth.utils
 configobj
 pyparsing

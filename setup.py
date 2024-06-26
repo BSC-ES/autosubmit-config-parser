@@ -9,7 +9,6 @@ install_requires = [
 
     'ruamel.yaml==0.17.21',
     'mock',
-    'pathlib',
     'bscearth.utils',
     'configobj',
     'pyparsing',
@@ -30,7 +29,7 @@ extras_require = {
 
 setuptools.setup(
     name="autosubmitconfigparser",
-    version="1.0.67",
+    version="1.0.68",
     author="Daniel Beltran Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",
