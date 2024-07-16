@@ -2641,7 +2641,7 @@ class AutosubmitConfig(object):
             if ext == ".tmpl":
                 with open(githook_file, 'r') as f:
                     content = f.read()
-                matches = re.findall('%(?<!%%)\w+%(?!%%)', content, flags=re.IGNORECASE)
+                matches = re.findall('%(?<!%%)[a-zA-Z0-9_.-]+%(?!%%)', content, flags=re.IGNORECASE)
                 for match in matches:
                     # replace all '%(?<!%%)\w+%(?!%%)' with parameters value
                     content = content.replace(match, parameters.get(match[1:-1], ""))
