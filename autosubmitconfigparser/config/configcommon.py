@@ -693,7 +693,8 @@ class AutosubmitConfig(object):
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        self.dynamic_variables = list(set(self.dynamic_variables))
+        # find repeated keys in self.dynamic_variables and use the last one
+        self.dynamic_variables = list({v[0]: v for v in self.dynamic_variables}.values())
         self.special_dynamic_variables = list(set(self.special_dynamic_variables))
         current_data = self.deep_normalize(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
@@ -782,9 +783,15 @@ class AutosubmitConfig(object):
 
         for dynamic_var in dynamic_variables_:
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
-            if match is not None:
-                dynamic_variables.append(dynamic_var)
+            if dynamic_var[1] is str:
+                keys = [dynamic_var[1]]
+            else:
+                keys = dynamic_var[1]
+            for key in keys:
+                match = (re.search(pattern, key, flags=re.IGNORECASE))
+                if match is not None:
+                    dynamic_variables.append(dynamic_var)
+                    break
         if in_the_end:
             self.special_dynamic_variables = dynamic_variables
         else:
@@ -818,7 +825,6 @@ class AutosubmitConfig(object):
         while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in dynamic_variables_:
-                value = None
                 # get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
@@ -828,42 +834,36 @@ class AutosubmitConfig(object):
                     keys = dynamic_var[1]
                     # get substring of key between %%
                 if keys is not None:
-                    match = (re.search(pattern, keys, flags=re.IGNORECASE))
-                else:
-                    match = None
-                if match is not None:
-                    rest_of_keys_start = keys[:match.start()]
-                    rest_of_keys_end = keys[match.end():]
-                    keys = keys[match.start():match.end()]
-                    if "." in keys and dict_keys_type != "long":
-                        keys = keys[start_long:-1].split(".")
-                    else:
-                        keys = [keys[start_long:-1]]
-                    aux_dict = parameters
-                    for k in keys:
-                        aux_dict = aux_dict.get(k.upper(), {})
-                        if type(aux_dict) == int:
-                            aux_dict = str(aux_dict)
-                    if aux_dict and len(aux_dict) > 0:
-                        full_value = str(rest_of_keys_start) + str(aux_dict) + str(rest_of_keys_end)
-                        value = full_value
-                    else:
-                        value = None
-                else:
-                    value = None
-                if value is not None:
-                    if dict_keys_type == "long":
-                        dict_key = parameters.get(str(dynamic_var[0]), {})
-                        if len(dict_key) > 0:
-                            parameters[str(dynamic_var[0])] = value
-                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
-                                dynamic_variables.append((dynamic_var[0], value))
-                    else:
-                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-                if value is None:
-                    dynamic_variables.append(dynamic_var)
-                elif "%" in value:
-                    dynamic_variables.append((dynamic_var[0], value))
+                    if type(keys) is str:
+                        keys = [keys]
+                    for key in keys:
+                        match = (re.search(pattern, key, flags=re.IGNORECASE))
+                        rest_of_key_start = key[:match.start()]
+                        rest_of_key_end = key[match.end():]
+                        key = key[match.start():match.end()]
+                        if "." in key and dict_keys_type != "long":
+                            key = key[start_long:-1].split(".")
+                        else:
+                            key = [key[start_long:-1]]
+                        aux_dict = parameters
+                        for k in key:
+                            aux_dict = aux_dict.get(k.upper(), {})
+                            if type(aux_dict) == int:
+                                aux_dict = str(aux_dict)
+                        if aux_dict and len(aux_dict) > 0:
+                            full_value = str(rest_of_key_start) + str(aux_dict) + str(rest_of_key_end)
+                            value = full_value
+                            if value is not None:
+                                if dict_keys_type == "long":
+                                    dict_key = parameters.get(str(dynamic_var[0]), {})
+                                    if len(dict_key) > 0:
+                                        parameters[str(dynamic_var[0])] = value
+                                        if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
+                                            dynamic_variables.append((dynamic_var[0], value))
+                                else:
+                                    parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+                                dynamic_variables.append(dynamic_var)
+
             # checksum of each element
             if len(dynamic_variables) == len(dynamic_variables_):
                 same_as_previous_step = True
