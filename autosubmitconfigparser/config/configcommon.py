@@ -838,6 +838,8 @@ class AutosubmitConfig(object):
                         keys = [keys]
                     for key in keys:
                         match = (re.search(pattern, key, flags=re.IGNORECASE))
+                        if not match:
+                            continue
                         rest_of_key_start = key[:match.start()]
                         rest_of_key_end = key[match.end():]
                         key = key[match.start():match.end()]
