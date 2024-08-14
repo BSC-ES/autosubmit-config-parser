@@ -783,15 +783,15 @@ class AutosubmitConfig(object):
 
         for dynamic_var in dynamic_variables_:
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            if dynamic_var[1] is str:
-                keys = [dynamic_var[1]]
+            if type(dynamic_var[1]) is list:
+                for value in dynamic_var[1]:
+                    if not re.search(pattern, value, flags=re.IGNORECASE):
+                        dynamic_variables.append(dynamic_var)
+                        continue
             else:
-                keys = dynamic_var[1]
-            for key in keys:
-                match = (re.search(pattern, key, flags=re.IGNORECASE))
+                match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
                 if match is not None:
                     dynamic_variables.append(dynamic_var)
-                    break
         if in_the_end:
             self.special_dynamic_variables = dynamic_variables
         else:
@@ -847,15 +847,15 @@ class AutosubmitConfig(object):
                             key = key[start_long:-1].split(".")
                         else:
                             key = [key[start_long:-1]]
-                        aux_dict = parameters
+                        param = parameters
                         for k in key:
-                            aux_dict = aux_dict.get(k.upper(), {})
-                            if type(aux_dict) == int:
-                                aux_dict = str(aux_dict)
-                        if aux_dict and len(aux_dict) > 0:
-                            full_value = str(rest_of_key_start) + str(aux_dict) + str(rest_of_key_end)
+                            param = param.get(k.upper(), {})
+                            if type(param) is int:
+                                param = str(param)
+                        if param and len(param) > 0:
+                            full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
                             value = full_value
-                            if value is not None:
+                            if value:
                                 if dict_keys_type == "long":
                                     dict_key = parameters.get(str(dynamic_var[0]), {})
                                     if len(dict_key) > 0:
@@ -864,7 +864,10 @@ class AutosubmitConfig(object):
                                             dynamic_variables.append((dynamic_var[0], value))
                                 else:
                                     parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+                                dynamic_variables.append((dynamic_var[0], value))
+                            else:
                                 dynamic_variables.append(dynamic_var)
+
 
             # checksum of each element
             if len(dynamic_variables) == len(dynamic_variables_):
