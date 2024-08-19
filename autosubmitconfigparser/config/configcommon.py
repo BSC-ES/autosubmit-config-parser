@@ -828,45 +828,49 @@ class AutosubmitConfig(object):
                 # get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
-                    if keys is None:
+                    if not keys:
                         keys = parameters.get(str(dynamic_var[0]), None)
                 else:
                     keys = dynamic_var[1]
                     # get substring of key between %%
-                if keys is not None:
+                if keys:
                     if type(keys) is str:
                         keys = [keys]
                     for key in keys:
-                        match = (re.search(pattern, key, flags=re.IGNORECASE))
-                        if not match:
+                        matches = (re.finditer(pattern, key, flags=re.IGNORECASE))
+                        if not matches:
                             continue
-                        rest_of_key_start = key[:match.start()]
-                        rest_of_key_end = key[match.end():]
-                        key = key[match.start():match.end()]
-                        if "." in key and dict_keys_type != "long":
-                            key = key[start_long:-1].split(".")
-                        else:
-                            key = [key[start_long:-1]]
-                        param = parameters
-                        for k in key:
-                            param = param.get(k.upper(), {})
-                            if type(param) is int:
-                                param = str(param)
-                        if param and len(param) > 0:
-                            full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
-                            value = full_value
-                            if value:
-                                if dict_keys_type == "long":
-                                    dict_key = parameters.get(str(dynamic_var[0]), {})
-                                    if len(dict_key) > 0:
-                                        parameters[str(dynamic_var[0])] = value
-                                        if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
-                                            dynamic_variables.append((dynamic_var[0], value))
-                                else:
-                                    parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-                                dynamic_variables.append((dynamic_var[0], value))
+                        for match in matches:
+                            rest_of_key_start = key[:match.start()]
+                            rest_of_key_end = key[match.end():]
+                            key = key[match.start():match.end()]
+                            if "." in key and dict_keys_type != "long":
+                                key = key[start_long:-1].split(".")
                             else:
-                                dynamic_variables.append(dynamic_var)
+                                key = [key[start_long:-1]]
+                            param = parameters
+                            for k in key:
+                                if type(k) is list:
+                                    k = ""
+                                param = param.get(k.upper(), {})
+                                if type(param) is int:
+                                    param = str(param)
+                            if param and len(param) > 0:
+                                full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
+                                value = full_value
+                                if value:
+                                    if dict_keys_type == "long":
+                                        dict_key = parameters.get(str(dynamic_var[0]), {})
+                                        if len(dict_key) > 0:
+                                            parameters[str(dynamic_var[0])] = value
+                                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
+                                                dynamic_variables.append((dynamic_var[0], value))
+                                    else:
+                                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+                                    dynamic_variables.append((dynamic_var[0], value))
+                                else:
+                                    dynamic_variables.append(dynamic_var)
+                                dynamic_variables = list(set(dynamic_variables))
 
 
             # checksum of each element
