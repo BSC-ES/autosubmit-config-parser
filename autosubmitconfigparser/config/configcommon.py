@@ -693,8 +693,7 @@ class AutosubmitConfig(object):
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        # find repeated keys in self.dynamic_variables and use the last one
-        self.dynamic_variables = list({v[0]: v for v in self.dynamic_variables}.values())
+        self.dynamic_variables = list(set(self.dynamic_variables))
         self.special_dynamic_variables = list(set(self.special_dynamic_variables))
         current_data = self.deep_normalize(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
@@ -825,6 +824,7 @@ class AutosubmitConfig(object):
         while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in dynamic_variables_:
+                value = None
                 # get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
