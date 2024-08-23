@@ -89,7 +89,7 @@ class AutosubmitConfig(object):
          :return: string
          :rtype: string
          """
-        return wrapper.get('EXPORT', self.experiment_data.get("WRAPPERS",{}).get("EXPORT",""))
+        return wrapper.get('EXPORT', self.experiment_data.get("WRAPPERS", {}).get("EXPORT", ""))
 
     def get_project_submodules_depth(self):
         """
@@ -871,7 +871,6 @@ class AutosubmitConfig(object):
                                 else:
                                     dynamic_variables.append(dynamic_var)
                                 dynamic_variables = list(set(dynamic_variables))
-
 
             # checksum of each element
             if len(dynamic_variables) == len(dynamic_variables_):
@@ -2147,7 +2146,8 @@ class AutosubmitConfig(object):
             else:
                 content = "AS_MISC: True\n" + content
             if re.search('AS_COMMAND:.*', content):
-                content = content.replace(re.search('AS_COMMAND:.*', content).group(0), "AS_COMMAND: {0}".format(command))
+                content = content.replace(re.search('AS_COMMAND:.*', content).group(0),
+                                          "AS_COMMAND: {0}".format(command))
             else:
                 content = content + "AS_COMMAND: {0}\n".format(command)
         except:
@@ -2378,8 +2378,8 @@ class AutosubmitConfig(object):
         :return: wrapper type (or none)
         :rtype: string
         """
-        if len(wrapper) > 0 :
-            return wrapper.get('TYPE',self.experiment_data.get("WRAPPERS",{}).get("TYPE",""))
+        if len(wrapper) > 0:
+            return wrapper.get('TYPE', self.experiment_data.get("WRAPPERS", {}).get("TYPE", ""))
         else:
             return None
 
@@ -2390,7 +2390,7 @@ class AutosubmitConfig(object):
         :return: safety sleep time
         :rtype: int
         """
-        return wrapper.get('INNER_RETRIALS', self.experiment_data.get("WRAPPERS",{}).get("INNER_RETRIALS",0))
+        return wrapper.get('INNER_RETRIALS', self.experiment_data.get("WRAPPERS", {}).get("INNER_RETRIALS", 0))
 
     def get_wrapper_policy(self, wrapper={}):
         """
@@ -2399,7 +2399,7 @@ class AutosubmitConfig(object):
         :return: wrapper type (or none)
         :rtype: string
         """
-        return wrapper.get( 'POLICY', self.experiment_data.get("WRAPPERS",{}).get("POLICY",'flexible'))
+        return wrapper.get('POLICY', self.experiment_data.get("WRAPPERS", {}).get("POLICY", 'flexible'))
 
     def get_wrappers(self):
         """
@@ -2419,7 +2419,7 @@ class AutosubmitConfig(object):
         """
         if wrapper is None:
             return ""
-        aux = wrapper.get('JOBS_IN_WRAPPER', self.experiment_data.get("WRAPPERS",{}).get("JOBS_IN_WRAPPER",""))
+        aux = wrapper.get('JOBS_IN_WRAPPER', self.experiment_data.get("WRAPPERS", {}).get("JOBS_IN_WRAPPER", ""))
         aux = aux.split()
         aux = [x.split("&") for x in aux]
         jobs_in_wrapper = []
@@ -2456,7 +2456,8 @@ class AutosubmitConfig(object):
         :return: expression (or none)
         :rtype: string
         """
-        return wrapper.get( 'QUEUE', self.experiment_data.get("WRAPPERS",{}).get("QUEUE",""))
+        return wrapper.get('QUEUE', self.experiment_data.get("WRAPPERS", {}).get("QUEUE", ""))
+
     def get_wrapper_partition(self, wrapper={}):
         """
         Returns the wrapper queue if not defined, will be the one of the first job wrapped
@@ -2464,7 +2465,7 @@ class AutosubmitConfig(object):
         :return: expression (or none)
         :rtype: string
         """
-        return wrapper.get( 'PARTITION', self.experiment_data.get("WRAPPERS",{}).get("PARTITION",""))
+        return wrapper.get('PARTITION', self.experiment_data.get("WRAPPERS", {}).get("PARTITION", ""))
 
     def get_min_wrapped_jobs(self, wrapper={}):
         """
@@ -2528,7 +2529,7 @@ class AutosubmitConfig(object):
          :return: method
          :rtype: string
          """
-        return wrapper.get('METHOD', self.experiment_data.get("WRAPPERS",{}).get("METHOD",'ASThread'))
+        return wrapper.get('METHOD', self.experiment_data.get("WRAPPERS", {}).get("METHOD", 'ASThread'))
 
     def get_wrapper_check_time(self):
         """
@@ -2548,7 +2549,8 @@ class AutosubmitConfig(object):
          :return: machinefiles function to use
          :rtype: string
          """
-        return wrapper.get('MACHINEFILES', self.experiment_data.get("WRAPPERS",{}).get("MACHINEFILES",""))
+        return wrapper.get('MACHINEFILES', self.experiment_data.get("WRAPPERS", {}).get("MACHINEFILES", ""))
+
     def get_export(self, section):
         """
         Gets command line for being submitted with
