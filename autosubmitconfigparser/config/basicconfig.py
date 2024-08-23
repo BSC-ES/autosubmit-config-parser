@@ -176,8 +176,8 @@ class BasicConfig:
             BasicConfig.DATABASE_BACKEND = parser.get('database', 'backend')
         if parser.has_option('database', 'connection_url'):
             BasicConfig.DATABASE_CONN_URL = parser.get('database', 'connection_url')
-        if parser.has_option('sysadmin', 'log_recovery_timeout'):
-            BasicConfig.LOG_RECOVERY_TIMEOUT = int(parser.get('sysadmin', 'log_recovery_timeout'))
+        if parser.has_option('config', 'log_recovery_timeout'):
+            BasicConfig.LOG_RECOVERY_TIMEOUT = int(parser.get('config', 'log_recovery_timeout'))
 
     @staticmethod
     def read():
