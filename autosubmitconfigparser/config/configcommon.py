@@ -89,7 +89,7 @@ class AutosubmitConfig(object):
          :return: string
          :rtype: string
          """
-        return wrapper.get('EXPORT', self.experiment_data.get("WRAPPERS",{}).get("EXPORT",""))
+        return wrapper.get('EXPORT', self.experiment_data.get("WRAPPERS", {}).get("EXPORT", ""))
 
     def get_project_submodules_depth(self):
         """
@@ -782,9 +782,15 @@ class AutosubmitConfig(object):
 
         for dynamic_var in dynamic_variables_:
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
-            if match is not None:
-                dynamic_variables.append(dynamic_var)
+            if type(dynamic_var[1]) is list:
+                for value in dynamic_var[1]:
+                    if not re.search(pattern, value, flags=re.IGNORECASE):
+                        dynamic_variables.append(dynamic_var)
+                        continue
+            else:
+                match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
+                if match is not None:
+                    dynamic_variables.append(dynamic_var)
         if in_the_end:
             self.special_dynamic_variables = dynamic_variables
         else:
@@ -822,48 +828,50 @@ class AutosubmitConfig(object):
                 # get value of placeholder with  name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
-                    if keys is None:
+                    if not keys:
                         keys = parameters.get(str(dynamic_var[0]), None)
                 else:
                     keys = dynamic_var[1]
                     # get substring of key between %%
-                if keys is not None:
-                    match = (re.search(pattern, keys, flags=re.IGNORECASE))
-                else:
-                    match = None
-                if match is not None:
-                    rest_of_keys_start = keys[:match.start()]
-                    rest_of_keys_end = keys[match.end():]
-                    keys = keys[match.start():match.end()]
-                    if "." in keys and dict_keys_type != "long":
-                        keys = keys[start_long:-1].split(".")
-                    else:
-                        keys = [keys[start_long:-1]]
-                    aux_dict = parameters
-                    for k in keys:
-                        aux_dict = aux_dict.get(k.upper(), {})
-                        if type(aux_dict) == int:
-                            aux_dict = str(aux_dict)
-                    if aux_dict and len(aux_dict) > 0:
-                        full_value = str(rest_of_keys_start) + str(aux_dict) + str(rest_of_keys_end)
-                        value = full_value
-                    else:
-                        value = None
-                else:
-                    value = None
-                if value is not None:
-                    if dict_keys_type == "long":
-                        dict_key = parameters.get(str(dynamic_var[0]), {})
-                        if len(dict_key) > 0:
-                            parameters[str(dynamic_var[0])] = value
-                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
-                                dynamic_variables.append((dynamic_var[0], value))
-                    else:
-                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-                if value is None:
-                    dynamic_variables.append(dynamic_var)
-                elif "%" in value:
-                    dynamic_variables.append((dynamic_var[0], value))
+                if keys:
+                    if type(keys) is str:
+                        keys = [keys]
+                    for key in keys:
+                        matches = (re.finditer(pattern, key, flags=re.IGNORECASE))
+                        if not matches:
+                            continue
+                        for match in matches:
+                            rest_of_key_start = key[:match.start()]
+                            rest_of_key_end = key[match.end():]
+                            key = key[match.start():match.end()]
+                            if "." in key and dict_keys_type != "long":
+                                key = key[start_long:-1].split(".")
+                            else:
+                                key = [key[start_long:-1]]
+                            param = parameters
+                            for k in key:
+                                if type(k) is list:
+                                    k = ""
+                                param = param.get(k.upper(), {})
+                                if type(param) is int:
+                                    param = str(param)
+                            if param and len(param) > 0:
+                                full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
+                                value = full_value
+                                if value:
+                                    if dict_keys_type == "long":
+                                        dict_key = parameters.get(str(dynamic_var[0]), {})
+                                        if len(dict_key) > 0:
+                                            parameters[str(dynamic_var[0])] = value
+                                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
+                                                dynamic_variables.append((dynamic_var[0], value))
+                                    else:
+                                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+                                    dynamic_variables.append((dynamic_var[0], value))
+                                else:
+                                    dynamic_variables.append(dynamic_var)
+                                dynamic_variables = list(set(dynamic_variables))
+
             # checksum of each element
             if len(dynamic_variables) == len(dynamic_variables_):
                 same_as_previous_step = True
@@ -2138,7 +2146,8 @@ class AutosubmitConfig(object):
             else:
                 content = "AS_MISC: True\n" + content
             if re.search('AS_COMMAND:.*', content):
-                content = content.replace(re.search('AS_COMMAND:.*', content).group(0), "AS_COMMAND: {0}".format(command))
+                content = content.replace(re.search('AS_COMMAND:.*', content).group(0),
+                                          "AS_COMMAND: {0}".format(command))
             else:
                 content = content + "AS_COMMAND: {0}\n".format(command)
         except:
@@ -2369,8 +2378,8 @@ class AutosubmitConfig(object):
         :return: wrapper type (or none)
         :rtype: string
         """
-        if len(wrapper) > 0 :
-            return wrapper.get('TYPE',self.experiment_data.get("WRAPPERS",{}).get("TYPE",""))
+        if len(wrapper) > 0:
+            return wrapper.get('TYPE', self.experiment_data.get("WRAPPERS", {}).get("TYPE", ""))
         else:
             return None
 
@@ -2381,7 +2390,7 @@ class AutosubmitConfig(object):
         :return: safety sleep time
         :rtype: int
         """
-        return wrapper.get('INNER_RETRIALS', self.experiment_data.get("WRAPPERS",{}).get("INNER_RETRIALS",0))
+        return wrapper.get('INNER_RETRIALS', self.experiment_data.get("WRAPPERS", {}).get("INNER_RETRIALS", 0))
 
     def get_wrapper_policy(self, wrapper={}):
         """
@@ -2390,7 +2399,7 @@ class AutosubmitConfig(object):
         :return: wrapper type (or none)
         :rtype: string
         """
-        return wrapper.get( 'POLICY', self.experiment_data.get("WRAPPERS",{}).get("POLICY",'flexible'))
+        return wrapper.get('POLICY', self.experiment_data.get("WRAPPERS", {}).get("POLICY", 'flexible'))
 
     def get_wrappers(self):
         """
@@ -2410,7 +2419,7 @@ class AutosubmitConfig(object):
         """
         if wrapper is None:
             return ""
-        aux = wrapper.get('JOBS_IN_WRAPPER', self.experiment_data.get("WRAPPERS",{}).get("JOBS_IN_WRAPPER",""))
+        aux = wrapper.get('JOBS_IN_WRAPPER', self.experiment_data.get("WRAPPERS", {}).get("JOBS_IN_WRAPPER", ""))
         aux = aux.split()
         aux = [x.split("&") for x in aux]
         jobs_in_wrapper = []
@@ -2447,7 +2456,8 @@ class AutosubmitConfig(object):
         :return: expression (or none)
         :rtype: string
         """
-        return wrapper.get( 'QUEUE', self.experiment_data.get("WRAPPERS",{}).get("QUEUE",""))
+        return wrapper.get('QUEUE', self.experiment_data.get("WRAPPERS", {}).get("QUEUE", ""))
+
     def get_wrapper_partition(self, wrapper={}):
         """
         Returns the wrapper queue if not defined, will be the one of the first job wrapped
@@ -2455,7 +2465,7 @@ class AutosubmitConfig(object):
         :return: expression (or none)
         :rtype: string
         """
-        return wrapper.get( 'PARTITION', self.experiment_data.get("WRAPPERS",{}).get("PARTITION",""))
+        return wrapper.get('PARTITION', self.experiment_data.get("WRAPPERS", {}).get("PARTITION", ""))
 
     def get_min_wrapped_jobs(self, wrapper={}):
         """
@@ -2519,7 +2529,7 @@ class AutosubmitConfig(object):
          :return: method
          :rtype: string
          """
-        return wrapper.get('METHOD', self.experiment_data.get("WRAPPERS",{}).get("METHOD",'ASThread'))
+        return wrapper.get('METHOD', self.experiment_data.get("WRAPPERS", {}).get("METHOD", 'ASThread'))
 
     def get_wrapper_check_time(self):
         """
@@ -2539,7 +2549,8 @@ class AutosubmitConfig(object):
          :return: machinefiles function to use
          :rtype: string
          """
-        return wrapper.get('MACHINEFILES', self.experiment_data.get("WRAPPERS",{}).get("MACHINEFILES",""))
+        return wrapper.get('MACHINEFILES', self.experiment_data.get("WRAPPERS", {}).get("MACHINEFILES", ""))
+
     def get_export(self, section):
         """
         Gets command line for being submitted with

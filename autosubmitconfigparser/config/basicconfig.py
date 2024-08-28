@@ -25,6 +25,8 @@ except ImportError:
 import os
 
 import inspect
+
+
 class BasicConfig:
     """
     Class to manage configuration for Autosubmit path, database and default values for new experiments
@@ -32,6 +34,7 @@ class BasicConfig:
 
     def __init__(self):
         pass
+
     def props(self):
         pr = {}
         for name in dir(self):
@@ -90,7 +93,7 @@ class BasicConfig:
             return
         else:
             BasicConfig.CONFIG_FILE_FOUND = True
-        #print('Reading config from ' + file_path)
+        # print('Reading config from ' + file_path)
         parser = SafeConfigParser()
         parser.optionxform = str
         parser.read(file_path)
@@ -117,46 +120,46 @@ class BasicConfig:
             list_command_allowed = parser.get('hosts', 'authorized')
 
             list_command_allowed = list_command_allowed.split('] ')
-            i=0
+            i = 0
             for command in list_command_allowed:
                 list_command_allowed[i] = list_command_allowed[i].strip('[]')
-                i=i+1
+                i = i + 1
             restrictions = dict()
             for command_unparsed in list_command_allowed:
                 command_allowed = command_unparsed.split(' ')
                 if ',' in command_allowed[0]:
-                   for command in command_allowed[0].split(','):
-                       if ',' in command_allowed[1]:
-                           restrictions[command] = command_allowed[1].split(',')
-                       else:
-                           restrictions[command] = [command_allowed[1]]
-                else:
+                    for command in command_allowed[0].split(','):
                         if ',' in command_allowed[1]:
-                            restrictions[command_allowed[0]] = command_allowed[1].split(',')
+                            restrictions[command] = command_allowed[1].split(',')
                         else:
-                            restrictions[command_allowed[0]] = [command_allowed[1]]
+                            restrictions[command] = [command_allowed[1]]
+                else:
+                    if ',' in command_allowed[1]:
+                        restrictions[command_allowed[0]] = command_allowed[1].split(',')
+                    else:
+                        restrictions[command_allowed[0]] = [command_allowed[1]]
             BasicConfig.ALLOWED_HOSTS = restrictions
         if parser.has_option('hosts', 'forbidden'):
             list_command_allowed = parser.get('hosts', 'forbidden')
             list_command_allowed = list_command_allowed.split('] ')
-            i=0
+            i = 0
             for command in list_command_allowed:
                 list_command_allowed[i] = list_command_allowed[i].strip('[]')
-                i=i+1
+                i = i + 1
             restrictions = dict()
             for command_unparsed in list_command_allowed:
                 command_allowed = command_unparsed.split(' ')
                 if ',' in command_allowed[0]:
-                   for command in command_allowed[0].split(','):
-                       if ',' in command_allowed[1]:
-                           restrictions[command] = command_allowed[1].split(',')
-                       else:
-                           restrictions[command] = [command_allowed[1]]
-                else:
+                    for command in command_allowed[0].split(','):
                         if ',' in command_allowed[1]:
-                            restrictions[command_allowed[0]] = command_allowed[1].split(',')
+                            restrictions[command] = command_allowed[1].split(',')
                         else:
-                            restrictions[command_allowed[0]] = [command_allowed[1]]
+                            restrictions[command] = [command_allowed[1]]
+                else:
+                    if ',' in command_allowed[1]:
+                        restrictions[command_allowed[0]] = command_allowed[1].split(',')
+                    else:
+                        restrictions[command_allowed[0]] = [command_allowed[1]]
             BasicConfig.DENIED_HOSTS = restrictions
         if parser.has_option('structures', 'path'):
             BasicConfig.STRUCTURES_DIR = parser.get('structures', 'path')
@@ -200,4 +203,3 @@ class BasicConfig:
 
         BasicConfig._update_config()
         return
-
