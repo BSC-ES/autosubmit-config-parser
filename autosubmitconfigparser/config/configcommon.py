@@ -729,7 +729,7 @@ class AutosubmitConfig(object):
 
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index].upper())
                 current_data_aux = copy.deepcopy(current_data)
-                current_data_aux["FOR_NAME"] = for_sections["NAME"][name_index]
+                current_data_aux["NAME"] = for_sections["NAME"][name_index]
                 current_data_aux = self.substitute_dynamic_variables(current_data_aux)
                 pointer_to_last_data[section_ending_name] = current_data_aux
                 for key, value in for_sections.items():
