@@ -720,12 +720,15 @@ class AutosubmitConfig(object):
             # Remove the original section  keyword from original data
             pointer_to_last_data.pop(loops[-1])
             for_sections = current_data.pop("FOR")
+            pattern = '%[a-zA-Z0-9_.-]*%'
             for for_section, for_values in for_sections.items():
                 if not isinstance(for_values[0], dict):
                     for_values = str(for_values).strip("[]")
                     for_values = [v.strip("' ") for v in for_values.split(",")]
                 for_sections[for_section] = for_values
             for name_index in range(len(for_sections["NAME"])):
+                current_data["FOR_NAME"] = for_sections["NAME"][name_index]
+                current_data = self.substitute_dynamic_variables(current_data)
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index].upper())
                 pointer_to_last_data[section_ending_name] = copy.deepcopy(current_data)
                 for key, value in for_sections.items():
