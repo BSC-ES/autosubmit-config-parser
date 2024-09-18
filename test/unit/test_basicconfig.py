@@ -1,5 +1,6 @@
-import pytest
 from autosubmitconfigparser.config.basicconfig import BasicConfig
+import os
+
 
 def test_read_file_config(tmp_path):
     config_content = """
@@ -9,5 +10,6 @@ def test_read_file_config(tmp_path):
     config_file = tmp_path / "autosubmitrc"
     config_file.write_text(config_content)
     assert BasicConfig.LOG_RECOVERY_TIMEOUT == 60
-    BasicConfig._BasicConfig__read_file_config(str(config_file))
+    os.environ = {'AUTOSUBMIT_CONFIGURATION': str(config_file)}
+    BasicConfig.read()
     assert BasicConfig.LOG_RECOVERY_TIMEOUT == 45
