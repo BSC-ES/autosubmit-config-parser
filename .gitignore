@@ -3,7 +3,7 @@ dist/
 build/
 venv/
 
-.*.pyc*
+*.pyc
 
 .idea/
 .pytest_cache/
