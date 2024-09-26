@@ -521,7 +521,7 @@ class AutosubmitConfig(object):
                 pass
         wrappers = data_fixed.get("WRAPPERS", {})
         for wrapper in wrappers.keys():
-            if type(wrappers[wrapper]) == dict:
+            if type(wrappers[wrapper]) is dict:
                 jobs_in_wrapper = wrappers[wrapper].get("JOBS_IN_WRAPPER", "")
                 if "[" in jobs_in_wrapper:  # if it is a list in string format ( due "%" in the string )
                     jobs_in_wrapper = jobs_in_wrapper.strip("[]")
@@ -529,6 +529,8 @@ class AutosubmitConfig(object):
                     jobs_in_wrapper = jobs_in_wrapper.replace(" ", "")
                     jobs_in_wrapper = jobs_in_wrapper.replace(",", " ")
                 data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper.upper()
+                data_fixed["WRAPPERS"][wrapper]["TYPE"] = str(wrappers[wrapper].get("TYPE", "vertical")).lower()
+
         for job, job_data in data.get("JOBS", {}).items():
             aux_dependencies = dict()
             dependencies = job_data.get("DEPENDENCIES", {})
