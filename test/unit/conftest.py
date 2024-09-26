@@ -1,7 +1,7 @@
 from pathlib import Path
 from shutil import rmtree
 from tempfile import TemporaryDirectory
-from typing import Callable, Dict, Optional, TYPE_CHECKING
+from typing import Dict, Optional, Protocol, TYPE_CHECKING
 
 import pytest
 
@@ -124,7 +124,8 @@ AS_CONF_LARGE = {
                                "QUEUE": "debug", "SCRATCH_DIR": "/gpfs/scratch", "ADD_PROJECT_TO_HOST": False,
                                "MAX_WALLCLOCK": "48:00", "MAX_PROCESSORS": 99999},
         "MARENOSTRUM4": {"ADD_PROJECT_TO_HOST": False, "BUDGET": "project_465000454",
-                         "CUSTOM_DIRECTIVES": "['#SBATCH --gpus-per-node=8', '#SBATCH --hint=nomultithread', '#SBATCH --exclusive', '#SBATCH --mem=0']",
+                         "CUSTOM_DIRECTIVES": "['#SBATCH --gpus-per-node=8', '#SBATCH --hint=nomultithread', "
+                                              "'#SBATCH --exclusive', '#SBATCH --mem=0']",
                          "EXECUTABLE": "/bin/bash --login", "FDB_DIR": "/scratch/project_465000454/experiments",
                          "HOST": "lumi-cluster", "HPC_PROJECT_DIR": "/projappl/project_465000454",
                          "MAX_PROCESSORS": 99999, "MAX_WALLCLOCK": "48:00", "NODES": 2, "PARTITION": "dev-g",
@@ -150,14 +151,19 @@ AS_CONF_LARGE = {
 }
 
 
+class AutosubmitConfigFactory(Protocol):
+
+    def __call__(self, expid: str, experiment_data: Optional[Dict]) -> AutosubmitConfig: ...
+
+
 @pytest.fixture(scope="function")
-def as_conf_small(autosubmit_config: Callable[[str, Optional[Dict]], AutosubmitConfig]) -> AutosubmitConfig:
+def as_conf_small(autosubmit_config: AutosubmitConfigFactory) -> AutosubmitConfig:
     """Create an instance of ``AutosubmitConfig`` with the small configuration example data."""
     return autosubmit_config(expid="a02j", experiment_data=AS_CONF_SMALL)
 
 
 @pytest.fixture(scope="function")
-def as_conf_large(autosubmit_config: Callable[[str, Optional[Dict]], AutosubmitConfig]) -> AutosubmitConfig:
+def as_conf_large(autosubmit_config: AutosubmitConfigFactory) -> AutosubmitConfig:
     """Create an instance of ``AutosubmitConfig`` with the larger configuration example data."""
     return autosubmit_config(expid="a02j", experiment_data=AS_CONF_LARGE)
 
@@ -165,7 +171,7 @@ def as_conf_large(autosubmit_config: Callable[[str, Optional[Dict]], AutosubmitC
 @pytest.fixture(scope="function")
 def autosubmit_config(
         request: pytest.FixtureRequest,
-        mocker: "pytest_mock.MockerFixture") -> Callable[[str, Optional[Dict]], AutosubmitConfig]:
+        mocker: "pytest_mock.MockerFixture") -> AutosubmitConfigFactory:
     """Return a factory for ``AutosubmitConfig`` objects.
 
     Abstracts the necessary mocking in ``AutosubmitConfig`` and related objects,

@@ -1,12 +1,9 @@
-#!/usr/bin/env python3
-
-import setuptools
+from setuptools import find_packages, setup
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
 install_requires = [
-
     'ruamel.yaml==0.17.21',
     'mock',
     'bscearth.utils',
@@ -27,7 +24,7 @@ extras_require = {
     'all': install_requires + test_requires
 }
 
-setuptools.setup(
+setup(
     name="autosubmitconfigparser",
     version="1.0.69",
     author="Daniel Beltran Mora",
@@ -39,7 +36,7 @@ setuptools.setup(
     url="https://earth.bsc.es/gitlab/ces/autosubmit4-config-parser.git",
     include_package_data=True,
     package_data={'files': ['autosubmitconfigparser/conf/files/*']},
-    packages=setuptools.find_packages(),
+    packages=find_packages(),
     install_requires=install_requires,
     extras_require=extras_require,
     classifiers=[
