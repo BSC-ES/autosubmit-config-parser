@@ -1137,17 +1137,18 @@ class AutosubmitConfig(object):
             else:
                 try:
                     if self.ignore_file_path:
-                        if not os.path.exists(os.path.join(self.get_project_dir(), section_file_path)):
-                            check_value = str(section_data.get('CHECK', True)).lower()
-                            if check_value != "false":
-                                if check_value not in "on_submission":
-                                    self.wrong_config["Jobs"] += [
-                                        [section,
-                                         "FILE {0} doesn't exist and check parameter is not set on_submission value".format(
-                                             section_file_path)]]
-                            else:
-                                self.wrong_config["Jobs"] += [[section, "FILE {0} doesn't exist".format(
-                                    os.path.join(self.get_project_dir(), section_file_path))]]
+                        if "SCRIPT" not in section_data:
+                            if not os.path.exists(os.path.join(self.get_project_dir(), section_file_path)):
+                                check_value = str(section_data.get('CHECK', True)).lower()
+                                if check_value != "false":
+                                    if check_value not in "on_submission":
+                                        self.wrong_config["Jobs"] += [
+                                            [section,
+                                             "FILE {0} doesn't exist and check parameter is not set on_submission value".format(
+                                                 section_file_path)]]
+                                else:
+                                    self.wrong_config["Jobs"] += [[section, "FILE {0} doesn't exist".format(
+                                        os.path.join(self.get_project_dir(), section_file_path))]]
                 except BaseException:
                     pass  # tests conflict quick-patch
 
