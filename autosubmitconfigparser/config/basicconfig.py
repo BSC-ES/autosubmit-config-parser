@@ -44,6 +44,7 @@ class BasicConfig:
         return pr
 
     DB_DIR = os.path.join(os.path.expanduser('~'), 'debug', 'autosubmit')
+    LOG_RECOVERY_TIMEOUT = 60
     STRUCTURES_DIR = os.path.join(
         '/esarchive', 'autosubmit', 'as_metadata', 'structures')
     GLOBAL_LOG_DIR = os.path.join(
@@ -178,6 +179,8 @@ class BasicConfig:
             BasicConfig.DATABASE_BACKEND = parser.get('database', 'backend')
         if parser.has_option('database', 'connection_url'):
             BasicConfig.DATABASE_CONN_URL = parser.get('database', 'connection_url')
+        if parser.has_option('config', 'log_recovery_timeout'):
+            BasicConfig.LOG_RECOVERY_TIMEOUT = int(parser.get('config', 'log_recovery_timeout'))
 
     @staticmethod
     def read():
