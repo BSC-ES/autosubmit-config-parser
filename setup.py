@@ -26,7 +26,7 @@ extras_require = {
 
 setup(
     name="autosubmitconfigparser",
-    version="1.0.69",
+    version="1.0.70",
     author="Daniel Beltran Mora",
     author_email="daniel.beltran@bsc.es",
     description="An utility library that allows to read an Autosubmit 4 experiment configuration.",
