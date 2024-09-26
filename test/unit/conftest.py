@@ -190,7 +190,7 @@ def autosubmit_config(
     # Mock this as otherwise BasicConfig.read resets our other mocked values above.
     mocker.patch.object(BasicConfig, "read", autospec=True)
 
-    def _create_autosubmit_config(expid: str, experiment_data: Dict = None) -> AutosubmitConfig:
+    def _create_autosubmit_config(expid: str, experiment_data: Dict = None, **kwargs) -> AutosubmitConfig:
         """Create an instance of ``AutosubmitConfig``."""
         root_dir = tmp_path
         BasicConfig.LOCAL_ROOT_DIR = str(root_dir)
@@ -209,6 +209,9 @@ def autosubmit_config(
         )
         if experiment_data is not None:
             config.experiment_data = experiment_data
+
+        for arg, value in kwargs.items():
+            setattr(config, arg, value)
 
         return config
 
