@@ -801,11 +801,25 @@ class AutosubmitConfig(object):
     def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, not_in_data="",
                                      in_the_end=False):
         """
-        Substitute dynamic variables in the experiment data
-        :parameter
-        :return:
-        """
+        Substitute dynamic variables in the experiment data.
 
+        This function replaces placeholders in the experiment data with their corresponding values.
+        It supports both long (%DEFAULT.EXPID%) and short (DEFAULT[EXPID]) key formats.
+
+        :param parameters: Dictionary containing the parameters to be substituted. If None, it will use self.experiment_data.
+        :type parameters: dict, optional
+        :param max_deep: Maximum depth for recursive substitution.
+        :type max_deep: int, optional
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str, optional
+        :param not_in_data: Placeholder for values not found in the data.
+        :type not_in_data: str, optional
+        :param in_the_end: Flag to indicate if special dynamic variables should be used.
+        :type in_the_end: bool, optional
+        :return: Dictionary with substituted dynamic variables.
+        :rtype: dict
+        """
+        # Determine which dynamic variables to use and the pattern to match
         if not in_the_end:
             dynamic_variables_ = self.dynamic_variables
             pattern = '%[a-zA-Z0-9_.-]*%'
@@ -814,20 +828,25 @@ class AutosubmitConfig(object):
             dynamic_variables_ = self.special_dynamic_variables
             pattern = '%\^[a-zA-Z0-9_.-]*%'
             start_long = 2
+
+        # If parameters are not provided, use the experiment data
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
-        # Check if the parameters key provided are long(%DEFAULT.EXPID%) or short(DEFAULT[EXPID]) if it is not specified.
+
+        # Determine the type of keys in the parameters dictionary
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
 
+        # Backup the dynamic variables and adjust max_deep
         backup_variables = copy.deepcopy(dynamic_variables_)
         max_deep = max_deep + len(dynamic_variables_)
 
+        # Loop to substitute dynamic variables
         while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
             for dynamic_var in dynamic_variables_:
                 value = None
-                # get value of placeholder with  name without %%
+                # Get value of placeholder with name without %%
                 if dict_keys_type == "long":
                     keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
                     if not keys:
@@ -885,12 +904,15 @@ class AutosubmitConfig(object):
                     max_deep = 0
             dynamic_variables_ = dynamic_variables
             max_deep = max_deep - 1
+
+        # Restore backup variables and clean dynamic variables
         if in_the_end:
             self.special_dynamic_variables = backup_variables
             self.clean_dynamic_variables(pattern, in_the_end)
         else:
             self.dynamic_variables = backup_variables
             self.clean_dynamic_variables(pattern)
+
         return parameters
 
     def substitute_placeholder_variables(self, key, val, parameters):
@@ -1394,13 +1416,12 @@ class AutosubmitConfig(object):
                 if not filename.is_file():
                     # Load a folder by calling recursively to this function as a list of files
                     current_data_pre, current_data_post = self.load_config_folder(copy.deepcopy(current_data), filename)
-                    current_data = self.substitute_dynamic_variables(self.unify_conf(current_data_pre, current_data))
-                    current_data = self.substitute_dynamic_variables(self.unify_conf(current_data, current_data_post))
+                    current_data = self.unify_conf(current_data_pre, current_data)
+                    current_data = self.unify_conf(current_data, current_data_post)
                 else:
                     # Load a file and unify the current_data with the loaded data
-                    current_data = self.substitute_dynamic_variables(
-                        self.unify_conf(self.substitute_dynamic_variables(current_data),
-                                        self.load_config_file(current_data, filename)))
+                    current_data = self.unify_conf(current_data,
+                                        self.load_config_file(current_data, filename))
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
@@ -1441,8 +1462,7 @@ class AutosubmitConfig(object):
         # This is a recursive call
         current_data_pre, current_data_post = self.load_custom_config(current_data, filenames_to_load)
         # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
-        return self.substitute_dynamic_variables(
-            self.unify_conf(self.unify_conf(current_data_pre, current_data), current_data_post))
+        return self.unify_conf(self.unify_conf(current_data_pre, current_data), current_data_post)
 
     def load_list_parameter(self, parameter):
         """
@@ -1503,7 +1523,6 @@ class AutosubmitConfig(object):
                     self.unify_conf(custom_conf_pre, non_minimal_conf), filenames_to_load["POST"])
             else:
                 self.experiment_data = starter_conf
-            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, max_deep=25)
             ###
             self.current_loaded_files.update(non_minimal_files)
             if "AS_TEMP" in self.experiment_data.keys():
@@ -1511,15 +1530,14 @@ class AutosubmitConfig(object):
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
-            self.experiment_data = self.normalize_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
+            self.experiment_data = self.normalize_variables(self.experiment_data)
         self.load_last_run()
         self.misc_data = {}
         self.misc_files = list(set(self.misc_files))
         for filename in self.misc_files:
             self.misc_data = self.unify_conf(self.misc_data,
                                              self.load_config_file(self.misc_data, Path(filename), load_misc=True))
-
     def load_last_run(self):
         try:
             self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
