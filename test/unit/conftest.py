@@ -1,7 +1,7 @@
 from pathlib import Path
 from shutil import rmtree
 from tempfile import TemporaryDirectory
-from typing import Dict, Optional, Protocol, TYPE_CHECKING
+from typing import Any, Dict, Optional, Protocol, TYPE_CHECKING
 
 import pytest
 
@@ -153,7 +153,7 @@ AS_CONF_LARGE = {
 
 class AutosubmitConfigFactory(Protocol):
 
-    def __call__(self, expid: str, experiment_data: Optional[Dict]) -> AutosubmitConfig: ...
+    def __call__(self, expid: str, experiment_data: Optional[Dict], *args: Any, **kwargs: Any) -> AutosubmitConfig: ...
 
 
 @pytest.fixture(scope="function")
@@ -190,7 +190,7 @@ def autosubmit_config(
     # Mock this as otherwise BasicConfig.read resets our other mocked values above.
     mocker.patch.object(BasicConfig, "read", autospec=True)
 
-    def _create_autosubmit_config(expid: str, experiment_data: Dict = None, **kwargs) -> AutosubmitConfig:
+    def _create_autosubmit_config(expid: str, experiment_data: Dict = None, *_, **kwargs) -> AutosubmitConfig:
         """Create an instance of ``AutosubmitConfig``."""
         root_dir = tmp_path
         BasicConfig.LOCAL_ROOT_DIR = str(root_dir)

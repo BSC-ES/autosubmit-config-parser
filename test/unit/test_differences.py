@@ -23,9 +23,7 @@ def test_detailed_deep_imitate_autosubmit_usage(as_conf_large: AutosubmitConfig)
     """Test a real use case of the Autosubmit diff functions.
 
     The config_parser does a quick_diff of all data to detected if there are changes.
-    If there are changes, this function is called inside Autosubmit with the following args:
-
-    .. code-block:: python
+    If there are changes, this function is called inside Autosubmit with the following args::
 
         as_conf.detailed_deep_diff:
         args:
@@ -136,7 +134,7 @@ def test_detailed_deep_imitate_autosubmit_usage(as_conf_large: AutosubmitConfig)
                  "FILE": "<to-be-replaced-by-user-conf>",
                  "PLATFORM": "marenostrum4", "WALLCLOCK": "00:30",
                  "RUNNING": "chunk", "ADDITIONAL_FILES": []},
-        }
+            }
     }
     # Changes
     changes = {

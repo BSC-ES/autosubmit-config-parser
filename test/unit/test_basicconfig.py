@@ -1,5 +1,6 @@
-from autosubmitconfigparser.config.basicconfig import BasicConfig
 import os
+
+from autosubmitconfigparser.config.basicconfig import BasicConfig
 
 
 def test_read_file_config(tmp_path):
