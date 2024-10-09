@@ -37,6 +37,8 @@ This module contains:
 
 import copy
 
+# TODO: what to do about these?
+
 import esm_parser
 from esm_calendar import Date
 
