@@ -295,14 +295,14 @@ class NoneWithProvenance(ProvenanceClassForTheUnsubclassable):
 # ================================
 def wrapper_with_provenance_factory(value, provenance=None):
     """
-    A function to subclass and instanciate all types of subclassable objects in the
+    A function to subclass and instantiate all types of subclassable objects in the
     ESM-Tools ``config`` and add the ``provenance`` attribute to them. It also creates
     the ``{type(value)}WithProvenance`` classes globally on the fly depending on the
     ``value``'s type, if it doesn't exist yet. For classes that are not subclassable
-    (``Date``, ``Bool`` and ``NoneType``) intanciates an object that mimics their
+    (``Date``, ``Bool`` and ``NoneType``) instantiates an object that mimics their
     behaviour but also contains the ``provenance`` attribute.
 
-    Objects of type ``esm_calendar.esm_calendar.Date`` are not subclassed (and the
+    Objects of type ``esm_calendar.esm_calendar.Date`` are not subclassed - and the
     ``provenance`` attribute is simply added to them, because they fail to be subclassed
     with in the ``DateWithProvenance`` with the following error::
 
@@ -312,7 +312,7 @@ def wrapper_with_provenance_factory(value, provenance=None):
     Parameters
     ----------
     value : any
-        Value of the object to be subclassed and reinstanciated
+        Value of the object to be subclassed and reinstantiated
     provenance : any
         The provenance information
 
@@ -326,7 +326,7 @@ def wrapper_with_provenance_factory(value, provenance=None):
     if type(value) == bool:
         return BoolWithProvenance(value, provenance)
 
-    elif value == None:
+    elif value is None:
         return NoneWithProvenance(value, provenance)
 
     elif type(value) == Date:
