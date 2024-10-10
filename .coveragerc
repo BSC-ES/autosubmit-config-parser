@@ -14,6 +14,7 @@ disable_warnings =
     module-not-measured
 omit =
     test/*
+    autosubmitconfigparser/config/files/*
 parallel = True
 source = ./autosubmitconfigparser
 timid = False
@@ -40,6 +41,7 @@ fail_under=0
 ignore_errors = False
 omit =
     test/*
+    autosubmitconfigparser/config/files/*
 precision = 2
 show_missing = False
 skip_covered = False
@@ -52,4 +54,3 @@ directory = htmlcov
 [xml]
 output = coverage.xml
 package_depth = 99
-
