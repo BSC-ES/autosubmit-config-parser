@@ -4,6 +4,7 @@ build/
 venv/
 
 *.pyc
+__pycache__/
 
 .idea/
 .pytest_cache/
@@ -11,7 +12,9 @@ venv/
 .cache
 
 /cover/
-/.coverage
+.coverage
+htmlcov
+coverage.xml
 
-.*.log*
-.*.sw*
+*.log
+*.sw
