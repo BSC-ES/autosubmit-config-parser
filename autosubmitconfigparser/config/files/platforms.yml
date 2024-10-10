@@ -1,10 +1,10 @@
 PLATFORMS:
   MARENOSTRUM5:
     TYPE: slurm
-    HOST: mn1.bsc.es
+    HOST: glogin1.bsc.es
     PROJECT: bsc32
     USER:
-    QUEUE: debug
+    QUEUE: gp_debug
     SCRATCH_DIR: /gpfs/scratch
     ADD_PROJECT_TO_HOST: False
     MAX_WALLCLOCK: '48:00'
