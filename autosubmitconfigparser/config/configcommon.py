@@ -70,8 +70,8 @@ class AutosubmitConfig(object):
             raise IOError(f"Experiment {expid}/conf does not exist")
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
-        self.dynamic_variables = list()
-        self.special_dynamic_variables = list()  # variables that will be sustituted after all files is loaded
+        self.dynamic_variables = dict()
+        self.special_dynamic_variables = dict()  # variables that will be sustituted after all files is loaded
         self.starter_conf = dict()
         self.misc_files = []
         self.misc_data = list()
@@ -687,9 +687,6 @@ class AutosubmitConfig(object):
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        # Remove duplicates by using dict as the values are tuples, and these tuples values can contain lists
-        self.dynamic_variables = list({item[0]: item for item in self.dynamic_variables}.values())
-        self.special_dynamic_variables = list({item[0]: item for item in self.special_dynamic_variables}.values())
         current_data = self.deep_normalize(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
         current_data = self.parse_data_loops(current_data, self.custom_config_data_loops)
@@ -773,32 +770,33 @@ class AutosubmitConfig(object):
     def clean_dynamic_variables(self, pattern, in_the_end=False):
         """
         Clean dynamic variables
-        :param pattern:
-        :param in_the_end:
-        :return:
+        :param pattern: Regex pattern to identify dynamic variables.
+        :param in_the_end: Boolean flag to determine which set of dynamic variables to clean.
+        :return: None
         """
-        dynamic_variables = []
+        dynamic_variables = {}
         if in_the_end:
             dynamic_variables_ = self.special_dynamic_variables
         else:
             dynamic_variables_ = self.dynamic_variables
 
-        for dynamic_var in dynamic_variables_:
+        for key, dynamic_var in dynamic_variables_.items():
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            if type(dynamic_var[1]) is list:
+            if isinstance(dynamic_var[1], list):
                 for value in dynamic_var[1]:
                     if not re.search(pattern, value, flags=re.IGNORECASE):
-                        dynamic_variables.append(dynamic_var)
+                        dynamic_variables[key] = dynamic_var
             else:
-                match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
+                match = re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)
                 if match is not None:
-                    dynamic_variables.append(dynamic_var)
+                    dynamic_variables[key] = dynamic_var
+
         if in_the_end:
             self.special_dynamic_variables = dynamic_variables
         else:
             self.dynamic_variables = dynamic_variables
 
-    def substitute_dynamic_variables(self, parameters=None, max_deep=2, dict_keys_type=None, in_the_end=False):
+    def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, in_the_end=False):
         """
         Substitute dynamic variables in the experiment data.
 
@@ -847,7 +845,7 @@ class AutosubmitConfig(object):
         """
         Process and substitute dynamic variables in the parameters.
 
-        :param list dynamic_variables_: List of dynamic variables to be processed.
+        :param dict dynamic_variables_: Dict of dynamic variables to be processed.
         :param dict parameters: Dictionary containing the parameters to be substituted.
         :param str pattern: Regex pattern to identify dynamic variables.
         :param int start_long: Start index for long key format.
@@ -855,11 +853,11 @@ class AutosubmitConfig(object):
         :returns: A tuple containing the processed dynamic variables and the updated parameters.
         :rtype: tuple
         """
-        processed_dynamic_variables = []
-        for dynamic_var in dynamic_variables_:
+        processed_dynamic_variables = dict()
+        for dynamic_var in dynamic_variables_.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
-                processed_dynamic_variables.extend(
+                processed_dynamic_variables.update(
                     self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type))
         return processed_dynamic_variables, parameters
 
@@ -883,14 +881,14 @@ class AutosubmitConfig(object):
         return keys if isinstance(keys, list) else [keys]
 
     def _substitute_keys(self, keys, dynamic_var, parameters, pattern, start_long, dict_keys_type):
-        processed_dynamic_variables = []
+        processed_dynamic_variables = dict()
         for i, key in enumerate(keys):
             matches = re.finditer(pattern, key, flags=re.IGNORECASE)
             for match in matches:
                 value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
                 if value:
                     parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
-                    processed_dynamic_variables.append((dynamic_var[0], value))
+                    processed_dynamic_variables[dynamic_var[0]] = value
         return processed_dynamic_variables
 
     def _get_substituted_value(self, key, match, parameters, start_long, dict_keys_type):
@@ -927,10 +925,10 @@ class AutosubmitConfig(object):
 
             if not isinstance(val, collections.abc.Mapping) and re.search(dynamic_var_pattern, str(val),
                                                                           flags=re.IGNORECASE) is not None:
-                self.dynamic_variables.append((long_key + key, val))
+                self.dynamic_variables[long_key + key] = val
             elif not isinstance(val, collections.abc.Mapping) and re.search(special_dynamic_var_pattern, str(val),
                                                                             flags=re.IGNORECASE) is not None:
-                self.special_dynamic_variables.append((long_key + key, val))
+                self.special_dynamic_variables[long_key + key] = val
             if key == "FOR":
                 # special case: check dynamic variables in the for loop
                 for for_section, for_values in data[key].items():
@@ -940,8 +938,7 @@ class AutosubmitConfig(object):
                         for_values = str(for_values).strip("[]")
                         for_values = for_values.replace("'", "")
                         if re.search(dynamic_var_pattern, for_values, flags=re.IGNORECASE) is not None:
-                            self.dynamic_variables.append((long_key + key + "." + for_section, for_values))
-
+                            self.dynamic_variables[long_key + key + "." + for_section] = for_values
                     data[key][for_section] = for_values
                 # convert for_keys to string
                 self.data_loops.add(",".join(for_keys))
@@ -1382,7 +1379,7 @@ class AutosubmitConfig(object):
             current_data_aux = self.unify_conf(self.starter_conf, current_data)
             current_data_aux["AS_TEMP"] = {}
             current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
-            self.dynamic_variables.append(("AS_TEMP.FILENAME_TO_LOAD", filename))
+            self.dynamic_variables["AS_TEMP.FILENAME_TO_LOAD"] = filename
             current_data_aux = self.substitute_dynamic_variables(current_data_aux)
             filename = Path(current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"])
             if filename.exists() and str(filename) not in self.current_loaded_files:
