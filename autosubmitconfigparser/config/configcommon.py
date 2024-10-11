@@ -61,7 +61,9 @@ class AutosubmitConfig(object):
         self.parser_factory = parser_factory
         self.experiment_data = {}
         self.last_experiment_data = {}
-        self.data_loops = list()
+        self.data_loops = set()
+        self.custom_config_data_loops = set()
+
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
         if not Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf").exists():
@@ -561,29 +563,19 @@ class AutosubmitConfig(object):
 
         return data_fixed
 
-    def dict_replace_value(self, d: dict, old: str, new: str) -> dict:
-        x = {}
+    def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
+        current_section = section_names.pop()
         for k, v in d.items():
+            if k != current_section:
+                continue
             if isinstance(v, dict):
-                v = self.dict_replace_value(v, old, new)
+                v = self.dict_replace_value(v, old, new, index, section_names)
             elif isinstance(v, list):
-                v = self.list_replace_value(v, old, new)
-            elif isinstance(v, str):
+                v[index] = v[index].replace(old[index], new)
+            elif isinstance(v, str) and v == old:
                 v = v.replace(old, new)
-            x[k] = v
-        return x
-
-    def list_replace_value(self, l: list, old: str, new: str) -> list:
-        x = []
-        for e in l:
-            if isinstance(e, list):
-                e = self.list_replace_value(e, old, new)
-            elif isinstance(e, dict):
-                e = self.dict_replace_value(e, old, new)
-            elif isinstance(e, str):
-                e = e.replace(old, new)
-            x.append(e)
-        return x
+            d[k] = v
+        return d
 
     def convert_list_to_string(self, data):
         """
@@ -695,11 +687,12 @@ class AutosubmitConfig(object):
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        self.dynamic_variables = list(set(self.dynamic_variables))
-        self.special_dynamic_variables = list(set(self.special_dynamic_variables))
+        # Remove duplicates by using dict as the values are tuples, and these tuples values can contain lists
+        self.dynamic_variables = list({item[0]: item for item in self.dynamic_variables}.values())
+        self.special_dynamic_variables = list({item[0]: item for item in self.special_dynamic_variables}.values())
         current_data = self.deep_normalize(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
-        current_data = self.parse_data_loops(current_data, self.data_loops)
+        current_data = self.parse_data_loops(current_data, self.custom_config_data_loops)
         return current_data
 
     def parse_data_loops(self, experiment_data, data_loops):
@@ -711,7 +704,8 @@ class AutosubmitConfig(object):
         :param data_loops: list of lists with the path to the section that contains the FOR keyword
         :return: Original experiment_data with the sections in the data_loops updated changing the FOR by multiple new sections
         """
-        for loops in data_loops:
+        while len(data_loops) > 0:
+            loops = data_loops.pop().split(",")
             pointer_to_last_data = experiment_data
             for section in loops[:-1]:
                 pointer_to_last_data = pointer_to_last_data[section]
@@ -726,10 +720,14 @@ class AutosubmitConfig(object):
                     for_values = [v.strip("' ") for v in for_values.split(",")]
                 for_sections[for_section] = for_values
             for name_index in range(len(for_sections["NAME"])):
-
                 section_ending_name = section_basename + "_" + str(for_sections["NAME"][name_index].upper())
+                if "%" in section_ending_name:
+                    print("Warning: % in a FOR section name, index skipped")
+                    continue
                 current_data_aux = copy.deepcopy(current_data)
                 current_data_aux["NAME"] = for_sections["NAME"][name_index]
+                # add the dynamic_var
+                self.deep_read_loops(current_data_aux)
                 current_data_aux = self.substitute_dynamic_variables(current_data_aux)
                 pointer_to_last_data[section_ending_name] = current_data_aux
                 for key, value in for_sections.items():
@@ -737,7 +735,6 @@ class AutosubmitConfig(object):
                         pointer_to_last_data[section_ending_name][key] = value[name_index]
             # Delete pointer, because we are going to use it in the next loop for a different section so we need to delete the pointer to avoid overwriting
             del pointer_to_last_data
-        self.data_loops = []
         return experiment_data
 
     def get_placeholders(self, val, key):
@@ -792,7 +789,6 @@ class AutosubmitConfig(object):
                 for value in dynamic_var[1]:
                     if not re.search(pattern, value, flags=re.IGNORECASE):
                         dynamic_variables.append(dynamic_var)
-                        continue
             else:
                 match = (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE))
                 if match is not None:
@@ -802,145 +798,120 @@ class AutosubmitConfig(object):
         else:
             self.dynamic_variables = dynamic_variables
 
-    def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, not_in_data="",
-                                     in_the_end=False):
+    def substitute_dynamic_variables(self, parameters=None, max_deep=2, dict_keys_type=None, in_the_end=False):
         """
         Substitute dynamic variables in the experiment data.
 
         This function replaces placeholders in the experiment data with their corresponding values.
         It supports both long (%DEFAULT.EXPID%) and short (DEFAULT[EXPID]) key formats.
 
-        :param parameters: Dictionary containing the parameters to be substituted. If None, it will use self.experiment_data.
-        :type parameters: dict, optional
-        :param max_deep: Maximum depth for recursive substitution.
-        :type max_deep: int, optional
-        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
-        :type dict_keys_type: str, optional
-        :param not_in_data: Placeholder for values not found in the data.
-        :type not_in_data: str, optional
-        :param in_the_end: Flag to indicate if special dynamic variables should be used.
-        :type in_the_end: bool, optional
-        :return: Dictionary with substituted dynamic variables.
+        :param dict parameters: Dictionary containing the parameters to be substituted. If None, it will use self.experiment_data.
+        :param int max_deep: Maximum depth for recursive substitution. Default is 2+len(self.dynamic_variables).
+        :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :param bool in_the_end: Flag to indicate if special dynamic variables should be used. Default is False.
+
+        :returns: Current loaded experiment data  with substituted dynamic variables.
         :rtype: dict
         """
-        # Determine which dynamic variables to use and the pattern to match
-        if not in_the_end:
-            dynamic_variables_ = self.dynamic_variables
-            pattern = '%[a-zA-Z0-9_.-]*%'
-            start_long = 1
-        else:
-            dynamic_variables_ = self.special_dynamic_variables
-            pattern = '%\^[a-zA-Z0-9_.-]*%'
-            start_long = 2
+        max_deep += len(self.dynamic_variables)
+        dynamic_variables_, pattern, start_long = self._initialize_variables(in_the_end)
 
-        # If parameters are not provided, use the experiment data
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
 
-        # Determine the type of keys in the parameters dictionary
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
 
-        # Backup the dynamic variables and adjust max_deep
-        backup_variables = copy.deepcopy(dynamic_variables_)
-        max_deep = max_deep + len(dynamic_variables_)
-
-        # Loop to substitute dynamic variables
         while len(dynamic_variables_) > 0 and max_deep > 0:
-            dynamic_variables = []
-            for dynamic_var in dynamic_variables_:
-                value = None
-                # Get value of placeholder with name without %%
-                if dict_keys_type == "long":
-                    keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
-                    if not keys:
-                        keys = parameters.get(str(dynamic_var[0]), None)
-                else:
-                    keys = dynamic_var[1]
-                    # get substring of key between %%
-                if keys:
-                    if type(keys) is str:
-                        keys = [keys]
-                    for key in keys:
-                        matches = (re.finditer(pattern, key, flags=re.IGNORECASE))
-                        if not matches:
-                            continue
-                        for match in matches:
-                            rest_of_key_start = key[:match.start()]
-                            rest_of_key_end = key[match.end():]
-                            key = key[match.start():match.end()]
-                            if "." in key and dict_keys_type != "long":
-                                key = key[start_long:-1].split(".")
-                            else:
-                                key = [key[start_long:-1]]
-                            param = parameters
-                            for k in key:
-                                if type(k) is list:
-                                    k = ""
-                                param = param.get(k.upper(), {})
-                                if type(param) is int:
-                                    param = str(param)
-                            if param and len(param) > 0:
-                                full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
-                                value = full_value
-                                if value:
-                                    if dict_keys_type == "long":
-                                        dict_key = parameters.get(str(dynamic_var[0]), {})
-                                        if len(dict_key) > 0:
-                                            parameters[str(dynamic_var[0])] = value
-                                            if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
-                                                dynamic_variables.append((dynamic_var[0], value))
-                                    else:
-                                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
-                                    dynamic_variables.append((dynamic_var[0], value))
-                                else:
-                                    dynamic_variables.append(dynamic_var)
-                                dynamic_variables = list(set(dynamic_variables))
+            dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables_, parameters, pattern,
+                                                                             start_long, dict_keys_type)
+            max_deep -= 1
 
-            # checksum of each element
-            if len(dynamic_variables) == len(dynamic_variables_):
-                same_as_previous_step = True
-                for index, ele in enumerate(dynamic_variables):
-                    if ele[1] != dynamic_variables_[index][1]:
-                        same_as_previous_step = False
-                        break
-                if same_as_previous_step:
-                    max_deep = 0
-            dynamic_variables_ = dynamic_variables
-            max_deep = max_deep - 1
-
-        # Restore backup variables and clean dynamic variables
-        if in_the_end:
-            self.special_dynamic_variables = backup_variables
-            self.clean_dynamic_variables(pattern, in_the_end)
-        else:
-            self.dynamic_variables = backup_variables
-            self.clean_dynamic_variables(pattern)
-
+        self.clean_dynamic_variables(pattern, in_the_end)
         return parameters
 
-    def substitute_placeholder_variables(self, key, val, parameters):
-        substituted = False
-        data = parameters
-        placeholders = self.get_placeholders(val, False)
-        new_placeholders = False
-        for section in placeholders:
-            get_data = data.get(section, {})
-            if not isinstance(get_data, collections.abc.Mapping):
-                put_data = parameters.get(key, None)
-                if put_data is not None and len(str(put_data)) > 0:
-                    if "%" in str(get_data):
-                        new_placeholders = True
-                    parameters[key] = re.sub('%(?<!%%)' + section + '%(?!%%)', str(get_data), parameters[key],
-                                             flags=re.I)
-                    substituted = True
+    def _initialize_variables(self, in_the_end):
+        """
+        Initialize dynamic variables based on the `in_the_end` flag.
 
-                else:
-                    substituted = False
-        if new_placeholders:
-            self.dynamic_variables.append((key, parameters[key]))
+        :param bool in_the_end: Flag to indicate if special dynamic variables should be used.
+        :returns: A tuple containing the dynamic variables, the regex pattern, and the start index.
+        :rtype: tuple
+        """
+        if not in_the_end:
+            return copy.deepcopy(self.dynamic_variables), '%[a-zA-Z0-9_.-]*%', 1
+        else:
+            return copy.deepcopy(self.special_dynamic_variables), '%\^[a-zA-Z0-9_.-]*%', 2
 
-        return substituted, parameters
+    def _process_dynamic_variables(self, dynamic_variables_, parameters, pattern, start_long, dict_keys_type):
+        """
+        Process and substitute dynamic variables in the parameters.
+
+        :param list dynamic_variables_: List of dynamic variables to be processed.
+        :param dict parameters: Dictionary containing the parameters to be substituted.
+        :param str pattern: Regex pattern to identify dynamic variables.
+        :param int start_long: Start index for long key format.
+        :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :returns: A tuple containing the processed dynamic variables and the updated parameters.
+        :rtype: tuple
+        """
+        processed_dynamic_variables = []
+        for dynamic_var in dynamic_variables_:
+            keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
+            if keys:
+                processed_dynamic_variables.extend(
+                    self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type))
+        return processed_dynamic_variables, parameters
+
+    def _get_keys(self, dynamic_var, parameters, start_long, dict_keys_type):
+        """
+        Retrieve keys for dynamic variable substitution.
+
+        :param tuple dynamic_var: The dynamic variable tuple containing the placeholder and its value.
+        :param dict parameters: Dictionary containing the parameters to be substituted.
+        :param int start_long: Start index for long key format.
+        :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :returns: List of keys for substitution.
+        :rtype: list
+        """
+        if dict_keys_type == "long":
+            keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
+            if not keys:
+                keys = parameters.get(str(dynamic_var[0]), None)
+        else:
+            keys = dynamic_var[1]
+        return keys if isinstance(keys, list) else [keys]
+
+    def _substitute_keys(self, keys, dynamic_var, parameters, pattern, start_long, dict_keys_type):
+        processed_dynamic_variables = []
+        for i, key in enumerate(keys):
+            matches = re.finditer(pattern, key, flags=re.IGNORECASE)
+            for match in matches:
+                value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
+                if value:
+                    parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
+                    processed_dynamic_variables.append((dynamic_var[0], value))
+        return processed_dynamic_variables
+
+    def _get_substituted_value(self, key, match, parameters, start_long, dict_keys_type):
+        rest_of_key_start = key[:match.start()]
+        rest_of_key_end = key[match.end():]
+        key = key[match.start():match.end()]
+        key_parts = key[start_long:-1].split(".") if "." in key and dict_keys_type != "long" else [key[start_long:-1]]
+        param = parameters
+        for k in key_parts:
+            param = param.get(k.upper(), {})
+            if isinstance(param, int):
+                param = str(param)
+        return str(rest_of_key_start) + str(param) + str(rest_of_key_end) if param else None
+
+    def _update_parameters(self, parameters, dynamic_var, value, index, dict_keys_type):
+        if dict_keys_type == "long":
+            parameters[str(dynamic_var[0])] = value
+        else:
+            section_names = dynamic_var[0].split(".")[::-1] if "." in dynamic_var[0] else [dynamic_var[0]]
+            parameters = self.dict_replace_value(parameters, dynamic_var[1], value, index, section_names)
+        return parameters
 
     def deep_read_loops(self, data, for_keys=[], long_key=""):
         """
@@ -972,7 +943,8 @@ class AutosubmitConfig(object):
                             self.dynamic_variables.append((long_key + key + "." + for_section, for_values))
 
                     data[key][for_section] = for_values
-                self.data_loops.append(for_keys)
+                # convert for_keys to string
+                self.data_loops.add(",".join(for_keys))
             elif isinstance(val, collections.abc.Mapping):
                 self.deep_read_loops(data.get(key, {}), for_keys + [key], long_key=long_key + key + ".")
         return data
@@ -1536,6 +1508,7 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
             self.experiment_data = self.normalize_variables(self.experiment_data)
+            self.experiment_data = self.parse_data_loops(self.experiment_data, self.data_loops)
         self.load_last_run()
         self.misc_data = {}
         self.misc_files = list(set(self.misc_files))
