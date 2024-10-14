@@ -12,38 +12,52 @@ SHORT_CONF = {
     }
 }
 
+ONE_DIM_CONF = {
+    "TEST": "variableX",
+    "TEST2": "variableY",
+    "VAR": ["%NOTFOUND%", "%TEST%", "%TEST2%"],
+    "JOBS": {
+        "JOB": {
+            "VARIABLEX": "%TEST%",
+            "VARIABLEY": "%TEST2%"
+        },
+    },
+}
 
-def test_autosubmit_config_yaml(autosubmit_config):
-    # Create an instance of AutosubmitConfig using the fixture
-    expid = "test_experiment"
-    experiment_data = {"key": "value"}
-    config = autosubmit_config(expid, experiment_data)
 
-    # Perform assertions to verify the configuration
-    assert config.expid == expid
-    assert config.experiment_data == experiment_data
-
-
-def test_substitute_dynamic_variables_yaml_files(autosubmit_config):
+def test_substitute_dynamic_variables_yaml_files_short_format(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=SHORT_CONF)
-    as_conf.dynamic_variables = {'VAR': ['%HOLA%', '%TEST%', '%TEST2%']}
+    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
+    as_conf.dynamic_variables = {'VAR': ['%NOTFOUND%', '%TEST%', '%TEST2%']}
     as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
-    assert as_conf.experiment_data['VAR'] == ['%HOLA%', 'variableX', 'variableY']
+    assert as_conf.experiment_data['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
 
 
-def test_substitute_dynamic_variables_yaml_files_with_for(autosubmit_config):
+def test_substitute_dynamic_variables_yaml_files_with_for_short_format(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=SHORT_CONF)
+    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data, as_conf.data_loops)
-    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
 
     assert as_conf.experiment_data['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'NAME': 'variableX', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'NAME': 'variableY', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableX', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableY', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
+    assert as_conf.experiment_data['JOBS'].get('%NOTFOUND%', None) is None
 
+
+def test_substitute_dynamic_variables_long_format(autosubmit_config):
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data=ONE_DIM_CONF)
+    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
+    param = as_conf.substitute_dynamic_variables()
+    assert param['JOBS.JOB.VARIABLEX'] == 'variableX'
+    assert param['JOBS.JOB.VARIABLEY'] == 'variableY'

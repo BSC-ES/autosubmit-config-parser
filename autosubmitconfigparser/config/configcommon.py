@@ -747,23 +747,14 @@ class AutosubmitConfig(object):
         return placeholders
 
     def check_dict_keys_type(self, parameters):
-        '''
-        Check if keys are plain into 1 dimension, checks for 33% of dict to ensure it.
-        :param parameters: experiment parameters
-        :return:
-        '''
-        amount_of_keys_to_check = int(len(parameters) / 3) + 1
-        count_dot = 0
-        count = 0
-        for key in parameters.keys():
-            if "." in key:
-                count_dot += 1
-            count += 1
-            if count >= amount_of_keys_to_check:
-                break
-        if count_dot >= int(count / 2) + 1:
-            dict_keys_type = "long"
-        else:
+        """
+        Check the type of keys in the parameters dictionary.
+        :param parameters: Dictionary containing the parameters of the experiment.
+        :return: Type of keys in the parameters dictionary, either "long" or "short".
+        """
+        dict_keys_type = "long"
+        # When a key_type is long, there are no dictionaries.
+        if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS", None) or parameters.get("PLATFORMS", None):
             dict_keys_type = "short"
         return dict_keys_type
 
@@ -816,6 +807,7 @@ class AutosubmitConfig(object):
 
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
+            parameters = self.normalize_parameters_keys(parameters)
 
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
