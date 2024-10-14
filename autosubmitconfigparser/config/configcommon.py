@@ -62,7 +62,6 @@ class AutosubmitConfig(object):
         self.experiment_data = {}
         self.last_experiment_data = {}
         self.data_loops = set()
-        self.custom_config_data_loops = set()
 
         self.current_loaded_files = dict()
         self.conf_folder_yaml = Path(BasicConfig.LOCAL_ROOT_DIR, expid, "conf")
@@ -602,10 +601,16 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
+        new_file.data = self.deep_normalize(new_file.data)
+        new_file.data = self.deep_read_loops(new_file.data)
+        new_file.data = self.substitute_dynamic_variables(new_file.data)
+
+        new_file.data = self.parse_data_loops(new_file.data)
+        new_file.data = self.substitute_dynamic_variables(new_file.data)
+
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
-        new_file.data = self.deep_normalize(new_file.data)
         if new_file.data.get("AS_MISC", False) and not load_misc:
             self.misc_files.append(yaml_file)
             new_file.data = {}
@@ -684,25 +689,23 @@ class AutosubmitConfig(object):
         :return: dict with new configuration taking priority over current configuration
         """
         # Basic data
-        current_data = self.deep_update(current_data, new_data)
+        current_data = self.deep_update(current_data, self.deep_normalize(new_data))
         # Parser loops in custom config
-        current_data = self.deep_normalize(current_data)
         current_data = self.deep_read_loops(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
-        current_data = self.parse_data_loops(current_data, self.custom_config_data_loops)
+        current_data = self.parse_data_loops(current_data)
         return current_data
 
-    def parse_data_loops(self, experiment_data, data_loops):
+    def parse_data_loops(self, experiment_data):
         """
         This function, looks for the FOR keyword, to generates N amount of subsections of the same section.
         Looks for the "NAME" keyword, inside this FOR keyword to determine the name of the new sections
         Experiment_data is the dictionary that contains all the sections, a subsection could be located at the root but also in a nested section
         :param experiment_data: dictionary with all the sections
-        :param data_loops: list of lists with the path to the section that contains the FOR keyword
         :return: Original experiment_data with the sections in the data_loops updated changing the FOR by multiple new sections
         """
-        while len(data_loops) > 0:
-            loops = data_loops.pop().split(",")
+        while len(self.data_loops) > 0:
+            loops = self.data_loops.pop().split(",")
             pointer_to_last_data = experiment_data
             for section in loops[:-1]:
                 pointer_to_last_data = pointer_to_last_data[section]
@@ -752,10 +755,18 @@ class AutosubmitConfig(object):
         :param parameters: Dictionary containing the parameters of the experiment.
         :return: Type of keys in the parameters dictionary, either "long" or "short".
         """
-        dict_keys_type = "long"
         # When a key_type is long, there are no dictionaries.
+        dict_keys_type = "short"
         if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS", None) or parameters.get("PLATFORMS", None):
             dict_keys_type = "short"
+        else:
+            for key, values in parameters.items():
+                if "." in key:
+                    dict_keys_type = "long"
+                    break
+                elif isinstance(values, dict):
+                    dict_keys_type = "short"
+                    break
         return dict_keys_type
 
     def clean_dynamic_variables(self, pattern, in_the_end=False):
@@ -1465,7 +1476,6 @@ class AutosubmitConfig(object):
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
                 starter_conf = self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename)))
             starter_conf = self.load_common_parameters(starter_conf)
-            starter_conf = self.substitute_dynamic_variables(starter_conf)
             self.starter_conf = starter_conf
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
             non_minimal_conf = {}
@@ -1475,7 +1485,6 @@ class AutosubmitConfig(object):
                 non_minimal_conf = self.unify_conf(non_minimal_conf,
                                                    self.load_config_file(non_minimal_conf, Path(filename)))
             non_minimal_conf = self.load_common_parameters(non_minimal_conf)
-            non_minimal_conf = self.substitute_dynamic_variables(non_minimal_conf, max_deep=25)
             # Start loading the custom config files
             # Gets the files to load
             filenames_to_load = self.parse_custom_conf_directive(
@@ -1497,7 +1506,7 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
             self.experiment_data = self.normalize_variables(self.experiment_data)
-            self.experiment_data = self.parse_data_loops(self.experiment_data, self.data_loops)
+            self.experiment_data = self.parse_data_loops(self.experiment_data)
             self.experiment_data = self.normalize_variables(self.experiment_data)
 
         self.load_last_run()
