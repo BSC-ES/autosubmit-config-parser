@@ -686,8 +686,8 @@ class AutosubmitConfig(object):
         # Basic data
         current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
-        current_data = self.deep_read_loops(current_data)
         current_data = self.deep_normalize(current_data)
+        current_data = self.deep_read_loops(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
         current_data = self.parse_data_loops(current_data, self.custom_config_data_loops)
         return current_data
@@ -1506,6 +1506,8 @@ class AutosubmitConfig(object):
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
             self.experiment_data = self.normalize_variables(self.experiment_data)
             self.experiment_data = self.parse_data_loops(self.experiment_data, self.data_loops)
+            self.experiment_data = self.normalize_variables(self.experiment_data)
+
         self.load_last_run()
         self.misc_data = {}
         self.misc_files = list(set(self.misc_files))
