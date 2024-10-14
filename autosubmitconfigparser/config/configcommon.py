@@ -29,7 +29,7 @@ import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union
+from typing import List, Literal, Union
 
 import ruamel.yaml as yaml
 from bscearth.utils.date import parse_date
@@ -561,25 +561,27 @@ class AutosubmitConfig(object):
 
         return data_fixed
 
-    def dict_replace_value(self, d: dict, old: str, new: str) -> dict:
+    @staticmethod
+    def dict_replace_value(d: dict, old: str, new: str) -> dict:
         x = {}
         for k, v in d.items():
             if isinstance(v, dict):
-                v = self.dict_replace_value(v, old, new)
+                v = AutosubmitConfig.dict_replace_value(v, old, new)
             elif isinstance(v, list):
-                v = self.list_replace_value(v, old, new)
+                v = AutosubmitConfig.list_replace_value(v, old, new)
             elif isinstance(v, str):
                 v = v.replace(old, new)
             x[k] = v
         return x
 
-    def list_replace_value(self, l: list, old: str, new: str) -> list:
+    @staticmethod
+    def list_replace_value(l: list, old: str, new: str) -> list:
         x = []
         for e in l:
             if isinstance(e, list):
-                e = self.list_replace_value(e, old, new)
+                e = AutosubmitConfig.list_replace_value(e, old, new)
             elif isinstance(e, dict):
-                e = self.dict_replace_value(e, old, new)
+                e = AutosubmitConfig.dict_replace_value(e, old, new)
             elif isinstance(e, str):
                 e = e.replace(old, new)
             x.append(e)
@@ -798,49 +800,15 @@ class AutosubmitConfig(object):
         else:
             self.dynamic_variables = dynamic_variables
 
-    def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, not_in_data="",
-                                     in_the_end=False):
-        """
-        Substitute dynamic variables in the experiment data.
-
-        This function replaces placeholders in the experiment data with their corresponding values.
-        It supports both long (%DEFAULT.EXPID%) and short (DEFAULT[EXPID]) key formats.
-
-        :param parameters: Dictionary containing the parameters to be substituted. If None, it will use self.experiment_data.
-        :type parameters: dict, optional
-        :param max_deep: Maximum depth for recursive substitution.
-        :type max_deep: int, optional
-        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
-        :type dict_keys_type: str, optional
-        :param not_in_data: Placeholder for values not found in the data.
-        :type not_in_data: str, optional
-        :param in_the_end: Flag to indicate if special dynamic variables should be used.
-        :type in_the_end: bool, optional
-        :return: Dictionary with substituted dynamic variables.
-        :rtype: dict
-        """
-        # Determine which dynamic variables to use and the pattern to match
-        if not in_the_end:
-            dynamic_variables_ = self.dynamic_variables
-            pattern = '%[a-zA-Z0-9_.-]*%'
-            start_long = 1
-        else:
-            dynamic_variables_ = self.special_dynamic_variables
-            pattern = '%\^[a-zA-Z0-9_.-]*%'
-            start_long = 2
-
-        # If parameters are not provided, use the experiment data
-        if parameters is None:
-            parameters = self.deep_parameters_export(self.experiment_data)
-
-        # Determine the type of keys in the parameters dictionary
-        if dict_keys_type is None:
-            dict_keys_type = self.check_dict_keys_type(parameters)
-
-        # Backup the dynamic variables and adjust max_deep
-        backup_variables = copy.deepcopy(dynamic_variables_)
-        max_deep = max_deep + len(dynamic_variables_)
-
+    @staticmethod
+    def _substitute_dynamic_variables_loop(
+        parameters: dict,
+        dynamic_variables_: list,
+        dict_keys_type: Literal["short", "long"],
+        max_deep: int = 25,
+        pattern: str = "%[a-zA-Z0-9_.-]*%",
+        start_long: int = 1,
+    ):
         # Loop to substitute dynamic variables
         while len(dynamic_variables_) > 0 and max_deep > 0:
             dynamic_variables = []
@@ -887,7 +855,7 @@ class AutosubmitConfig(object):
                                             if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
                                                 dynamic_variables.append((dynamic_var[0], value))
                                     else:
-                                        parameters = self.dict_replace_value(parameters, dynamic_var[1], value)
+                                        parameters = AutosubmitConfig.dict_replace_value(parameters, dynamic_var[1], value)
                                     dynamic_variables.append((dynamic_var[0], value))
                                 else:
                                     dynamic_variables.append(dynamic_var)
@@ -904,6 +872,61 @@ class AutosubmitConfig(object):
                     max_deep = 0
             dynamic_variables_ = dynamic_variables
             max_deep = max_deep - 1
+
+        return parameters
+    
+
+    def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, not_in_data="",
+                                     in_the_end=False):
+        """
+        Substitute dynamic variables in the experiment data.
+
+        This function replaces placeholders in the experiment data with their corresponding values.
+        It supports both long (%DEFAULT.EXPID%) and short (DEFAULT[EXPID]) key formats.
+
+        :param parameters: Dictionary containing the parameters to be substituted. If None, it will use self.experiment_data.
+        :type parameters: dict, optional
+        :param max_deep: Maximum depth for recursive substitution.
+        :type max_deep: int, optional
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str, optional
+        :param not_in_data: Placeholder for values not found in the data.
+        :type not_in_data: str, optional
+        :param in_the_end: Flag to indicate if special dynamic variables should be used.
+        :type in_the_end: bool, optional
+        :return: Dictionary with substituted dynamic variables.
+        :rtype: dict
+        """
+        # Determine which dynamic variables to use and the pattern to match
+        if not in_the_end:
+            dynamic_variables_ = self.dynamic_variables
+            pattern = '%[a-zA-Z0-9_.-]*%'
+            start_long = 1
+        else:
+            dynamic_variables_ = self.special_dynamic_variables
+            pattern = '%\^[a-zA-Z0-9_.-]*%'
+            start_long = 2
+
+        # If parameters are not provided, use the experiment data
+        if parameters is None:
+            parameters = self.deep_parameters_export(self.experiment_data)
+
+        # Determine the type of keys in the parameters dictionary
+        if dict_keys_type is None:
+            dict_keys_type = self.check_dict_keys_type(parameters)
+
+        # Backup the dynamic variables and adjust max_deep
+        backup_variables = copy.deepcopy(dynamic_variables_)
+        max_deep = max_deep + len(dynamic_variables_)
+
+        parameters = AutosubmitConfig._substitute_dynamic_variables_loop(
+            parameters,
+            dynamic_variables_,
+            dict_keys_type,
+            max_deep,
+            pattern,
+            start_long,
+        )
 
         # Restore backup variables and clean dynamic variables
         if in_the_end:
