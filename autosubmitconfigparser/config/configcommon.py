@@ -604,10 +604,8 @@ class AutosubmitConfig(object):
         new_file.data = self.deep_normalize(new_file.data)
         new_file.data = self.deep_read_loops(new_file.data)
         new_file.data = self.substitute_dynamic_variables(new_file.data)
-
         new_file.data = self.parse_data_loops(new_file.data)
         new_file.data = self.substitute_dynamic_variables(new_file.data)
-
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -853,16 +851,15 @@ class AutosubmitConfig(object):
         :param str pattern: Regex pattern to identify dynamic variables.
         :param int start_long: Start index for long key format.
         :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
-        :returns: A tuple containing the processed dynamic variables and the updated parameters.
+        :returns: A dict containing the processed dynamic variables and the updated parameters.
         :rtype: tuple
         """
-        processed_dynamic_variables = dict()
         for dynamic_var in dynamic_variables_.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
-                processed_dynamic_variables.update(
-                    self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type))
-        return processed_dynamic_variables, parameters
+                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, dynamic_variables_)
+
+        return dynamic_variables_, parameters
 
     def _get_keys(self, dynamic_var, parameters, start_long, dict_keys_type):
         """
@@ -883,8 +880,7 @@ class AutosubmitConfig(object):
             keys = dynamic_var[1]
         return keys if isinstance(keys, list) else [keys]
 
-    def _substitute_keys(self, keys, dynamic_var, parameters, pattern, start_long, dict_keys_type):
-        processed_dynamic_variables = dict()
+    def _substitute_keys(self, keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, processed_dynamic_variables):
         for i, key in enumerate(keys):
             matches = re.finditer(pattern, key, flags=re.IGNORECASE)
             for match in matches:
@@ -892,7 +888,8 @@ class AutosubmitConfig(object):
                 if value:
                     parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
                     processed_dynamic_variables[dynamic_var[0]] = value
-        return processed_dynamic_variables
+                    key = value
+        return processed_dynamic_variables, parameters
 
     def _get_substituted_value(self, key, match, parameters, start_long, dict_keys_type):
         rest_of_key_start = key[:match.start()]
