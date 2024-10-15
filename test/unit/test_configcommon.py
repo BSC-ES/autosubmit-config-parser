@@ -53,3 +53,56 @@ def test_get_submodules(autosubmit_config: Callable):
     assert isinstance(submodules_list, list)
     assert len(submodules_list) == 4
     assert "sub_b" in submodules_list
+
+
+@pytest.mark.parametrize(
+    "parameters, dynamic_variables_, dict_keys_type, max_deep, pattern, start_long, result",
+    [
+        (
+            {"FOO": "bar", "VARIABLE": "%foo%"},
+            [("VARIABLE", "%foo%")],
+            "short",
+            25 + 1,
+            "%[a-zA-Z0-9_.-]*%",
+            1,
+            {"FOO": "bar", "VARIABLE": "bar"},
+        ),
+        (
+            {
+                "JOBS": {"JOB": {"TEST": "%test.a%"}},
+                "TEST": {"A": "%test.b%", "B": "b"},
+            },
+            [("JOBS.JOB.TEST", "%test.a%"), ("TEST.A", "%test.b%")],
+            "short",
+            25 + 2,
+            "%[a-zA-Z0-9_.-]*%",
+            1,
+            {
+                "JOBS": {"JOB": {"TEST": "b"}},
+                "TEST": {"A": "b", "B": "b"},
+            },
+        ),
+        (
+            {"FOO": "bar/%PATH1%/baz/%PATH2%", "PATH1": "p1", "PATH2": "p2"},
+            [("FOO", "bar/%PATH1%/baz/%PATH2%")],
+            "short",
+            25 + 1,
+            "%[a-zA-Z0-9_.-]*%",
+            1,
+            {"FOO": "bar/p1/baz/p2", "PATH1": "p1", "PATH2": "p2"},
+        )
+    ],
+)
+def test_substitute_dynamic_variables_loop(
+    parameters,
+    dynamic_variables_,
+    dict_keys_type,
+    max_deep,
+    pattern,
+    start_long,
+    result,
+):
+    new_parameters = AutosubmitConfig._substitute_dynamic_variables_loop(
+        parameters, dynamic_variables_, dict_keys_type, max_deep, pattern, start_long
+    )
+    assert new_parameters == result

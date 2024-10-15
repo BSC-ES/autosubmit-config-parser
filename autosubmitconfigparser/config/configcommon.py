@@ -833,10 +833,13 @@ class AutosubmitConfig(object):
                             rest_of_key_start = key[:match.start()]
                             rest_of_key_end = key[match.end():]
                             key = key[match.start():match.end()]
+                            print(key)
                             if "." in key and dict_keys_type != "long":
                                 key = key[start_long:-1].split(".")
                             else:
                                 key = [key[start_long:-1]]
+                            print(key)
+                            print(parameters)
                             param = parameters
                             for k in key:
                                 if type(k) is list:
@@ -844,9 +847,11 @@ class AutosubmitConfig(object):
                                 param = param.get(k.upper(), {})
                                 if type(param) is int:
                                     param = str(param)
+                            print(param)
                             if param and len(param) > 0:
                                 full_value = str(rest_of_key_start) + str(param) + str(rest_of_key_end)
                                 value = full_value
+                                print(value)
                                 if value:
                                     if dict_keys_type == "long":
                                         dict_key = parameters.get(str(dynamic_var[0]), {})
@@ -855,6 +860,7 @@ class AutosubmitConfig(object):
                                             if match is not (re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)):
                                                 dynamic_variables.append((dynamic_var[0], value))
                                     else:
+                                        print("replacing")
                                         parameters = AutosubmitConfig.dict_replace_value(parameters, dynamic_var[1], value)
                                     dynamic_variables.append((dynamic_var[0], value))
                                 else:
