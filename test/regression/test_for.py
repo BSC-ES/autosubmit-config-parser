@@ -1,8 +1,11 @@
 import pytest
 from pathlib import Path
+
+from autosubmitconfigparser.config.basicconfig import BasicConfig
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from conftest import prepare_yaml_files
 from typing import Dict, Any
+import shutil
 
 as_conf_content: Dict[str, Any] = {
     "job": {
@@ -108,3 +111,43 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == str(temp_folder / expected_data["JOB_VARIABLEY_PATH"])
     assert as_conf.experiment_data["VARZ"] == expected_data["VARZ"]
     assert as_conf.experiment_data["VARW"] == expected_data["VARW"]
+
+
+@pytest.fixture()
+def prepare_basic_config(temp_folder):
+    basic_conf = BasicConfig()
+    BasicConfig.DB_DIR = (temp_folder / "DestinE_workflows")
+    BasicConfig.DB_FILE = "as_times.db"
+    BasicConfig.LOCAL_ROOT_DIR = (temp_folder / "DestinE_workflows")
+    BasicConfig.LOCAL_TMP_DIR = "tmp"
+    BasicConfig.LOCAL_ASLOG_DIR = "ASLOGS"
+    BasicConfig.LOCAL_PROJ_DIR = "proj"
+    BasicConfig.DEFAULT_PLATFORMS_CONF = ""
+    BasicConfig.CUSTOM_PLATFORMS_PATH = ""
+    BasicConfig.DEFAULT_JOBS_CONF = ""
+    BasicConfig.SMTP_SERVER = ""
+    BasicConfig.MAIL_FROM = ""
+    BasicConfig.ALLOWED_HOSTS = ""
+    BasicConfig.DENIED_HOSTS = ""
+    BasicConfig.CONFIG_FILE_FOUND = False
+    return basic_conf
+
+
+def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any) -> None:
+    """
+    Test the destine workflow (a1q2) hardcoded until CI/CD.
+    """
+    # Load yaml files
+    # a bit Hardcoded pending CI/CD
+    mocker.patch('pathlib.Path.exists', return_value=True)
+    mocker.patch.object(BasicConfig, 'read', return_value=True)
+    current_script_location = Path(__file__).resolve().parent
+    experiments_root = Path(f"{current_script_location}/DestinE_workflows")
+    temp_folder_experiments_root = Path(f"{temp_folder}/DestinE_workflows")
+    temp_folder_experiments_root.parent.mkdir(parents=True, exist_ok=True)
+    # copy experiment files
+    shutil.copytree(experiments_root, temp_folder_experiments_root)
+    as_conf = AutosubmitConfig("a000", prepare_basic_config)
+    as_conf.reload(True)
+    # Check if the files are loaded
+    assert len(as_conf.current_loaded_files) > 1
