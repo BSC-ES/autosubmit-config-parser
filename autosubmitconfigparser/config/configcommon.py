@@ -564,16 +564,14 @@ class AutosubmitConfig(object):
 
     def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
         current_section = section_names.pop()
-        for k, v in d.items():
-            if k != current_section:
-                continue
-            if isinstance(v, dict):
-                v = self.dict_replace_value(v, old, new, index, section_names)
-            elif isinstance(v, list):
-                v[index] = v[index].replace(old[index], new)
-            elif isinstance(v, str) and v == old:
-                v = v.replace(old, new)
-            d[k] = v
+
+        if isinstance(d[current_section], dict):
+            d[current_section] = self.dict_replace_value(d[current_section], old, new, index, section_names)
+        elif isinstance(d[current_section], list):
+            d[current_section][index] = d[current_section][index].replace(old[index], new)
+        elif isinstance(d[current_section], str) and d[current_section] == old:
+            d[current_section] = d[current_section].replace(old, new)
+        d[current_section] = d[current_section]
         return d
 
     def convert_list_to_string(self, data):
@@ -941,7 +939,7 @@ class AutosubmitConfig(object):
                 if value:
                     parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
                     key = value
-                    if len(keys) > 1: # Mantain the list of keys if there are more than one
+                    if len(keys) > 1:  # Mantain the list of keys if there are more than one
                         keys_sub[i] = key
                         dynamic_var = (dynamic_var[0], keys_sub)
                     else:
