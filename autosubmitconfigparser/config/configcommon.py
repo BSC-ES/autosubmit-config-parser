@@ -796,7 +796,13 @@ class AutosubmitConfig(object):
         else:
             self.dynamic_variables = dynamic_variables
 
-    def substitute_dynamic_variables(self, parameters=None, max_deep=25, dict_keys_type=None, in_the_end=False):
+    def substitute_dynamic_variables(
+            self,
+            parameters: Dict[str, Any] = None,
+            max_deep: int = 25,
+            dict_keys_type: str = None,
+            in_the_end: bool = False
+    ) -> Dict[str, Any]:
         """
         Substitute dynamic variables in the experiment data.
 
@@ -829,7 +835,7 @@ class AutosubmitConfig(object):
         self.clean_dynamic_variables(pattern, in_the_end)
         return parameters
 
-    def _initialize_variables(self, in_the_end):
+    def _initialize_variables(self, in_the_end: bool) -> Tuple[Dict[str, str], str, int]:
         """
         Initialize dynamic variables based on the `in_the_end` flag.
 
