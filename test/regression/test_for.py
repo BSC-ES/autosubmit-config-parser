@@ -67,13 +67,19 @@ def prepare_custom_config_tests(default_yaml_file: Dict[str, Any], project_yaml_
     return default_yaml_file
 
 
-@pytest.mark.parametrize("default_yaml_file, project_yaml_files",
-                         [(as_conf_content, {"/variableX/test.yml": {"varX": "a_test"},
-                                             "/variableY/test.yml": {"varY": "a_test"},
-                                             "/variableZ/test.yml": {"varZ": "%test3%"},
-                                             "/variableW/test.yml": {"varW": "%varZ%"},
-                                             })])
-def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any], project_yaml_files: Dict[str, Dict[str, str]], mocker) -> None:
+@pytest.mark.parametrize("default_yaml_file, project_yaml_files, expected_data",
+                         [(as_conf_content,
+                           {"/variableX/test.yml": {"varX": "a_test"},
+                            "/variableY/test.yml": {"varY": "a_test"},
+                            "/variableZ/test.yml": {"varZ": "%test3%"},
+                            "/variableW/test.yml": {"varW": "%varZ%"}},
+                           {"VARX": "a_test",
+                            "VARY": "a_test",
+                            "VARZ": "variableZ",
+                            "VARW": "variableZ",
+                            "JOB_VARIABLEX_PATH": "variableX/test.yml",
+                            "JOB_VARIABLEY_PATH": "variableY/test.yml"})])
+def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any], project_yaml_files: Dict[str, Dict[str, str]], expected_data: Dict[str, str], mocker) -> None:
     """
     Test custom configuration and "FOR" for the given YAML files.
 
@@ -83,6 +89,8 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     :type default_yaml_file: Dict[str, Any]
     :param project_yaml_files: Dictionary of project YAML file paths and their content.
     :type project_yaml_files: Dict[str, Dict[str, str]]
+    :param expected_data: Expected data for validation.
+    :type expected_data: Dict[str, str]
     :param mocker: Mocker fixture for patching.
     :type mocker: Any
     """
@@ -94,9 +102,9 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     as_conf.reload(True)
     for file_name in project_yaml_files.keys():
         assert temp_folder / file_name in as_conf.current_loaded_files.keys()
-    assert as_conf.experiment_data["VARX"] == "a_test"
-    assert as_conf.experiment_data["VARY"] == "a_test"
-    assert as_conf.experiment_data["JOB_VARIABLEX"]["PATH"] == f"{str(temp_folder)}/variableX/test.yml"
-    assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == f"{str(temp_folder)}/variableY/test.yml"
-    assert as_conf.experiment_data["VARZ"] == "variableZ"
-    assert as_conf.experiment_data["VARW"] == "variableZ"
+    assert as_conf.experiment_data["VARX"] == expected_data["VARX"]
+    assert as_conf.experiment_data["VARY"] == expected_data["VARY"]
+    assert as_conf.experiment_data["JOB_VARIABLEX"]["PATH"] == str(temp_folder / expected_data["JOB_VARIABLEX_PATH"])
+    assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == str(temp_folder / expected_data["JOB_VARIABLEY_PATH"])
+    assert as_conf.experiment_data["VARZ"] == expected_data["VARZ"]
+    assert as_conf.experiment_data["VARW"] == expected_data["VARW"]
