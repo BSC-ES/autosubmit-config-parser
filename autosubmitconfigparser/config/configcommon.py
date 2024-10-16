@@ -687,7 +687,7 @@ class AutosubmitConfig(object):
         :return: dict with new configuration taking priority over current configuration
         """
         # Basic data
-        current_data = self.deep_update(current_data, self.deep_normalize(new_data))
+        current_data = self.deep_update(current_data, new_data)
         # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
         current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops

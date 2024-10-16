@@ -2,8 +2,9 @@ import pytest
 from pathlib import Path
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from conftest import prepare_yaml_files
+from typing import Dict, Any
 
-as_conf_content = {
+as_conf_content: Dict[str, Any] = {
     "job": {
         "FOR": {
             "NAME": "%var%"
@@ -12,10 +13,13 @@ as_conf_content = {
     },
     "test": "variableX",
     "test2": "variableY",
+    "test3": "variableZ",
     "var": [
         "%hola%",
         "%test%",
-        "%test2%"
+        "%test2%",
+        "%test3%",
+        "variableW"
     ],
     "DEFAULT": {
         "EXPID": "a000",
@@ -23,7 +27,10 @@ as_conf_content = {
         "CUSTOM_CONFIG": {
             "PRE": [
                 "%job_variableX.path%",
-                "%job_variableY.path%"
+                "%job_variableY.path%",
+                "%job_variableZ.path%",
+                "%job_variableW.path%"
+
             ]
         }
     },
@@ -35,35 +42,61 @@ as_conf_content = {
 }
 
 
-def prepare_custom_config_tests(yaml_file_content, temp_folder):
-    # create the folder
-    yaml_file_path = Path(f"{temp_folder.strpath}/test_exp_data.yml")
-    test_file_variablex_path = Path(f"{temp_folder.strpath}/variableX/test.yml")
-    test_file_variablex_path.parent.mkdir(parents=True, exist_ok=True)
-    test_file_variabley_path = Path(f"{temp_folder.strpath}/variableY/test.yml")
-    test_file_variabley_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(test_file_variablex_path, "w") as f:
-        f.write(str({"varX": "a_test"}))
-    with open(test_file_variabley_path, "w") as f:
-        f.write(str({"varY": "a_test"}))
-    yaml_file_content["job"]["path"] = f"{temp_folder.strpath}/%NAME%/test.yml"
-    # Add each platform to test
+def prepare_custom_config_tests(default_yaml_file: Dict[str, Any], project_yaml_files: Dict[str, Dict[str, str]], temp_folder: Path) -> Dict[str, Any]:
+    """
+    Prepare custom configuration tests by creating necessary YAML files.
+
+    :param default_yaml_file: Default YAML file content.
+    :type default_yaml_file: Dict[str, Any]
+    :param project_yaml_files: Dictionary of project YAML file paths and their content.
+    :type project_yaml_files: Dict[str, Dict[str, str]]
+    :param temp_folder: Temporary folder .
+    :type temp_folder: Path
+    :return: Updated default YAML file content.
+    :rtype: Dict[str, Any]
+    """
+    yaml_file_path = Path(f"{str(temp_folder)}/test_exp_data.yml")
+    for path, content in project_yaml_files.items():
+        test_file_path = Path(f"{str(temp_folder)}{path}")
+        test_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(test_file_path, "w") as f:
+            f.write(str(content))
+    default_yaml_file["job"]["path"] = f"{str(temp_folder)}/%NAME%/test.yml"
     with yaml_file_path.open("w") as f:
-        f.write(str(yaml_file_content))
-    return yaml_file_content
+        f.write(str(default_yaml_file))
+    return default_yaml_file
 
 
-@pytest.mark.parametrize("yaml_file_content", [as_conf_content])
-def test_custom_config_for(temp_folder, yaml_file_content, mocker):
+@pytest.mark.parametrize("default_yaml_file, project_yaml_files",
+                         [(as_conf_content, {"/variableX/test.yml": {"varX": "a_test"},
+                                             "/variableY/test.yml": {"varY": "a_test"},
+                                             "/variableZ/test.yml": {"varZ": "%test3%"},
+                                             "/variableW/test.yml": {"varW": "%varZ%"},
+                                             })])
+def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any], project_yaml_files: Dict[str, Dict[str, str]], mocker) -> None:
+    """
+    Test custom configuration and "FOR" for the given YAML files.
+
+    :param temp_folder: Temporary folder path.
+    :type temp_folder: Path
+    :param default_yaml_file: Default YAML file content.
+    :type default_yaml_file: Dict[str, Any]
+    :param project_yaml_files: Dictionary of project YAML file paths and their content.
+    :type project_yaml_files: Dict[str, Dict[str, str]]
+    :param mocker: Mocker fixture for patching.
+    :type mocker: Any
+    """
     mocker.patch('pathlib.Path.exists', return_value=True)
-    yaml_file_content = prepare_custom_config_tests(yaml_file_content, temp_folder)
-    prepare_yaml_files(yaml_file_content, temp_folder)
+    default_yaml_file = prepare_custom_config_tests(default_yaml_file, project_yaml_files, temp_folder)
+    prepare_yaml_files(default_yaml_file, temp_folder)
     as_conf = AutosubmitConfig("test")
     as_conf.conf_folder_yaml = Path(temp_folder)
     as_conf.reload(True)
-    for file_name in ["variableX/test.yml", "variableY/test.yml", "test_exp_data.yml"]:
-        assert f"{temp_folder}/{file_name}" in as_conf.current_loaded_files.keys()
+    for file_name in project_yaml_files.keys():
+        assert temp_folder / file_name in as_conf.current_loaded_files.keys()
     assert as_conf.experiment_data["VARX"] == "a_test"
     assert as_conf.experiment_data["VARY"] == "a_test"
-    assert as_conf.experiment_data["JOB_VARIABLEX"]["PATH"] == f"{temp_folder.strpath}/variableX/test.yml"
-    assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == f"{temp_folder.strpath}/variableY/test.yml"
+    assert as_conf.experiment_data["JOB_VARIABLEX"]["PATH"] == f"{str(temp_folder)}/variableX/test.yml"
+    assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == f"{str(temp_folder)}/variableY/test.yml"
+    assert as_conf.experiment_data["VARZ"] == "variableZ"
+    assert as_conf.experiment_data["VARW"] == "variableZ"
