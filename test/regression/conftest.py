@@ -16,7 +16,7 @@ def temp_folder(tmpdir_factory):
     return folder
 
 
-def prepare_regression_test(yaml_file_content, temp_folder):
+def prepare_yaml_files(yaml_file_content, temp_folder):
     # create the folder
     yaml_file_path = Path(f"{temp_folder.strpath}/test_exp_data.yml")
     # Add each platform to test

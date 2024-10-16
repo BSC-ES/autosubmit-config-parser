@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
-from conftest import prepare_regression_test
+from conftest import prepare_yaml_files
 
 as_conf_content = {
     "job": {
@@ -43,9 +43,9 @@ def prepare_custom_config_tests(yaml_file_content, temp_folder):
     test_file_variabley_path = Path(f"{temp_folder.strpath}/variableY/test.yml")
     test_file_variabley_path.parent.mkdir(parents=True, exist_ok=True)
     with open(test_file_variablex_path, "w") as f:
-        f.write(str({"varX": "im_a_test"}))
+        f.write(str({"varX": "a_test"}))
     with open(test_file_variabley_path, "w") as f:
-        f.write(str({"varY": "im_a_test"}))
+        f.write(str({"varY": "a_test"}))
     yaml_file_content["job"]["path"] = f"{temp_folder.strpath}/%NAME%/test.yml"
     # Add each platform to test
     with yaml_file_path.open("w") as f:
@@ -57,13 +57,13 @@ def prepare_custom_config_tests(yaml_file_content, temp_folder):
 def test_custom_config_for(temp_folder, yaml_file_content, mocker):
     mocker.patch('pathlib.Path.exists', return_value=True)
     yaml_file_content = prepare_custom_config_tests(yaml_file_content, temp_folder)
-    prepare_regression_test(yaml_file_content, temp_folder)
+    prepare_yaml_files(yaml_file_content, temp_folder)
     as_conf = AutosubmitConfig("test")
     as_conf.conf_folder_yaml = Path(temp_folder)
     as_conf.reload(True)
     for file_name in ["variableX/test.yml", "variableY/test.yml", "test_exp_data.yml"]:
         assert f"{temp_folder}/{file_name}" in as_conf.current_loaded_files.keys()
-    assert as_conf.experiment_data["VARX"] == "im_a_test"
-    assert as_conf.experiment_data["VARY"] == "im_a_test"
+    assert as_conf.experiment_data["VARX"] == "a_test"
+    assert as_conf.experiment_data["VARY"] == "a_test"
     assert as_conf.experiment_data["JOB_VARIABLEX"]["PATH"] == f"{temp_folder.strpath}/variableX/test.yml"
     assert as_conf.experiment_data["JOB_VARIABLEY"]["PATH"] == f"{temp_folder.strpath}/variableY/test.yml"

@@ -66,6 +66,7 @@ def test_substitute_dynamic_variables_yaml_files_with_for_short_format_and_custo
     assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableY', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
     assert as_conf.experiment_data['JOBS'].get('%NOTFOUND%', None) is None
 
+
 def test_substitute_dynamic_variables_long_format(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
@@ -76,3 +77,22 @@ def test_substitute_dynamic_variables_long_format(autosubmit_config):
     param = as_conf.substitute_dynamic_variables()
     assert param['JOBS.JOB.VARIABLEX'] == 'variableX'
     assert param['JOBS.JOB.VARIABLEY'] == 'variableY'
+
+
+def test_substitute_keys_short(autosubmit_config):
+
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data=ONE_DIM)
+    result = as_conf._substitute_keys(
+        ["%A%/bar/%B%"],
+        ("FOO", "%A%/bar/%B%"),
+        {"FOO": "%A%/bar/%B%", "A": "a", "B": "b"},
+        "%[a-zA-Z0-9_.-]*%",
+        1,
+        "short",
+        {"FOO": "%A%/bar/%B%"},
+    )
+
+    assert result == ({'FOO': 'a/bar/b'}, {'A': 'a', 'B': 'b', 'FOO': 'a/bar/b'})
+

@@ -29,7 +29,7 @@ import traceback
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Any, Tuple, Dict
 
 import ruamel.yaml as yaml
 from bscearth.utils.date import parse_date
@@ -842,7 +842,14 @@ class AutosubmitConfig(object):
         else:
             return copy.deepcopy(self.special_dynamic_variables), '%\^[a-zA-Z0-9_.-]*%', 2
 
-    def _process_dynamic_variables(self, dynamic_variables_, parameters, pattern, start_long, dict_keys_type):
+    def _process_dynamic_variables(
+            self,
+            dynamic_variables_: Dict[str, Any],
+            parameters: Dict[str, Any],
+            pattern: str,
+            start_long: int,
+            dict_keys_type: str
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Process and substitute dynamic variables in the parameters.
 
@@ -861,16 +868,26 @@ class AutosubmitConfig(object):
 
         return dynamic_variables_, parameters
 
-    def _get_keys(self, dynamic_var, parameters, start_long, dict_keys_type):
+    @staticmethod
+    def _get_keys(
+            dynamic_var: Tuple[str, Any],
+            parameters: Dict[str, Any],
+            start_long: int,
+            dict_keys_type: str
+    ) -> List[Any]:
         """
         Retrieve keys for dynamic variable substitution.
 
-        :param tuple dynamic_var: The dynamic variable tuple containing the placeholder and its value.
-        :param dict parameters: Dictionary containing the parameters to be substituted.
-        :param int start_long: Start index for long key format.
-        :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :param dynamic_var: The dynamic variable tuple containing the placeholder and its value.
+        :type dynamic_var: Tuple[str, Any]
+        :param parameters: Dictionary containing the parameters to be substituted.
+        :type parameters: Dict[str, Any]
+        :param start_long: Start index for long key format.
+        :type start_long: int
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str
         :returns: List of keys for substitution.
-        :rtype: list
+        :rtype: List[Any]
         """
         if dict_keys_type == "long":
             keys = parameters.get(str(dynamic_var[0][start_long:-1]), None)
@@ -880,22 +897,75 @@ class AutosubmitConfig(object):
             keys = dynamic_var[1]
         return keys if isinstance(keys, list) else [keys]
 
-    def _substitute_keys(self, keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, processed_dynamic_variables):
+    def _substitute_keys(
+            self,
+            keys: List[str],
+            dynamic_var: Tuple[str, Any],
+            parameters: Dict[str, Any],
+            pattern: str,
+            start_long: int,
+            dict_keys_type: str,
+            processed_dynamic_variables: Dict[str, Any]
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Substitute dynamic variables in the given keys.
+
+        :param keys: List of keys to be processed.
+        :type keys: List[str]
+        :param dynamic_var: Tuple containing the dynamic variable and its value.
+        :type dynamic_var: Tuple[str, Any]
+        :param parameters: Dictionary containing the parameters to be substituted.
+        :type parameters: Dict[str, Any]
+        :param pattern: Regex pattern to identify dynamic variables.
+        :type pattern: str
+        :param start_long: Start index for long key format.
+        :type start_long: int
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str
+        :param processed_dynamic_variables: Dictionary of already processed dynamic variables.
+        :type processed_dynamic_variables: Dict[str, Any]
+        :return: A tuple containing the updated processed dynamic variables and parameters.
+        :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
+        """
         for i, key in enumerate(keys):
-            matches = re.finditer(pattern, key, flags=re.IGNORECASE)
+            matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
             for match in matches:
                 value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
                 if value:
                     parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
-                    processed_dynamic_variables[dynamic_var[0]] = value
                     key = value
+                    dynamic_var = (dynamic_var[0], value)
+            processed_dynamic_variables[dynamic_var[0]] = dynamic_var[1]
         return processed_dynamic_variables, parameters
 
-    def _get_substituted_value(self, key, match, parameters, start_long, dict_keys_type):
+    @staticmethod
+    def _get_substituted_value(
+            key: str,
+            match: Any,
+            parameters: Dict[str, Any],
+            start_long: int,
+            dict_keys_type: str
+    ) -> str:
+        """
+        Get the substituted value for a dynamic variable in the key.
+
+        :param key: The key containing the dynamic variable.
+        :type key: str
+        :param match: The regex match object for the dynamic variable.
+        :type match: Any
+        :param parameters: Dictionary containing the parameters to be substituted.
+        :type parameters: Dict[str, Any]
+        :param start_long: Start index for long key format.
+        :type start_long: int
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str
+        :return: The key with the substituted value.
+        :rtype: str
+        """
         rest_of_key_start = key[:match.start()]
         rest_of_key_end = key[match.end():]
-        key = key[match.start():match.end()]
-        key_parts = key[start_long:-1].split(".") if "." in key and dict_keys_type != "long" else [key[start_long:-1]]
+        key_parts = key[match.start():match.end()]
+        key_parts = key_parts[start_long:-1].split(".") if "." in key_parts and dict_keys_type != "long" else [key_parts[start_long:-1]]
         param = parameters
         for k in key_parts:
             param = param.get(k.upper(), {})
@@ -903,7 +973,30 @@ class AutosubmitConfig(object):
                 param = str(param)
         return str(rest_of_key_start) + str(param) + str(rest_of_key_end) if param else None
 
-    def _update_parameters(self, parameters, dynamic_var, value, index, dict_keys_type):
+    def _update_parameters(
+            self,
+            parameters: Dict[str, Any],
+            dynamic_var: Tuple[str, Any],
+            value: str,
+            index: int,
+            dict_keys_type: str
+    ) -> Dict[str, Any]:
+        """
+        Update the parameters dictionary with the substituted value.
+
+        :param parameters: Dictionary containing the parameters to be updated.
+        :type parameters: Dict[str, Any]
+        :param dynamic_var: Tuple containing the dynamic variable and its value.
+        :type dynamic_var: Tuple[str, Any]
+        :param value: The substituted value to update in the parameters.
+        :type value: str
+        :param index: Index of the dynamic variable in the list of keys.
+        :type index: int
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str
+        :return: Updated parameters dictionary.
+        :rtype: Dict[str, Any]
+        """
         if dict_keys_type == "long":
             parameters[str(dynamic_var[0])] = value
         else:
