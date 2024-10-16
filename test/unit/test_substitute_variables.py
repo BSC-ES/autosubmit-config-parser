@@ -79,7 +79,7 @@ def test_substitute_dynamic_variables_long_format(autosubmit_config):
     assert param['JOBS.JOB.VARIABLEY'] == 'variableY'
 
 
-def test_substitute_keys_short(autosubmit_config):
+def test_substitute_keys_short_strings(autosubmit_config):
 
     as_conf = autosubmit_config(
         expid='a000',
@@ -95,4 +95,3 @@ def test_substitute_keys_short(autosubmit_config):
     )
 
     assert result == ({'FOO': 'a/bar/b'}, {'A': 'a', 'B': 'b', 'FOO': 'a/bar/b'})
-

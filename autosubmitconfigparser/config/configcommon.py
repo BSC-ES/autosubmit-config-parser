@@ -933,6 +933,7 @@ class AutosubmitConfig(object):
         :return: A tuple containing the updated processed dynamic variables and parameters.
         :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
+        keys_sub = copy.deepcopy(keys)
         for i, key in enumerate(keys):
             matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
             for match in matches:
@@ -940,7 +941,11 @@ class AutosubmitConfig(object):
                 if value:
                     parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
                     key = value
-                    dynamic_var = (dynamic_var[0], value)
+                    if len(keys) > 1: # Mantain the list of keys if there are more than one
+                        keys_sub[i] = key
+                        dynamic_var = (dynamic_var[0], keys_sub)
+                    else:
+                        dynamic_var = (dynamic_var[0], value)
             processed_dynamic_variables[dynamic_var[0]] = dynamic_var[1]
         return processed_dynamic_variables, parameters
 
