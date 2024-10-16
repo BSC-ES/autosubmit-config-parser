@@ -564,14 +564,12 @@ class AutosubmitConfig(object):
 
     def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
         current_section = section_names.pop()
-
         if isinstance(d[current_section], dict):
             d[current_section] = self.dict_replace_value(d[current_section], old, new, index, section_names)
         elif isinstance(d[current_section], list):
             d[current_section][index] = d[current_section][index].replace(old[index], new)
         elif isinstance(d[current_section], str) and d[current_section] == old:
             d[current_section] = d[current_section].replace(old, new)
-        d[current_section] = d[current_section]
         return d
 
     def convert_list_to_string(self, data):
