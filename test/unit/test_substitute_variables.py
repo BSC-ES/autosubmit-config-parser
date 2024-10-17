@@ -24,8 +24,18 @@ ONE_DIM = {
     },
 }
 
+TEST_NESTED_DICT = {
+    "TEST": "variableX",
+    "TEST2": "variableY",
+    "FOO": {
+        "BAR": {
+            "VAR": ["%NOTFOUND%", "%TEST%", "%TEST2%"],
+            "VAR_STRING": "%NOTFOUND% %TEST% %TEST2%"
+        }
+    }
+}
 
-def test_substitute_dynamic_variables_yaml_files_short_format(autosubmit_config):
+def test_substitute_dynamic_variables_yaml_files_short_format_for(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=FOR_CONF)
@@ -95,3 +105,35 @@ def test_substitute_keys_short_strings(autosubmit_config):
     )
 
     assert result == ({'FOO': 'a/bar/b'}, {'A': 'a', 'B': 'b', 'FOO': 'a/bar/b'})
+
+
+def test_substitute_keys_short_strings_dict(autosubmit_config):
+
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data=ONE_DIM)
+    result = as_conf._substitute_keys(
+        ["%variables.Z%/bar/%VARIABLES.Y%"],
+        ("FOO", "%variables.Z%/bar/%variables.Y%"),
+        {"FOO": "%variables.Z%/bar/%variables.Y%", "VARIABLES": {"Z": "z", "Y": "y"}},
+        "%[a-zA-Z0-9_.-]*%",
+        1,
+        "short",
+        {"FOO": "%variables.Z%/bar/%variables.Y%"},
+    )
+
+    assert result[0] == {'FOO': 'z/bar/y'}
+
+
+def test_substitute_dynamic_variables_yaml_files_short_format_nested(autosubmit_config):
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data=TEST_NESTED_DICT)
+    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
+
+    assert as_conf.experiment_data['FOO']['BAR']['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
+    assert as_conf.experiment_data['FOO']['BAR']['VAR_STRING'] == '%NOTFOUND% variableX variableY'

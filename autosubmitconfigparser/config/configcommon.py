@@ -564,6 +564,8 @@ class AutosubmitConfig(object):
 
     def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
         current_section = section_names.pop()
+        if d.get(current_section, None) is None:
+            return d
         if isinstance(d[current_section], dict):
             d[current_section] = self.dict_replace_value(d[current_section], old, new, index, section_names)
         elif isinstance(d[current_section], list):
@@ -598,10 +600,7 @@ class AutosubmitConfig(object):
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
         new_file.data = self.deep_normalize(new_file.data)
-        new_file.data = self.deep_read_loops(new_file.data)
-        new_file.data = self.substitute_dynamic_variables(new_file.data)
-        new_file.data = self.parse_data_loops(new_file.data)
-        new_file.data = self.substitute_dynamic_variables(new_file.data)
+        new_file.data = self.normalize_variables(new_file.data)
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -684,9 +683,8 @@ class AutosubmitConfig(object):
         """
         # Basic data
         current_data = self.deep_update(current_data, new_data)
-        # Parser loops in custom config
         current_data = self.deep_read_loops(current_data)
-        current_data = self.substitute_dynamic_variables(current_data)  # before read the for loops
+        current_data = self.substitute_dynamic_variables(current_data)
         current_data = self.parse_data_loops(current_data)
         return current_data
 
@@ -929,7 +927,7 @@ class AutosubmitConfig(object):
         :return: A tuple containing the updated processed dynamic variables and parameters.
         :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
-        keys_sub = copy.deepcopy(keys)
+        keys_sub = copy.copy(keys)
         for i, key in enumerate(keys):
             matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
             for match in matches:
@@ -1482,6 +1480,8 @@ class AutosubmitConfig(object):
             self.dynamic_variables["AS_TEMP.FILENAME_TO_LOAD"] = filename
             current_data_aux = self.substitute_dynamic_variables(current_data_aux)
             filename = Path(current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"])
+            if not filename.exists() and "%" not in str(filename):
+                print(f"Yaml file {filename} not found")
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
@@ -1600,11 +1600,9 @@ class AutosubmitConfig(object):
                 del self.experiment_data["AS_TEMP"]
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
+            self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
-            self.experiment_data = self.normalize_variables(self.experiment_data)
-            self.experiment_data = self.parse_data_loops(self.experiment_data)
-            self.experiment_data = self.normalize_variables(self.experiment_data)
 
         self.load_last_run()
         self.misc_data = {}

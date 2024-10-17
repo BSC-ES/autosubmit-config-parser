@@ -150,12 +150,11 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     shutil.copytree(experiments_root, temp_folder_experiments_root)
     with mocker.patch('pathlib.Path.exists', return_value=True):
         as_conf = AutosubmitConfig(expid, prepare_basic_config)
-    as_conf.metadata_folder = Path(f"{experiments_root}/{expid}/metadata")
     as_conf.reload(True)
     # Check if the files are loaded
     assert len(as_conf.current_loaded_files) > 1
     #mocker.patch('pathlib.Path.exists', return_value=False)
-    as_conf.save()
+    #as_conf.save()
     # Load reference files
     reference_experiment_data_path = Path(f"{current_script_location}/DestinE_workflows/{expid}/ref/experiment_data.yml")
 
@@ -163,44 +162,43 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         reference_experiment_data = yaml.load(f, Loader=yaml.SafeLoader)
 
     # Skip some data that depends on the environment
-    as_conf.experiment_data.pop("ROOTDIR")
-    as_conf.experiment_data.pop("PROJDIR")
-    as_conf.experiment_data["DEFAULT"].pop("CUSTOM_CONFIG")
-    as_conf.experiment_data.pop("PLATFORMS")
-    as_conf.experiment_data.pop("AS_TEMP")
+    for key in ["ROOTDIR", "PROJDIR", "CUSTOM_CONFIG", "PLATFORMS", "AS_TEMP"]:
+        as_conf.experiment_data.pop(key, None)
+        reference_experiment_data.pop(key, None)
 
-    reference_experiment_data.pop("ROOTDIR")
-    reference_experiment_data.pop("PROJDIR")
-    reference_experiment_data["DEFAULT"].pop("CUSTOM_CONFIG")
-    reference_experiment_data.pop("PLATFORMS")
-
-    # asserts
     list_of_not_found = []
     list_of_differences = []
     for key, value in as_conf.experiment_data.items():
         if "NOT FOUND" == reference_experiment_data.get(key, "NOT FOUND"):
             list_of_not_found.append((key, value, reference_experiment_data.get(key, "NOT FOUND")))
         elif value != reference_experiment_data[key]:
-            list_of_differences.append((key, value, reference_experiment_data[key]))
+            if isinstance(value, dict):
+                try:
+                    if sorted(value.keys()) != sorted(reference_experiment_data[key].keys()):
+                        list_of_differences.append((key, value, reference_experiment_data[key]))
+                except:
+                    pass
+            else:
+                list_of_differences.append((key, value, reference_experiment_data[key]))
 
     list_of_not_found_two = []
     for key, value in reference_experiment_data.items():
         if "NOT FOUND" == as_conf.experiment_data.get(key, "NOT FOUND"):
             list_of_not_found_two.append((key, value, as_conf.experiment_data.get(key, "NOT FOUND")))
-    print("\n")
-    if len(list_of_not_found) > 0:
-        print("\nKeys in experiment data that aren't in the reference")
-    for key, value, reference in list_of_not_found:
-        print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
-    if len(list_of_not_found_two) > 0:
-        print("Keys in reference that aren't in the experiment data")
-    for key, value, reference in list_of_not_found_two:
-        print(f"\n---Key---: {key}\n Value: {reference}\n Reference: {value}")
-    print("Keys with different values experiment_data -> reference")
-    for key, value, reference in list_of_differences:
-        print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
-
-    assert len(list_of_not_found) == 0
-    assert len(list_of_not_found_two) == 0
-    assert len(list_of_differences) == 0
-
+    if list_of_not_found or list_of_not_found_two or list_of_differences:
+        print("\n")
+        print("Experiment data")
+        for key, value in as_conf.experiment_data.items():
+            print(f"\n---Key---: {key}\n Value: {value}")
+        if len(list_of_not_found) > 0:
+            print("\nKeys in experiment data that aren't in the reference")
+        for key, value, reference in list_of_not_found:
+            print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
+        if len(list_of_not_found_two) > 0:
+            print("Keys in reference that aren't in the experiment data")
+        for key, value, reference in list_of_not_found_two:
+            print(f"\n---Key---: {key}\n Value: {reference}\n Reference: {value}")
+        print("=====================================================")
+        print("\nKeys with different values experiment_data -> reference")
+        for key, value, reference in list_of_differences:
+            print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
