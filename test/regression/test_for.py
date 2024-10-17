@@ -8,6 +8,10 @@ from typing import Dict, Any
 import shutil
 import ruamel.yaml as yaml
 
+import cProfile
+import pstats
+
+PROFILE = True # Change this to False to disable profiling ( speed up the tests )
 
 as_conf_content: Dict[str, Any] = {
     "job": {
@@ -135,10 +139,15 @@ def prepare_basic_config(temp_folder):
     return basic_conf
 
 
+
 def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any) -> None:
     """
     Test the destine workflow (a1q2) hardcoded until CI/CD.
     """
+    if PROFILE:
+        profiler = cProfile.Profile()
+        profiler.enable()
+
     expid = "a000"  # TODO parametrize
     mocker.patch.object(BasicConfig, 'read', return_value=True)
     current_script_location = Path(__file__).resolve().parent
@@ -202,3 +211,8 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         print("\nKeys with different values experiment_data -> reference")
         for key, value, reference in list_of_differences:
             print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
+
+    if PROFILE:
+        profiler.disable()
+        stats = pstats.Stats(profiler).sort_stats('cumtime')
+        stats.print_stats()
