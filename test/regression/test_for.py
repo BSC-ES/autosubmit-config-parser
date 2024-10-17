@@ -11,7 +11,7 @@ import ruamel.yaml as yaml
 import cProfile
 import pstats
 
-PROFILE = True # Change this to False to disable profiling ( speed up the tests )
+PROFILE = True  # Change this to False to disable profiling ( speed up the tests )
 
 as_conf_content: Dict[str, Any] = {
     "job": {

@@ -795,7 +795,9 @@ class AutosubmitConfig(object):
             parameters: Dict[str, Any] = None,
             max_deep: int = 25,
             dict_keys_type: str = None,
-            in_the_end: bool = False
+            in_the_end: bool = False,
+            is_parsing_custom_config: bool = False
+
     ) -> Dict[str, Any]:
         """
         Substitute dynamic variables in the experiment data.
@@ -807,12 +809,13 @@ class AutosubmitConfig(object):
         :param int max_deep: Maximum depth for recursive substitution. Default is 2+len(self.dynamic_variables).
         :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
         :param bool in_the_end: Flag to indicate if special dynamic variables should be used. Default is False.
+        :param bool is_parsing_custom_config: Flag to indicate if the function is being called to parse a custom config file. Default is False.
 
         :returns: Current loaded experiment data  with substituted dynamic variables.
         :rtype: dict
         """
         max_deep += len(self.dynamic_variables)
-        dynamic_variables_, pattern, start_long = self._initialize_variables(in_the_end)
+        dynamic_variables, pattern, start_long = self._initialize_variables(in_the_end)
 
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
@@ -821,9 +824,13 @@ class AutosubmitConfig(object):
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
 
-        while len(dynamic_variables_) > 0 and max_deep > 0:
-            dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables_, parameters, pattern,
+        while len(dynamic_variables) > 0 and max_deep > 0:
+            dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables, parameters, pattern,
                                                                              start_long, dict_keys_type)
+            # check if any value of dynamic_variables_ changed
+            if dynamic_variables_ == dynamic_variables and not is_parsing_custom_config:
+                break
+            dynamic_variables = dynamic_variables_
             max_deep -= 1
 
         self.clean_dynamic_variables(pattern, in_the_end)
@@ -844,7 +851,7 @@ class AutosubmitConfig(object):
 
     def _process_dynamic_variables(
             self,
-            dynamic_variables_: Dict[str, Any],
+            dynamic_variables: Dict[str, Any],
             parameters: Dict[str, Any],
             pattern: str,
             start_long: int,
@@ -861,7 +868,8 @@ class AutosubmitConfig(object):
         :returns: A dict containing the processed dynamic variables and the updated parameters.
         :rtype: tuple
         """
-        for dynamic_var in dynamic_variables_.items():
+        dynamic_variables_ = copy.copy(dynamic_variables)
+        for dynamic_var in dynamic_variables.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
                 dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, dynamic_variables_)
