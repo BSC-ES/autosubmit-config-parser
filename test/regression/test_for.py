@@ -6,6 +6,8 @@ from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from conftest import prepare_yaml_files
 from typing import Dict, Any
 import shutil
+import ruamel.yaml as yaml
+
 
 as_conf_content: Dict[str, Any] = {
     "job": {
@@ -137,17 +139,68 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     """
     Test the destine workflow (a1q2) hardcoded until CI/CD.
     """
-    # Load yaml files
-    # a bit Hardcoded pending CI/CD
-    mocker.patch('pathlib.Path.exists', return_value=True)
+    expid = "a000"  # TODO parametrize
     mocker.patch.object(BasicConfig, 'read', return_value=True)
     current_script_location = Path(__file__).resolve().parent
     experiments_root = Path(f"{current_script_location}/DestinE_workflows")
+
     temp_folder_experiments_root = Path(f"{temp_folder}/DestinE_workflows")
     temp_folder_experiments_root.parent.mkdir(parents=True, exist_ok=True)
     # copy experiment files
     shutil.copytree(experiments_root, temp_folder_experiments_root)
-    as_conf = AutosubmitConfig("a000", prepare_basic_config)
+    with mocker.patch('pathlib.Path.exists', return_value=True):
+        as_conf = AutosubmitConfig(expid, prepare_basic_config)
+    as_conf.metadata_folder = Path(f"{experiments_root}/{expid}/metadata")
     as_conf.reload(True)
     # Check if the files are loaded
     assert len(as_conf.current_loaded_files) > 1
+    #mocker.patch('pathlib.Path.exists', return_value=False)
+    as_conf.save()
+    # Load reference files
+    reference_experiment_data_path = Path(f"{current_script_location}/DestinE_workflows/{expid}/ref/experiment_data.yml")
+
+    with reference_experiment_data_path.open('r') as f:
+        reference_experiment_data = yaml.load(f, Loader=yaml.SafeLoader)
+
+    # Skip some data that depends on the environment
+    as_conf.experiment_data.pop("ROOTDIR")
+    as_conf.experiment_data.pop("PROJDIR")
+    as_conf.experiment_data["DEFAULT"].pop("CUSTOM_CONFIG")
+    as_conf.experiment_data.pop("PLATFORMS")
+    as_conf.experiment_data.pop("AS_TEMP")
+
+    reference_experiment_data.pop("ROOTDIR")
+    reference_experiment_data.pop("PROJDIR")
+    reference_experiment_data["DEFAULT"].pop("CUSTOM_CONFIG")
+    reference_experiment_data.pop("PLATFORMS")
+
+    # asserts
+    list_of_not_found = []
+    list_of_differences = []
+    for key, value in as_conf.experiment_data.items():
+        if "NOT FOUND" == reference_experiment_data.get(key, "NOT FOUND"):
+            list_of_not_found.append((key, value, reference_experiment_data.get(key, "NOT FOUND")))
+        elif value != reference_experiment_data[key]:
+            list_of_differences.append((key, value, reference_experiment_data[key]))
+
+    list_of_not_found_two = []
+    for key, value in reference_experiment_data.items():
+        if "NOT FOUND" == as_conf.experiment_data.get(key, "NOT FOUND"):
+            list_of_not_found_two.append((key, value, as_conf.experiment_data.get(key, "NOT FOUND")))
+    print("\n")
+    if len(list_of_not_found) > 0:
+        print("\nKeys in experiment data that aren't in the reference")
+    for key, value, reference in list_of_not_found:
+        print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
+    if len(list_of_not_found_two) > 0:
+        print("Keys in reference that aren't in the experiment data")
+    for key, value, reference in list_of_not_found_two:
+        print(f"\n---Key---: {key}\n Value: {reference}\n Reference: {value}")
+    print("Keys with different values experiment_data -> reference")
+    for key, value, reference in list_of_differences:
+        print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
+
+    assert len(list_of_not_found) == 0
+    assert len(list_of_not_found_two) == 0
+    assert len(list_of_differences) == 0
+

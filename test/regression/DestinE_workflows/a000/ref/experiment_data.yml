@@ -1173,7 +1173,7 @@ CONFIGURATION:
   RAPS_EXPERIMENT: hist
   RAPS_USER_FLAGS: --keepxml
 DEFAULT:
-  CUSTOM_CONFIG: /appl/AS/AUTOSUBMIT_DATA/a1q2/proj/git_project/conf/bootstrap/
+  CUSTOM_CONFIG: /tmp/pytest-of-dbeltran/pytest-19/tests0/DestinE_workflows/a000/proj/git_project/conf/bootstrap/
   EXPID: a1q2
   HPCARCH: MARENOSTRUM5
 ENERGY_OFFSHORE:
@@ -2886,6 +2886,19 @@ OBSALL:
       TIME_STEP: 60
       VARIABLE: t
 PLATFORMS:
+  ECMWF-HPC2020:
+    ADD_PROJECT_TO_HOST: false
+    BUDGET: null
+    CUSTOM_DIRECTIVES: '#SBATCH --hint=nomultithread'
+    EC_QUEUE: hpc
+    HOST: hpc-login
+    MAX_WALLCLOCK: 48:00
+    PROJECT: spesiccf
+    QUEUE: nf
+    SCRATCH_DIR: /ec/res4/scratch/c3d
+    TYPE: ecaccess
+    USER: c3d
+    VERSION: slurm
   JUWELS:
     ADD_PROJECT_TO_HOST: false
     CUSTOM_DIRECTIVES: '#SBATCH -p standard -N 1 --ntasks-per-node=24 --cpus-per-task=2'
@@ -2899,7 +2912,7 @@ PLATFORMS:
     SCRATCH_PROJECT_DIR: chhb19
     TEMP_DIR: ''
     TYPE: slurm
-    USER: <USER>
+    USER: <to-be-overloaded-in-user-conf>
   JUWELS-LOGIN:
     ADD_PROJECT_TO_HOST: false
     HOST: juwels-cluster
@@ -2908,32 +2921,33 @@ PLATFORMS:
     SCRATCH_PROJECT_DIR: chhb19
     TEMP_DIR: ''
     TYPE: ps
-    USER: <USER>
+    USER: <to-be-overloaded-in-user-conf>
   LEVANTE:
     ADD_PROJECT_TO_HOST: false
     BUDGET: <to-be-overloaded-by-user>
     EXECUTABLE: /usr/bin/bash -l
-    HOST: levante
+    HOST: levante.dkrz.de
     MAX_WALLCLOCK: 00:29
     PARTITION: compute
     PROCESSORS_PER_NODE: 128
-    PROJECT: <to-be-overloaded-by-user>
+    PROJECT: bb1153
     QUEUE: ''
     SCRATCH_DIR: /work
     TEMP_DIR: ''
     TYPE: slurm
-    USER: <to-be-overloaded-in-user-conf>
+    USER: b382351
   LEVANTE-LOGIN:
     ADD_PROJECT_TO_HOST: false
     EXECUTABLE: /usr/bin/bash -l
-    HOST: levante
-    PROJECT: <to-be-overloaded-by-user>
+    HOST: levante.dkrz.de
+    PARTITION: interactive
+    PROJECT: bb1153
     SCRATCH_DIR: /work
     TEMP_DIR: ''
-    TYPE: ps
-    USER: <to-be-overloaded-in-user-conf>
+    TYPE: slurm
+    USER: b382351
   LUMI:
-    ADD_PROJECT_TO_HOST: false
+    ADD_PROJECT_TO_HOST: 'False'
     APP_PARTITION: small
     BUDGET: project_465000454
     CONTAINER_DIR: /projappl/project_465000454//containers
@@ -2943,40 +2957,47 @@ PLATFORMS:
     EXECUTABLE: /bin/bash --login
     FDB_DIR: /scratch/project_465000454/experiments
     FDB_PROD: /appl/local/climatedt
-    HOST: lumi-cluster
+    HOST: bsc
     HPCARCH_SHORT: lumi
     HPC_PROJECT_DIR: /projappl/project_465000454/
-    MAX_PROCESSORS: 99999
-    MAX_WALLCLOCK: 00:30
+    MAX_PROCESSORS: '2400'
+    MAX_WALLCLOCK: 48:00
     MEMORY: 224G
     NODES: 2
     PARTITION: debug
-    PROCESSORS_PER_NODE: 128
-    PROJECT: project_465000454
+    PROCESSORS_PER_NODE: '48'
+    PROJECT: bsc32
     PROJECT_SCRATCH: /scratch/project_465000454
-    SCRATCH_DIR: /scratch
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    SERIAL_QUEUE: debug
     TASKS: 16
     TEMP_DIR: ''
     THREADS: 8
     TYPE: slurm
-    USER: aayaiavi
+    USER: dbeltran
   LUMI-LOGIN:
-    ADD_PROJECT_TO_HOST: false
+    ADD_PROJECT_TO_HOST: 'False'
     CONTAINER_DIR: /projappl/project_465000454//containers
     DATABRIDGE_FDB_HOME: /appl/local/climatedt/databridge
     FDB_DIR: /scratch/project_465000454/experiments
     FDB_PROD: /appl/local/climatedt
-    HOST: lumi-cluster
+    HOST: bsc
     HPCARCH_SHORT: lumi
     HPC_PROJECT_DIR: /projappl/project_465000454/
+    MAX_PROCESSORS: '2400'
     MAX_WAITING_JOBS: 1
-    PROJECT: project_465000454
+    MAX_WALLCLOCK: 48:00
+    PROCESSORS_PER_NODE: '48'
+    PROJECT: bsc32
     PROJECT_SCRATCH: /scratch/project_465000454
-    SCRATCH_DIR: /scratch
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    SERIAL_QUEUE: debug
     TEMP_DIR: ''
     TOTAL_JOBS: 1
-    TYPE: ps
-    USER: aayaiavi
+    TYPE: slurm
+    USER: dbeltran
   LUMI-TRANSFER:
     ADD_PROJECT_TO_HOST: false
     BUDGET: project_465000454
@@ -2999,22 +3020,58 @@ PLATFORMS:
     TEMP_DIR: ''
     TOTALJOBS: 1
     TYPE: slurm
-    USER: <to-be-overloaded-in-user-conf>
+    USER: iwagner
+  MARENOSTRUM0:
+    HOST: mn2.bsc.es,mn1.bsc.es,mn3.bsc.es
+    MAX_PROCESSORS: '2400'
+    MAX_WALLCLOCK: 48:00
+    PROCESSORS_PER_NODE: '48'
+    PROJECT: bsc32
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    SERIAL_QUEUE: debug
+    TYPE: slurm
+    USER: bsc32070
+  MARENOSTRUM4:
+    ADD_PROJECT_TO_HOST: 'False'
+    HOST: bsc
+    MAX_PROCESSORS: '2400'
+    MAX_WALLCLOCK: 48:00
+    PROCESSORS_PER_NODE: '48'
+    PROJECT: bsc32
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    SERIAL_QUEUE: debug
+    TYPE: slurm
+    USER: bsc32070
+  MARENOSTRUM4-LOGIN:
+    HOST: mn2.bsc.es,mn1.bsc.es,mn3.bsc.es
+    MAX_PROCESSORS: '2400'
+    MAX_WALLCLOCK: 48:00
+    PROCESSORS_PER_NODE: '48'
+    PROJECT: bsc32
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    SERIAL_QUEUE: debug
+    TYPE: slurm
+    USER: bsc32070
   MARENOSTRUM5:
     ADD_PROJECT_TO_HOST: false
     APP_PARTITION: gp_bsces
     CONTAINER_DIR: /gpfs/projects/ehpc01/containers
     CUSTOM_DIRECTIVES: "['#SBATCH --export=ALL', '#SBATCH --hint=nomultithread']"
+    DISABLE_RECOVERY_THREADS: 'True'
     EXCLUSIVE: 'True'
     FDB_DIR: /gpfs/scratch/ehpc01/experiments
     FDB_PROD: /gpfs/projects/ehpc01/dte/fdb
-    HOST: mn5-cluster1
+    HOST: mn5-gpp2
     HPCARCH_SHORT: MN5
     HPC_PROJECT_DIR: /gpfs/projects/ehpc01
-    MAX_WALLCLOCK: 00:30
+    MAX_PROCESSORS: 99999
+    MAX_WALLCLOCK: 48:00
     NODES: 2
     PROCESSORS_PER_NODE: 112
-    PROJECT: ehpc01
+    PROJECT: bsc32
     PROJECT_SCRATCH: /gpfs/scratch/ehpc01
     QUEUE: gp_debug
     SCRATCH_DIR: /gpfs/scratch
@@ -3022,7 +3079,7 @@ PLATFORMS:
     TEMP_DIR: ''
     THREADS: 8
     TYPE: slurm
-    USER: bsc032376
+    USER: bsc032070
   MARENOSTRUM5-LOGIN:
     ADD_PROJECT_TO_HOST: false
     CONTAINER_DIR: /gpfs/projects/ehpc01/containers
@@ -3038,8 +3095,47 @@ PLATFORMS:
     QUEUE: gp_interactive
     SCRATCH_DIR: /gpfs/scratch
     TYPE: ps
-    USER: bsc032376
-PROJDIR: /appl/AS/AUTOSUBMIT_DATA/a1q2/proj/project_files
+    USER: <to-be-overloaded-in-user-conf>
+  MARENOSTRUM5_LOGIN:
+    ADD_PROJECT_TO_HOST: false
+    HOST: mn5-gpp2
+    MAX_PROCESSORS: 99999
+    MAX_WALLCLOCK: 48:00
+    PROJECT: bsc32
+    QUEUE: gp_debug
+    SCRATCH_DIR: /gpfs/scratch
+    TEMP_DIR: ''
+    TYPE: ps
+    USER: bsc032070
+  MARENOSTRUM_ARCHIVE:
+    ADD_PROJECT_TO_HOST: 'False'
+    HOST: dt01.bsc.es
+    PROJECT: bsc32
+    SCRATCH_DIR: /gpfs/scratch
+    TEST_SUITE: 'False'
+    TYPE: ps
+    USER: bsc32070
+  POWER9:
+    HOST: plogin1.bsc.es
+    PROJECT: bsc32
+    QUEUE: debug
+    SCRATCH_DIR: /gpfs/scratch
+    TYPE: slurm
+    USER: bsc32070
+  TEST-LOCAL:
+    HOST: localhost
+    PROJECT: whatever
+    SCRATCH_DIR: /home/dbeltran
+    TYPE: slurm
+    USER: dbeltran
+  TRANSFER_NODE:
+    ADD_PROJECT_TO_HOST: 'false'
+    HOST: dt01.bsc.es
+    PROJECT: bsc32
+    SCRATCH_DIR: /gpfs/scratch
+    TYPE: ps
+    USER: bsc32070
+PROJDIR: /tmp/pytest-of-dbeltran/pytest-19/tests0/DestinE_workflows/a000/proj/project_files
 PROJECT:
   PROJECT_DESTINATION: git_project
   PROJECT_TYPE: git
@@ -3053,7 +3149,7 @@ REQUEST:
   MODEL: IFS-NEMO
   REALIZATION: 1
   RESOLUTION: standard
-ROOTDIR: /appl/AS/AUTOSUBMIT_DATA/a1q2
+ROOTDIR: /tmp/pytest-of-dbeltran/pytest-19/tests0/DestinE_workflows/a000
 RUN:
   APP_NAMES:
   - ENERGY_ONSHORE
@@ -3069,7 +3165,6 @@ RUN:
   PROCESSOR_UNIT: cpu
   TYPE: test
   WORKFLOW: end-to-end
-STORAGE: {}
 URBAN:
   '1':
     GSVREQUEST:
