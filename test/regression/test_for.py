@@ -11,7 +11,7 @@ import ruamel.yaml as yaml
 import cProfile
 import pstats
 
-PROFILE = True  # Enable/disable profiling ( speed up the tests )
+PROFILE = False  # Enable/disable profiling ( speed up the tests )
 
 as_conf_content: Dict[str, Any] = {
     "job": {
@@ -213,6 +213,15 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         for key, value, reference in list_of_differences:
             print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
 
+    # Check that all parameters are being substituted
+    parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
+    parameters_values = ' '.join(map(str, parameters.values()))
+    import re
+    placeholders = re.findall(r"%\w+%", parameters_values)
+    placeholders_in_parameters = [placeholder for placeholder in placeholders if placeholder.strip("%") in parameters.keys()]
+    assert not placeholders_in_parameters
+
     if PROFILE:
         stats = pstats.Stats(profiler).sort_stats('cumtime')
         stats.print_stats()
+
