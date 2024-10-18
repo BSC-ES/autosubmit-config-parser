@@ -76,6 +76,21 @@ def prepare_custom_config_tests(default_yaml_file: Dict[str, Any], project_yaml_
     return default_yaml_file
 
 
+def deep_check_all_keys_uppercase(data: dict) -> bool:
+    """
+    Recursively check if all keys in the nested dictionary are uppercase.
+
+    :param data: The dictionary to check.
+    :return: True if all keys are uppercase, False otherwise.
+    """
+    for key, value in data.items():
+        if not key.isdigit() and not key.isupper():
+            return False
+        if isinstance(value, dict) and not deep_check_all_keys_uppercase(value):
+            return False
+    return True
+
+
 @pytest.mark.parametrize("default_yaml_file, project_yaml_files, expected_data",
                          [(as_conf_content,
                            {"/variableX/test.yml": {"varX": "a_test"},
@@ -118,6 +133,8 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     assert as_conf.experiment_data["VARZ"] == expected_data["VARZ"]
     assert as_conf.experiment_data["VARW"] == expected_data["VARW"]
 
+    # check that all variables are in upper_case
+    assert deep_check_all_keys_uppercase(as_conf.experiment_data)
 
 @pytest.fixture()
 def prepare_basic_config(temp_folder):
@@ -137,7 +154,6 @@ def prepare_basic_config(temp_folder):
     BasicConfig.DENIED_HOSTS = ""
     BasicConfig.CONFIG_FILE_FOUND = False
     return basic_conf
-
 
 
 def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any) -> None:
@@ -221,7 +237,9 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     placeholders_in_parameters = [placeholder for placeholder in placeholders if placeholder.strip("%") in parameters.keys()]
     assert not placeholders_in_parameters
 
+    # Check that all keys are in upper_case
+    assert deep_check_all_keys_uppercase(as_conf.experiment_data)
+
     if PROFILE:
         stats = pstats.Stats(profiler).sort_stats('cumtime')
         stats.print_stats()
-

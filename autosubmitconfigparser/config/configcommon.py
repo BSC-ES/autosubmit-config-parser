@@ -466,20 +466,37 @@ class AutosubmitConfig(object):
         else:
             return True
 
-    def deep_normalize(self, data):
+    def deep_normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        normalize a nested dictionary or similar mapping to uppercase.
-        Modify ``source`` in place.
-        """
+        Normalize a nested dictionary or similar mapping to uppercase.
 
+        This function recursively iterates through a dictionary, converting all keys to uppercase.
+        If a value is a dictionary, it calls itself recursively to normalize the nested dictionary.
+        If a value is a list, it iterates through the list and normalizes any dictionaries keys within it.
+        Other types of values are added to the normalized dictionary as is.
+
+        :param data: The dictionary to normalize.
+        :type data: Dict[str, Any]
+        :return: A new dictionary with all keys normalized to uppercase.
+        :rtype: Dict[str, Any]
+        """
         normalized_data = dict()
         try:
             for key, val in data.items():
-                normalized_data[str(key).upper()] = val
+                normalized_key = str(key).upper()
                 if isinstance(val, collections.abc.Mapping):
-                    normalized_value = self.deep_normalize(data.get(key, {}))
-                    normalized_data[str(key).upper()] = normalized_value
-        except:
+                    normalized_data[normalized_key] = self.deep_normalize(val)
+                elif isinstance(val, list):
+                    normalized_list = []
+                    for item in val:
+                        if isinstance(item, collections.abc.Mapping):
+                            normalized_list.append(self.deep_normalize(item))
+                        else:
+                            normalized_list.append(item)
+                    normalized_data[normalized_key] = normalized_list
+                else:
+                    normalized_data[normalized_key] = val
+        except Exception as e:
             pass
         return normalized_data
 
