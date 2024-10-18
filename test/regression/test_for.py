@@ -216,7 +216,7 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
 
     parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
     for key in list(parameters.keys()):
-        if key.endswith(".NAME"): # Added in this branch, so it is not in the reference file
+        if key.endswith(".NAME") and not key.startswith("MODEL"): # Added in this branch, so it is not in the reference file, the model.NAME has to not be hardcoded #todo
             parameters.pop(key)
 
     parameters_ref = as_conf.deep_parameters_export(reference_experiment_data)

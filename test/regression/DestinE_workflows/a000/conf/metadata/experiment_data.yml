@@ -1175,7 +1175,7 @@ CONFIGURATION:
   RAPS_EXPERIMENT: hist
   RAPS_USER_FLAGS: --keepxml
 DEFAULT:
-  CUSTOM_CONFIG: /tmp/pytest-of-dbeltran/pytest-134/tests0/DestinE_workflows/a000/proj/git_project/conf/bootstrap/
+  CUSTOM_CONFIG: /tmp/pytest-of-dbeltran/pytest-140/tests0/DestinE_workflows/a000/proj/git_project/conf/bootstrap/
   EXPID: a1sr
   HPCARCH: MARENOSTRUM5
 ENERGY_OFFSHORE:
@@ -3155,7 +3155,7 @@ PLATFORMS:
     SCRATCH_DIR: /gpfs/scratch
     TYPE: ps
     USER: bsc32070
-PROJDIR: /tmp/pytest-of-dbeltran/pytest-134/tests0/DestinE_workflows/a000/proj/project_files
+PROJDIR: /tmp/pytest-of-dbeltran/pytest-140/tests0/DestinE_workflows/a000/proj/project_files
 PROJECT:
   PROJECT_DESTINATION: git_project
   PROJECT_TYPE: git
@@ -3169,7 +3169,7 @@ REQUEST:
   MODEL: IFS-NEMO
   REALIZATION: 1
   RESOLUTION: standard
-ROOTDIR: /tmp/pytest-of-dbeltran/pytest-134/tests0/DestinE_workflows/a000
+ROOTDIR: /tmp/pytest-of-dbeltran/pytest-140/tests0/DestinE_workflows/a000
 RUN:
   APP_NAMES:
   - ENERGY_ONSHORE
