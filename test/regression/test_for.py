@@ -137,7 +137,6 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     assert deep_check_all_keys_uppercase(as_conf.experiment_data)
 
 
-
 @pytest.fixture()
 def prepare_basic_config(temp_folder):
     basic_conf = BasicConfig()
@@ -181,8 +180,6 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         profiler.disable()
     # Check if the files are loaded
     assert len(as_conf.current_loaded_files) > 1
-    #mocker.patch('pathlib.Path.exists', return_value=False)
-    #as_conf.save()
     # Load reference files
     reference_experiment_data_path = Path(f"{current_script_location}/DestinE_workflows/{expid}/ref/experiment_data.yml")
 
@@ -201,11 +198,8 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
             list_of_not_found.append((key, value, reference_experiment_data.get(key, "NOT FOUND")))
         elif value != reference_experiment_data[key]:
             if isinstance(value, dict):
-                try:
-                    if sorted(value.keys()) != sorted(reference_experiment_data[key].keys()):
-                        list_of_differences.append((key, value, reference_experiment_data[key]))
-                except Exception:
-                    pass
+                if sorted(value.keys()) != sorted(reference_experiment_data.get(key, {}).keys()):
+                    list_of_differences.append((key, value, reference_experiment_data[key]))
             else:
                 list_of_differences.append((key, value, reference_experiment_data[key]))
 
