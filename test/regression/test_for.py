@@ -136,6 +136,8 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     # check that all variables are in upper_case
     assert deep_check_all_keys_uppercase(as_conf.experiment_data)
 
+
+
 @pytest.fixture()
 def prepare_basic_config(temp_folder):
     basic_conf = BasicConfig()
@@ -241,6 +243,12 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     # Check that all keys are in upper_case
     assert deep_check_all_keys_uppercase(as_conf.experiment_data)
 
+    # check that all files are well set
+    for job in as_conf.experiment_data["JOBS"].values():
+        if "FILE" in job:
+            assert job["FILE"] != ""
+        else:
+            assert False  # All jobs should have a file in a real experiment
     if PROFILE:
         stats = pstats.Stats(profiler).sort_stats('cumtime')
         stats.print_stats()
