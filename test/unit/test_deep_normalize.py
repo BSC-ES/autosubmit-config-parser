@@ -41,7 +41,9 @@ def test_normalize_variables_for_with_lists(autosubmit_config):
                 }
             ],
         },
-        "foo": ["bar", "baz"]
+        "foo": ["bar", "baz"],
+        "1": ["one", "two"],
+        "3": "three"
     }
     expected_data = {
         "FOR": {
@@ -57,7 +59,9 @@ def test_normalize_variables_for_with_lists(autosubmit_config):
                 }
             ],
         },
-        "FOO": ["bar", "baz"]
+        "FOO": ["bar", "baz"],
+        "1": ["one", "two"],
+        "3": "three"
     }
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
     normalized_data = as_conf.deep_normalize(data)
