@@ -578,8 +578,12 @@ class AutosubmitConfig(object):
 
             if "FILE" in job_data or must_exists:
                 files = self._normalize_files(job_data.get("FILE", ""))
-                data_fixed["JOBS"][job]["FILE"] = files[0]
-                data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = files[1:]
+                data_fixed["JOBS"][job]["FILE"] = files[0].strip(" ")
+                if len(files) > 1:
+                    data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = [file.strip(" ") for file in files[1:]]
+
+            if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
+                data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:

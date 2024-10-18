@@ -157,6 +157,26 @@ def prepare_basic_config(temp_folder):
     return basic_conf
 
 
+def check_differences(data1: dict, data2: dict) -> list:
+    """
+    check differences between two planned as_conf.experiment_data dictionaries.
+
+    :param data1: First dictionary to compare (actual).
+    :param data2: Second dictionary to compare (reference) .
+    :return: List of differences in the format (key, value1, value2).
+    """
+    differences = []
+
+    for key in data1.keys() | data2.keys():
+        value1 = data1.get(key, "NOT FOUND in actual_data")
+        value2 = data2.get(key, "NOT FOUND in reference")
+        if "pytest" in str(value1) or "pytest" in str(value2):
+            continue
+        if value1 != value2:
+            differences.append((key, value1, value2))
+
+    return differences
+
 def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any) -> None:
     """
     Test the destine workflow (a1q2) hardcoded until CI/CD.
@@ -171,11 +191,14 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     temp_folder_experiments_root.parent.mkdir(parents=True, exist_ok=True)
     # copy experiment files
     shutil.copytree(experiments_root, temp_folder_experiments_root)
-    with mocker.patch('pathlib.Path.exists', return_value=True):
-        as_conf = AutosubmitConfig(expid, prepare_basic_config)
+    as_conf = AutosubmitConfig(expid, prepare_basic_config)
     if PROFILE:
         profiler.enable()
     as_conf.reload(True)
+    as_conf.metadata_folder = experiments_root / expid / "conf" / "metadata"
+    as_conf.save()
+    for l_file in as_conf.current_loaded_files.keys():
+        print(l_file)
     if PROFILE:
         profiler.disable()
     # Check if the files are loaded
@@ -191,35 +214,19 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         as_conf.experiment_data.pop(key, None)
         reference_experiment_data.pop(key, None)
 
-    list_of_not_found = []
-    list_of_differences = []
-    for key, value in as_conf.experiment_data.items():
-        if "NOT FOUND" == reference_experiment_data.get(key, "NOT FOUND"):
-            list_of_not_found.append((key, value, reference_experiment_data.get(key, "NOT FOUND")))
-        elif value != reference_experiment_data[key]:
-            if isinstance(value, dict):
-                if sorted(value.keys()) != sorted(reference_experiment_data.get(key, {}).keys()):
-                    list_of_differences.append((key, value, reference_experiment_data[key]))
-            else:
-                list_of_differences.append((key, value, reference_experiment_data[key]))
+    parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
+    for key in list(parameters.keys()):
+        if key.endswith(".NAME"): # Added in this branch, so it is not in the reference file
+            parameters.pop(key)
 
-    list_of_not_found_two = []
-    for key, value in reference_experiment_data.items():
-        if "NOT FOUND" == as_conf.experiment_data.get(key, "NOT FOUND"):
-            list_of_not_found_two.append((key, value, as_conf.experiment_data.get(key, "NOT FOUND")))
-    if list_of_not_found or list_of_not_found_two or list_of_differences:
+    parameters_ref = as_conf.deep_parameters_export(reference_experiment_data)
+    list_of_differences = check_differences(parameters, parameters_ref)
+
+    if list_of_differences:
         print("\n")
         print("Experiment data")
         for key, value in as_conf.experiment_data.items():
             print(f"\n---Key---: {key}\n Value: {value}")
-        if len(list_of_not_found) > 0:
-            print("\nKeys in experiment data that aren't in the reference")
-        for key, value, reference in list_of_not_found:
-            print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
-        if len(list_of_not_found_two) > 0:
-            print("Keys in reference that aren't in the experiment data")
-        for key, value, reference in list_of_not_found_two:
-            print(f"\n---Key---: {key}\n Value: {reference}\n Reference: {value}")
         print("=====================================================")
         print("\nKeys with different values experiment_data -> reference")
         for key, value, reference in list_of_differences:
@@ -243,6 +250,12 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
             assert job["FILE"] != ""
         else:
             assert False  # All jobs should have a file in a real experiment
+
+    for job in as_conf.experiment_data["JOBS"].values():
+        assert "ADDITIONAL_FILES" in job
+
+    assert list_of_differences == []
+
     if PROFILE:
         stats = pstats.Stats(profiler).sort_stats('cumtime')
         stats.print_stats()

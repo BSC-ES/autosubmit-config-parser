@@ -7,7 +7,7 @@ CONFIG:
   MAXWAITINGJOBS: 20
 DEFAULT:
   # Job experiment ID.
-  EXPID: "a1q2"
+  EXPID: "a1sr"
   # Default HPC platform name.
   HPCARCH: "MARENOSTRUM5"
   #hint: use %PROJDIR% to point to the project folder (where the project is cloned)
