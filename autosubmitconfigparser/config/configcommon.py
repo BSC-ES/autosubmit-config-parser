@@ -525,59 +525,82 @@ class AutosubmitConfig(object):
                 unified_config[key] = new_dict[key]
         return unified_config
 
-    def normalize_variables(self, data):
+    def normalize_variables(self, data: dict, must_exists: bool) -> dict:
         """
-        Apply some memory internal variables to normalize it format. (right now only dependencies)
-        """
-        data_fixed = data
-        if data.get("DEFAULT", {}).get("HPCARCH", None) is not None:
-            data_fixed["DEFAULT"]["HPCARCH"] = data["DEFAULT"]["HPCARCH"].upper()
-        if data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
-            try:
-                data_fixed["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(data["DEFAULT"]["CUSTOM_CONFIG"])
-            except:
-                pass
-        wrappers = data_fixed.get("WRAPPERS", {})
-        for wrapper in wrappers.keys():
-            if type(wrappers[wrapper]) is dict:
-                jobs_in_wrapper = wrappers[wrapper].get("JOBS_IN_WRAPPER", "")
-                if "[" in jobs_in_wrapper:  # if it is a list in string format ( due "%" in the string )
-                    jobs_in_wrapper = jobs_in_wrapper.strip("[]")
-                    jobs_in_wrapper = jobs_in_wrapper.replace("'", "")
-                    jobs_in_wrapper = jobs_in_wrapper.replace(" ", "")
-                    jobs_in_wrapper = jobs_in_wrapper.replace(",", " ")
-                data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper.upper()
-                data_fixed["WRAPPERS"][wrapper]["TYPE"] = str(wrappers[wrapper].get("TYPE", "vertical")).lower()
+        Apply some memory internal variables to normalize its format. (right now only dependencies)
 
-        for job, job_data in data.get("JOBS", {}).items():
-            aux_dependencies = dict()
-            dependencies = job_data.get("DEPENDENCIES", {})
-            custom_directives = job_data.get("CUSTOM_DIRECTIVES", "")
-            # fix wrappers
-            if type(dependencies) == str:
-                for dependency in dependencies.upper().split(" "):
-                    aux_dependencies[dependency] = {}
-                dependencies = aux_dependencies
-            elif type(dependencies) == dict:
-                for dependency in dependencies.keys():
-                    aux_dependencies[dependency.upper()] = dependencies[dependency]
-                dependencies = aux_dependencies
-            if type(custom_directives) != str:
-                data_fixed["JOBS"][job]["CUSTOM_DIRECTIVES"] = str(custom_directives)
-            data_fixed["JOBS"][job]["DEPENDENCIES"] = dependencies
-            files = job_data.get("FILE", "")
-            if ',' in files:
-                files = files.split(",")
-            elif ' ' in files:
-                files = files.split(" ")
-            else:
-                files = [files]
-            data_fixed["JOBS"][job]["FILE"] = files[0]
-            data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
-            for file in files[1:]:
-                data_fixed["JOBS"][job]["ADDITIONAL_FILES"].append(file)
+        :param data: The input data dictionary to normalize.
+        :param must_exists: If false, add the sections that are not present in the data dictionary.
+        :return: The normalized data dictionary.
+        """
+        data_fixed = data.copy()
+        data_fixed = self.deep_normalize(data_fixed)
+        self._normalize_default_section(data_fixed)
+        self._normalize_wrappers_section(data_fixed)
+        self._normalize_jobs_section(data_fixed, must_exists)
 
         return data_fixed
+
+    def _normalize_default_section(self, data_fixed: dict) -> None:
+        default_section = data_fixed.get("DEFAULT", {})
+        if "HPCARCH" in default_section:
+            data_fixed["DEFAULT"]["HPCARCH"] = default_section["HPCARCH"].upper()
+        if "CUSTOM_CONFIG" in default_section:
+            try:
+                data_fixed["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(default_section["CUSTOM_CONFIG"])
+            except Exception:
+                pass
+
+    @staticmethod
+    def _normalize_wrappers_section(data_fixed: dict) -> None:
+        wrappers = data_fixed.get("WRAPPERS", {})
+        for wrapper, wrapper_data in wrappers.items():
+            if isinstance(wrapper_data, dict):
+                jobs_in_wrapper = wrapper_data.get("JOBS_IN_WRAPPER", "")
+                if "[" in jobs_in_wrapper:  # if it is a list in string format (due to "%" in the string)
+                    jobs_in_wrapper = jobs_in_wrapper.strip("[]").replace("'", "").replace(" ", "").replace(",", " ")
+                data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper.upper()
+                data_fixed["WRAPPERS"][wrapper]["TYPE"] = str(wrapper_data.get("TYPE", "vertical")).lower()
+
+    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool ) -> None:
+        for job, job_data in data_fixed.get("JOBS", {}).items():
+            if "DEPENDENCIES" in job_data or must_exists:
+                data_fixed["JOBS"][job]["DEPENDENCIES"] = self._normalize_dependencies(job_data.get("DEPENDENCIES", {}))
+
+            if "CUSTOM_DIRECTIVES" in job_data:
+                custom_directives = job_data.get("CUSTOM_DIRECTIVES", "")
+                if isinstance(custom_directives, list):
+                    custom_directives = str(custom_directives)
+                if type(custom_directives) is str:
+                    data_fixed["JOBS"][job]["CUSTOM_DIRECTIVES"] = str(custom_directives)
+                else:
+                    data_fixed["JOBS"][job]["CUSTOM_DIRECTIVES"] = custom_directives
+
+            if "FILE" in job_data or must_exists:
+                files = self._normalize_files(job_data.get("FILE", ""))
+                data_fixed["JOBS"][job]["FILE"] = files[0]
+                data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = files[1:]
+
+    @staticmethod
+    def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
+        aux_dependencies = {}
+        if isinstance(dependencies, str):
+            for dependency in dependencies.upper().split(" "):
+                aux_dependencies[dependency] = {}
+        elif isinstance(dependencies, dict):
+            for dependency, dependency_data in dependencies.items():
+                aux_dependencies[dependency.upper()] = dependency_data
+        return aux_dependencies
+
+    @staticmethod
+    def _normalize_files(files: str) -> List[str]:
+        if ',' in files:
+            files = files.split(",")
+        elif ' ' in files:
+            files = files.split(" ")
+        else:
+            files = [files]
+        return files
 
     def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
         current_section = section_names.pop()
@@ -616,8 +639,7 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.deep_normalize(new_file.data)
-        new_file.data = self.normalize_variables(new_file.data)
+        new_file.data = self.normalize_variables(new_file.data, must_exists=False)
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -1621,6 +1643,7 @@ class AutosubmitConfig(object):
                 del self.experiment_data["AS_TEMP"]
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
+            self.experiment_data = self.normalize_variables(self.experiment_data, must_exists=True)
             self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
@@ -1631,6 +1654,7 @@ class AutosubmitConfig(object):
         for filename in self.misc_files:
             self.misc_data = self.unify_conf(self.misc_data,
                                              self.load_config_file(self.misc_data, Path(filename), load_misc=True))
+
     def load_last_run(self):
         try:
             self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"

@@ -229,8 +229,9 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         for key, value, reference in list_of_differences:
             print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
 
-    # Check that all parameters are being substituted
     parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
+
+    # Check that all parameters are being substituted
     parameters_values = ' '.join(map(str, parameters.values()))
     import re
     placeholders = re.findall(r"%\w+%", parameters_values)

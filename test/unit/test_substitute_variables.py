@@ -49,8 +49,7 @@ def test_substitute_dynamic_variables_yaml_files_with_for_short_format(autosubmi
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=FOR_CONF)
-    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
-    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data, must_exists=True)
     as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
@@ -65,8 +64,7 @@ def test_substitute_dynamic_variables_yaml_files_with_for_short_format_and_custo
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=FOR_CONF)
-    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
-    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data, must_exists=True)
     as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
@@ -81,8 +79,7 @@ def test_substitute_dynamic_variables_long_format(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=ONE_DIM)
-    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
-    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data, must_exists=True)
     as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
     param = as_conf.substitute_dynamic_variables()
     assert param['JOBS.JOB.VARIABLEX'] == 'variableX'
@@ -129,8 +126,7 @@ def test_substitute_dynamic_variables_yaml_files_short_format_nested(autosubmit_
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=TEST_NESTED_DICT)
-    as_conf.experiment_data = as_conf.deep_normalize(as_conf.experiment_data)
-    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data)
+    as_conf.experiment_data = as_conf.normalize_variables(as_conf.experiment_data, must_exists=True)
     as_conf.experiment_data = as_conf.deep_read_loops(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.substitute_dynamic_variables(as_conf.experiment_data)
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
