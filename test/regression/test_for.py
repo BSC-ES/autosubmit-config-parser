@@ -11,7 +11,7 @@ import ruamel.yaml as yaml
 import cProfile
 import pstats
 
-PROFILE = True  # Change this to False to disable profiling ( speed up the tests )
+PROFILE = True  # Enable/disable profiling ( speed up the tests )
 
 as_conf_content: Dict[str, Any] = {
     "job": {
@@ -144,10 +144,7 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     """
     Test the destine workflow (a1q2) hardcoded until CI/CD.
     """
-    if PROFILE:
-        profiler = cProfile.Profile()
-        profiler.enable()
-
+    profiler = cProfile.Profile()
     expid = "a000"  # TODO parametrize
     mocker.patch.object(BasicConfig, 'read', return_value=True)
     current_script_location = Path(__file__).resolve().parent
@@ -159,7 +156,11 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     shutil.copytree(experiments_root, temp_folder_experiments_root)
     with mocker.patch('pathlib.Path.exists', return_value=True):
         as_conf = AutosubmitConfig(expid, prepare_basic_config)
+    if PROFILE:
+        profiler.enable()
     as_conf.reload(True)
+    if PROFILE:
+        profiler.disable()
     # Check if the files are loaded
     assert len(as_conf.current_loaded_files) > 1
     #mocker.patch('pathlib.Path.exists', return_value=False)
@@ -185,7 +186,7 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
                 try:
                     if sorted(value.keys()) != sorted(reference_experiment_data[key].keys()):
                         list_of_differences.append((key, value, reference_experiment_data[key]))
-                except:
+                except Exception:
                     pass
             else:
                 list_of_differences.append((key, value, reference_experiment_data[key]))
@@ -213,6 +214,5 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
             print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
 
     if PROFILE:
-        profiler.disable()
         stats = pstats.Stats(profiler).sort_stats('cumtime')
         stats.print_stats()
