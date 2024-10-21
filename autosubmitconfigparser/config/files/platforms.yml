@@ -1,7 +1,7 @@
 PLATFORMS:
   MARENOSTRUM5:
     TYPE: slurm
-    HOST: glogin1.bsc.es
+    HOST: glogin1.bsc.es, glogin2.bsc.es 
     PROJECT: bsc32
     USER:
     QUEUE: gp_debug
@@ -11,7 +11,7 @@ PLATFORMS:
     TEMP_DIR: ''
   MARENOSTRUM_ARCHIVE:
     TYPE: ps
-    HOST: dt02.bsc.es
+    HOST: transfer2.bsc.es 
     PROJECT: bsc32
     USER:
     SCRATCH_DIR: /gpfs/scratch
@@ -20,7 +20,7 @@ PLATFORMS:
 
   TRANSFER_NODE:
     TYPE: ps
-    HOST: dt01.bsc.es
+    HOST: transfer1.bsc.es, transfer2.bsc.es, transfer3.bsc.es, transfer4.bsc.es 
     PROJECT: bsc32
     USER:
     ADD_PROJECT_TO_HOST: false
