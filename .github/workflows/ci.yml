@@ -34,3 +34,38 @@ jobs:
         run: |
           pip install pytest
           pytest
+
+      - name: Coverage report
+        run: |
+          coverage xml
+          coverage report
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage_${{ matrix.os }}_py-${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 7
+
+
+  coverage:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Codecov upload
+        uses: codecov/codecov-action@v4
+        with:
+          name: ${{ github.workflow }}
+          flags: fast-tests
+          fail_ci_if_error: true
+          verbose: true
+          # Token not required for public repos, but avoids upload failure due
+          # to rate-limiting (but not for PRs opened from forks)
+          token: ${{ secrets.CODECOV_TOKEN }}
