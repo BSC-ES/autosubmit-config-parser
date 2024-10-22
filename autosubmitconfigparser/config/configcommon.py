@@ -1688,7 +1688,7 @@ class AutosubmitConfig(object):
                         Path(self.metadata_folder) / "experiment_data.yml.bak")
         try:
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                yaml.dump(self.experiment_data, stream, default_flow_style=False)
+                YAML().dump(self.experiment_data, stream)
         except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 os.remove(Path(self.metadata_folder) / "experiment_data.yml")
