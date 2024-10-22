@@ -17,7 +17,6 @@
 # along with Autosubmit.  If not, see <http://www.gnu.org/licenses/>.
 import collections
 import copy
-import datetime
 import json
 import locale
 import numbers
@@ -108,7 +107,7 @@ class AutosubmitConfig(object):
             try:
                 depth = int(unparsed_depth)
                 depth = [depth]
-            except:
+            except Exception:
                 Log.warning("PROJECT_SUBMODULES_DEPTH is not an integer neither a int. Using default value -1")
                 depth = []
         return depth
@@ -119,7 +118,7 @@ class AutosubmitConfig(object):
         """
         try:
             return json.dumps(self.experiment_data)
-        except Exception as exp:
+        except Exception:
             Log.warning(
                 "Autosubmit was not able to retrieve and save the configuration into the historical database.")
             return ""
@@ -135,16 +134,6 @@ class AutosubmitConfig(object):
         dir_templates = os.path.join(self.basic_config.LOCAL_ROOT_DIR, self.expid, BasicConfig.LOCAL_PROJ_DIR,
                                      self.get_project_destination())
         return dir_templates
-
-    def get_export(self, section):
-        """
-        Gets command line for being submitted with
-        :param section: job type
-        :type section: str
-        :return: wallclock time
-        :rtype: str
-        """
-        return self.get_section([section, 'EXPORT'], "")
 
     def get_x11(self, section):
         """
@@ -177,7 +166,7 @@ class AutosubmitConfig(object):
         current_level = self.experiment_data.get(section[0], "")
         for param in section[1:]:
             if current_level:
-                if type(current_level) == dict:
+                if type(current_level) is dict:
                     current_level = current_level.get(param, d_value)
                 else:
                     if must_exists:
@@ -496,7 +485,7 @@ class AutosubmitConfig(object):
                     normalized_data[normalized_key] = normalized_list
                 else:
                     normalized_data[normalized_key] = val
-        except Exception as e:
+        except Exception:
             pass
         return normalized_data
 
@@ -1123,7 +1112,7 @@ class AutosubmitConfig(object):
         except IOError as e:
             raise AutosubmitError(
                 "I/O Issues con config files", 6016, str(e))
-        except (AutosubmitCritical, AutosubmitError) as e:
+        except (AutosubmitCritical, AutosubmitError):
             raise
         except BaseException as e:
             raise AutosubmitCritical("Unknown issue while checking the configuration files (check_conf_files)", 7040,
@@ -1175,7 +1164,7 @@ class AutosubmitConfig(object):
             #    self.set_safetysleeptime(10)
             # else:
             #    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
-            if type(parser_data["CONFIG"].get('RETRIALS', 0)) != int:
+            if type(parser_data["CONFIG"].get('RETRIALS', 0)) is not int:
                 parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS', 0))
 
         if parser_data.get("STORAGE", None) is None:
@@ -1189,7 +1178,7 @@ class AutosubmitConfig(object):
         if parser_data.get("MAIL", "") != "":
             if str(parser_data["MAIL"].get("NOTIFICATIONS", "false")).lower() == "true":
                 mails = parser_data["MAIL"].get("TO", "")
-                if type(mails) == list:
+                if type(mails) is list:
                     pass
                 elif "," in mails:
                     mails = mails.split(',')
@@ -1296,7 +1285,7 @@ class AutosubmitConfig(object):
 
             dependencies = section_data.get('DEPENDENCIES', '')
             if dependencies != "":
-                if type(dependencies) == dict:
+                if type(dependencies) is dict:
                     for dependency, values in dependencies.items():
                         if '-' in dependency:
                             dependency = dependency.split('-')[0]
@@ -1432,7 +1421,7 @@ class AutosubmitConfig(object):
                 continue
 
             jobs_in_wrapper = wrapper_values.get('JOBS_IN_WRAPPER', "")
-            if type(jobs_in_wrapper) != list:
+            if type(jobs_in_wrapper) is not list:
                 if "[" in jobs_in_wrapper:  # if it is a list in string format ( due "%" in the string )
                     jobs_in_wrapper = jobs_in_wrapper.strip("[]")
                     jobs_in_wrapper = jobs_in_wrapper.replace("'", "")
@@ -1445,7 +1434,7 @@ class AutosubmitConfig(object):
             for section in jobs_in_wrapper:
                 try:
                     platform_name = self.jobs_data[section.upper()].get('PLATFORM', "").upper()
-                except:
+                except Exception:
                     self.wrong_config["WRAPPERS"] += [[wrapper_name,
                                                        "JOBS_IN_WRAPPER contains non-defined jobs.  parameter is invalid"]]
                     continue
@@ -1686,7 +1675,7 @@ class AutosubmitConfig(object):
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
         :return: True if the data has changed, False otherwise
         """
-        changed = False
+        # changed = False
         # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
         # metadata folder is inside the experiment folder / conf folder / metadata folder
         # If this function is called before load_last_run, we need to load the last run
@@ -1698,7 +1687,7 @@ class AutosubmitConfig(object):
         try:
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
                 yaml.dump(self.experiment_data, stream, default_flow_style=False)
-        except:
+        except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 os.remove(Path(self.metadata_folder) / "experiment_data.yml")
             self.data_changed = True
@@ -1775,7 +1764,7 @@ class AutosubmitConfig(object):
                     if key not in last_run_data.keys() or str(last_run_data[key]).lower() != str(val).lower():
                         changed = True
                         break
-        except Exception as e:
+        except Exception:
             changed = True
         return changed
 
@@ -1874,7 +1863,7 @@ class AutosubmitConfig(object):
                 job_list_by_section[job.section].append(job)
             try:
                 job.platform = submitter.platforms[job.platform_name]
-            except:
+            except Exception:
                 job.platform = submitter.platforms["LOCAL"]
 
         for section in list(job_list_by_section.keys()):
@@ -1935,7 +1924,7 @@ class AutosubmitConfig(object):
         """
         try:
             return self.get_section(['RERUN', 'RERUN_JOBLIST'], "")
-        except:
+        except Exception:
             return ""
 
     def get_file_project_conf(self):
@@ -2198,7 +2187,7 @@ class AutosubmitConfig(object):
         :rtype: list
         """
         member_list = list()
-        string = str(self.get_section(['EXPERIMENT', 'MEMBERS'], "") if run_only == False else self.get_section(
+        string = str(self.get_section(['EXPERIMENT', 'MEMBERS'], "") if run_only is False else self.get_section(
             ['EXPERIMENT', 'RUN_ONLY_MEMBERS'], ""))
         if not string:
             return member_list
@@ -2234,13 +2223,8 @@ class AutosubmitConfig(object):
         """
         try:
             return self.get_section([section, "DEPENDENCIES"], "")
-        except:
+        except Exception:
             return []
-
-        if section is not None and len(str(section)) > 0:
-            return member_list
-        else:
-            return None
 
     def get_rerun(self):
         """
@@ -2292,7 +2276,7 @@ class AutosubmitConfig(object):
                                           "AS_COMMAND: {0}".format(command))
             else:
                 content = content + "AS_COMMAND: {0}\n".format(command)
-        except:
+        except Exception:
             content = "AS_MISC: True\nAS_COMMAND: {0}\n".format(command)
         open(misc, 'w').write(content)
         os.chmod(misc, 0o755)
@@ -2310,7 +2294,7 @@ class AutosubmitConfig(object):
             if re.search('AUTOSUBMIT_VERSION:.*', content):
                 content = content.replace(re.search('AUTOSUBMIT_VERSION:.*', content).group(0),
                                           "AUTOSUBMIT_VERSION: {0}".format(autosubmit_version))
-        except:
+        except Exception:
             content = "CONFIG:\n  AUTOSUBMIT_VERSION: " + autosubmit_version + "\n"
         open(version_file, 'w').write(content)
         os.chmod(version_file, 0o755)
@@ -2840,7 +2824,7 @@ class AutosubmitConfig(object):
                     parser.data = parser.load(f)
                     if parser.data is None:
                         parser.data = {}
-            except IOError as exp:
+            except IOError:
                 parser.data = {}
                 return parser
             except Exception as exp:
