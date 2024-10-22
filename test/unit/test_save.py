@@ -1,7 +1,6 @@
 import pytest
 from pathlib import Path
 
-from defer import return_value
 from ruamel.yaml import YAML
 
 
