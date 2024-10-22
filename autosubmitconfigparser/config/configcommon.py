@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import List, Union, Any, Tuple, Dict
 
 import ruamel.yaml as yaml
+from ruamel.yaml import YAML
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
 from pyparsing import nestedExpr
@@ -1660,7 +1661,8 @@ class AutosubmitConfig(object):
                 # Load data from last run
                 if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                     with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
-                        self.last_experiment_data = yaml.load(stream, Loader=yaml.SafeLoader)
+                        yaml_loader = YAML(typ='safe')
+                        self.last_experiment_data = yaml_loader.load(stream)
                     self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
                 else:
                     self.last_experiment_data = {}
