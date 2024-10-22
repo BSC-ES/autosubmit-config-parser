@@ -6,7 +6,7 @@ from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from conftest import prepare_yaml_files
 from typing import Dict, Any
 import shutil
-import ruamel.yaml as yaml
+from ruamel.yaml import YAML
 
 import cProfile
 import pstats
@@ -205,7 +205,8 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     reference_experiment_data_path = Path(f"{current_script_location}/DestinE_workflows/{expid}/ref/experiment_data.yml")
 
     with reference_experiment_data_path.open('r') as f:
-        reference_experiment_data = yaml.load(f, Loader=yaml.SafeLoader)
+        yaml_loader = YAML(typ='safe')
+        reference_experiment_data = yaml_loader.load(f)
 
     # Skip some data that depends on the environment
     for key in ["ROOTDIR", "PROJDIR", "CUSTOM_CONFIG", "PLATFORMS", "AS_TEMP"]:
