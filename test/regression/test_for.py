@@ -195,8 +195,6 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
     if PROFILE:
         profiler.enable()
     as_conf.reload(True)
-    as_conf.metadata_folder = experiments_root / expid / "conf" / "metadata"
-    as_conf.save()
     for l_file in as_conf.current_loaded_files.keys():
         print(l_file)
     if PROFILE:
