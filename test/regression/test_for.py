@@ -6,7 +6,6 @@ from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from conftest import prepare_yaml_files
 from typing import Dict, Any
 import shutil
-import ruamel.yaml as yaml
 from ruamel.yaml import YAML
 
 import cProfile
