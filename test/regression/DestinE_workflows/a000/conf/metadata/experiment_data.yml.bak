@@ -1147,6 +1147,8 @@ AQUA:
   WORKERS_PL: 6
   WORKERS_SFC: 16
   WORKERS_SOL: 0
+AS_TEMP:
+  FILENAME_TO_LOAD: /home/ltenorio/platforms.yml
 CONFIG:
   AUTOSUBMIT_VERSION: 4.1.10
   MAXWAITINGJOBS: 20
@@ -1173,7 +1175,7 @@ CONFIGURATION:
   RAPS_EXPERIMENT: hist
   RAPS_USER_FLAGS: --keepxml
 DEFAULT:
-  CUSTOM_CONFIG: /appl/AS/AUTOSUBMIT_DATA/a1sr/proj/git_project/conf/bootstrap/
+  CUSTOM_CONFIG: /tmp/pytest-of-ltenorio/pytest-3/tests1/DestinE_workflows/a000/proj/git_project/conf/bootstrap/
   EXPID: a1sr
   HPCARCH: MARENOSTRUM5
 ENERGY_OFFSHORE:
@@ -2106,6 +2108,7 @@ JOBS:
           ALL:
             SPLITS_TO: all
     FILE: templates/application.sh
+    NAME: ENERGY_ONSHORE
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2163,6 +2166,7 @@ JOBS:
     DEPENDENCIES:
       SIM: {}
     FILE: templates/dqc.sh
+    NAME: BASIC
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2181,6 +2185,7 @@ JOBS:
     DEPENDENCIES:
       DQC_BASIC: {}
     FILE: templates/dqc.sh
+    NAME: FULL
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2210,6 +2215,7 @@ JOBS:
     - templates/aqua/only_lra.yaml
     CHECK: on_submission
     DEPENDENCIES:
+      DN: {}
       SIM: {}
     EXCLUSIVE: 'True'
     FILE: templates/aqua/lra_generator.sh
@@ -2235,6 +2241,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_1
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2256,6 +2263,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_2
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2277,6 +2285,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_3
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2298,6 +2307,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_4
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2319,6 +2329,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_5
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2340,6 +2351,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_6
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2361,6 +2373,7 @@ JOBS:
           ALL:
             SPLITS_TO: previous
     FILE: templates/opa.sh
+    NAME: energy_onshore_7
     NODES: 1
     PARTITION: '%CURRENT_APP_PARTITION%'
     PLATFORM: MARENOSTRUM5
@@ -2906,7 +2919,7 @@ PLATFORMS:
     SCRATCH_PROJECT_DIR: chhb19
     TEMP_DIR: ''
     TYPE: slurm
-    USER: <USER>
+    USER: <to-be-overloaded-in-user-conf>
   JUWELS-LOGIN:
     ADD_PROJECT_TO_HOST: false
     HOST: juwels-cluster
@@ -2915,31 +2928,30 @@ PLATFORMS:
     SCRATCH_PROJECT_DIR: chhb19
     TEMP_DIR: ''
     TYPE: ps
-    USER: <USER>
+    USER: <to-be-overloaded-in-user-conf>
   LEVANTE:
     ADD_PROJECT_TO_HOST: false
     BUDGET: <to-be-overloaded-by-user>
     EXECUTABLE: /usr/bin/bash -l
-    HOST: levante.dkrz.de
+    HOST: levante
     MAX_WALLCLOCK: 00:29
-    PARTITION: interactive
+    PARTITION: compute
     PROCESSORS_PER_NODE: 128
-    PROJECT: bb1153
+    PROJECT: <to-be-overloaded-by-user>
     QUEUE: ''
     SCRATCH_DIR: /work
     TEMP_DIR: ''
     TYPE: slurm
-    USER: b382351
+    USER: <to-be-overloaded-in-user-conf>
   LEVANTE-LOGIN:
     ADD_PROJECT_TO_HOST: false
     EXECUTABLE: /usr/bin/bash -l
-    HOST: levante.dkrz.de
-    PARTITION: interactive
-    PROJECT: bb1153
+    HOST: levante
+    PROJECT: <to-be-overloaded-by-user>
     SCRATCH_DIR: /work
     TEMP_DIR: ''
-    TYPE: slurm
-    USER: b382351
+    TYPE: ps
+    USER: <to-be-overloaded-in-user-conf>
   LUMI:
     ADD_PROJECT_TO_HOST: false
     APP_PARTITION: small
@@ -2967,7 +2979,7 @@ PLATFORMS:
     TEMP_DIR: ''
     THREADS: 8
     TYPE: slurm
-    USER: dbeltran
+    USER: <to-be-overloaded-in-user-conf>
   LUMI-LOGIN:
     ADD_PROJECT_TO_HOST: false
     CONTAINER_DIR: /projappl/project_465000454//containers
@@ -2984,7 +2996,7 @@ PLATFORMS:
     TEMP_DIR: ''
     TOTAL_JOBS: 1
     TYPE: ps
-    USER: dbeltran
+    USER: <to-be-overloaded-in-user-conf>
   LUMI-TRANSFER:
     ADD_PROJECT_TO_HOST: false
     BUDGET: project_465000454
@@ -3008,31 +3020,6 @@ PLATFORMS:
     TOTALJOBS: 1
     TYPE: slurm
     USER: <to-be-overloaded-in-user-conf>
-  MARENOSTRUM0:
-    HOST: marenostrum0
-    MAX_PROCESSORS: '2400'
-    MAX_WALLCLOCK: 48:00
-    PROCESSORS_PER_NODE: '48'
-    PROJECT: bsc32
-    QUEUE: debug
-    SCRATCH_DIR: /gpfs/scratch
-    SERIAL_QUEUE: debug
-    TYPE: slurm
-    USER: bsc32070
-  MARENOSTRUM4:
-    ADD_PROJECT_TO_HOST: 'False'
-    HOST: bsc
-    MAX_PROCESSORS: '2400'
-    MAX_WALLCLOCK: 48:00
-    PROCESSORS_PER_NODE: '48'
-    PROJECT: bsc32
-    QUEUE: debug
-    SCRATCH_DIR: /gpfs/scratch
-    SERIAL_QUEUE: debug
-    TYPE: slurm
-    USER: bsc32070
-  MARENOSTRUM4-LOGIN:
-    USER: bsc32070
   MARENOSTRUM5:
     ADD_PROJECT_TO_HOST: false
     APP_PARTITION: gp_bsces
@@ -3072,22 +3059,7 @@ PLATFORMS:
     SCRATCH_DIR: /gpfs/scratch
     TYPE: ps
     USER: <to-be-overloaded-in-user-conf>
-  MARENOSTRUM_ARCHIVE:
-    ADD_PROJECT_TO_HOST: 'False'
-    HOST: dt01.bsc.es
-    PROJECT: bsc32
-    SCRATCH_DIR: /gpfs/scratch
-    TEST_SUITE: 'False'
-    TYPE: ps
-    USER: bsc32070
-  TRANSFER_NODE:
-    ADD_PROJECT_TO_HOST: 'false'
-    HOST: dt01.bsc.es
-    PROJECT: bsc32
-    SCRATCH_DIR: /gpfs/scratch
-    TYPE: ps
-    USER: bsc32070
-PROJDIR: /appl/AS/AUTOSUBMIT_DATA/a1sr/proj/project_files
+PROJDIR: /tmp/pytest-of-ltenorio/pytest-3/tests1/DestinE_workflows/a000/proj/project_files
 PROJECT:
   PROJECT_DESTINATION: git_project
   PROJECT_TYPE: git
@@ -3101,7 +3073,7 @@ REQUEST:
   MODEL: IFS-NEMO
   REALIZATION: 1
   RESOLUTION: standard
-ROOTDIR: /appl/AS/AUTOSUBMIT_DATA/a1sr
+ROOTDIR: /tmp/pytest-of-ltenorio/pytest-3/tests1/DestinE_workflows/a000
 RUN:
   APP_NAMES:
   - ENERGY_ONSHORE
@@ -3117,7 +3089,6 @@ RUN:
   PROCESSOR_UNIT: cpu
   TYPE: test
   WORKFLOW: end-to-end
-STORAGE: {}
 URBAN:
   '1':
     GSVREQUEST:
