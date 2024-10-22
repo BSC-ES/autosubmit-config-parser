@@ -2137,8 +2137,15 @@ JOBS:
     CHECK: on_submission
     DELAY_RETRY_TIME: 11
     DEPENDENCIES:
+      APP_ENERGY_ONSHORE-1:
+        SPLITS_TO: '1'
+      DN:
+        SPLITS_FROM:
+          ALL:
+            SPLITS_TO: previous
       DN-1: {}
-      REMOTE_SETUP: {}
+      REMOTE_SETUP:
+        STATUS: COMPLETED
     FILE: templates/dn.sh
     PLATFORM: MARENOSTRUM5-login
     RETRIALS: 3
