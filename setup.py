@@ -16,7 +16,8 @@ install_requires = [
 test_requires = [
     'pytest',
     'pytest-cov',
-    'pytest-mock'
+    'pytest-mock',
+    'ruff'
 ]
 
 extras_require = {
