@@ -1688,6 +1688,7 @@ class AutosubmitConfig(object):
                         Path(self.metadata_folder) / "experiment_data.yml.bak")
         try:
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
+                # Not using typ="safe" to perserve the readability of the file
                 YAML().dump(self.experiment_data, stream)
         except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
