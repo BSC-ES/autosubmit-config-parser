@@ -1,0 +1,43 @@
+easyblock = "PythonBundle"
+
+name = 'autosubmitconfigparser'
+version = '1.0.71'
+versionsuffix = '-Python-%(pyver)s'
+
+homepage = 'https://pypi.org/project/autosubmitconfigparser'
+description = """Api for managing autosubmit 4 configuration files"""
+
+toolchain = {'name': 'foss', 'version': '2021b'}
+
+dependencies = [
+    ('Python', '3.9.6'),
+    ('python-xxhash','3.4.1', versionsuffix),
+    ('bscearth.utils', '0.5.2', versionsuffix),
+    ('ruamel.yaml', '0.17.21', versionsuffix),
+]
+
+exts_list = [
+    ('configobj', '5.0.8', {
+        'checksums': ['6f704434a07dc4f4dc7c9a745172c1cad449feb548febd9f7fe362629c627a97'],
+    }),
+    ('configparser', '7.0.0', {
+        'checksums': ['af3c618a67aaaedc4d689fd7317d238f566b9aa03cae50102e92d7f0dfe78ba0'],
+    }),
+    (name, version, {
+        'checksums': [
+            {'autosubmitconfigparser-1.0.71.tar.gz':
+            '71c7dbc99cbc6248592474019c1d7aad316038d12243f1c9d3fca6640ad2e36d'},
+        ],
+    }),
+]
+
+use_pip = True
+download_dep_fail = True
+sanity_pip_check = True
+
+sanity_check_paths = {
+    'files': [],
+    'dirs': ['lib/python%(pyshortver)s/site-packages'],
+}
+
+moduleclass = 'tools'
