@@ -17,7 +17,7 @@ def test_read_file_config(tmp_path):
 def test_invalid_expid_path():
     invalid_expids = ["", "12345", "123/", 1234] # empty, more than 4 char, contains folder separator, not string
 
-    with pytest.raises(Exception) as e_info:
+    with pytest.raises(Exception):
         for expid in invalid_expids:
             BasicConfig.expid_dir(expid)
 
