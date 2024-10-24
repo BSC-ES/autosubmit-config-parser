@@ -1,7 +1,6 @@
 import os
 import pytest
 from autosubmitconfigparser.config.basicconfig import BasicConfig
-from conftest import autosubmit_config
 
 def test_read_file_config(tmp_path):
     config_content = """
@@ -33,7 +32,7 @@ root_dirs = [
     lambda root_path, exp_id: os.path.join(root_path, exp_id, "tmp", "ASLOGS")
 ]
 @pytest.mark.parametrize("foo, dir_func", zip(functions_expid, root_dirs))
-def test_expid_dir_structure(foo, dir_func):
+def test_expid_dir_structure(foo, dir_func, autosubmit_config):
     exp_id = 'a000'
     root_path = autosubmit_config(expid = exp_id).basic_config.LOCAL_ROOT_DIR
     expected_path = dir_func(root_path, exp_id)
