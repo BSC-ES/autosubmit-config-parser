@@ -23,7 +23,6 @@ except ImportError:
     # noinspection PyCompatibility
     from configparser import ConfigParser as SafeConfigParser
 import os
-
 import inspect
 
 
@@ -72,6 +71,24 @@ class BasicConfig:
     DATABASE_BACKEND = "sqlite"
     DATABASE_CONN_URL = ""
 
+    @staticmethod
+    def expid_dir(exp_id):
+        if not isinstance(exp_id, str) or len(exp_id) != 4 or "/" in exp_id:
+            raise TypeError("Experiment ID must be a string of 4 characters without the folder separator symbol")
+        return os.path.join(BasicConfig.LOCAL_ROOT_DIR, exp_id)
+
+    @staticmethod
+    def expid_tmp_dir(exp_id):
+        return os.path.join(BasicConfig.expid_dir(exp_id), BasicConfig.LOCAL_TMP_DIR) 
+
+    @staticmethod
+    def expid_log_dir(exp_id):
+        return os.path.join(BasicConfig.expid_tmp_dir(exp_id), f'LOG_{exp_id}')
+
+    @staticmethod
+    def expid_aslog_dir(exp_id):
+        return os.path.join(BasicConfig.expid_tmp_dir(exp_id), BasicConfig.LOCAL_ASLOG_DIR)
+    
     @staticmethod
     def _update_config():
         """
