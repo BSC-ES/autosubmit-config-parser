@@ -587,7 +587,7 @@ class AutosubmitConfig(object):
         return aux_dependencies
 
     @staticmethod
-    def _normalize_files(files: str) -> List[str]:
+    def _normalize_files(files: Union[str, List[str]]) -> List[str]:
         if type(files) is not list:
             if ',' in files:
                 files = files.split(",")
