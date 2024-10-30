@@ -217,6 +217,26 @@ import pytest
         False,
         id="additional_jobs_new_data"
     ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": ["file1", "file2", "file3"]
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'file1',
+                    'ADDITIONAL_FILES': ['file2', 'file3'],
+                    'DEPENDENCIES': {},
+                },
+            }
+        },
+        True,
+        id="file_yaml_list"
+    ),
 ])
 def test_normalize_variables(autosubmit_config, data, expected_data, must_exists):
     as_conf = autosubmit_config(expid='t000', experiment_data=data)

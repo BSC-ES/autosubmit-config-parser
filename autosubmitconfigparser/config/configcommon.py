@@ -587,13 +587,14 @@ class AutosubmitConfig(object):
         return aux_dependencies
 
     @staticmethod
-    def _normalize_files(files: str) -> List[str]:
-        if ',' in files:
-            files = files.split(",")
-        elif ' ' in files:
-            files = files.split(" ")
-        else:
-            files = [files]
+    def _normalize_files(files: Union[str, List[str]]) -> List[str]:
+        if type(files) is not list:
+            if ',' in files:
+                files = files.split(",")
+            elif ' ' in files:
+                files = files.split(" ")
+            else:
+                files = [files]
         return files
 
     def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
