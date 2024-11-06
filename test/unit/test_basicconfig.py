@@ -27,10 +27,10 @@ functions_expid = [BasicConfig.expid_dir,
                    BasicConfig.expid_log_dir,
                    BasicConfig.expid_aslog_dir]
 root_dirs = [
-    lambda root_path, exp_id: Path(root_path).joinpath(exp_id),
-    lambda root_path, exp_id: Path(root_path).joinpath(exp_id, "tmp"),
-    lambda root_path, exp_id: Path(root_path).joinpath(exp_id, "tmp", f"LOG_{exp_id}"),
-    lambda root_path, exp_id: Path(root_path).joinpath(exp_id, "tmp", "ASLOGS")
+    lambda root_path, exp_id: Path(root_path, exp_id),
+    lambda root_path, exp_id: Path(root_path, exp_id, "tmp"),
+    lambda root_path, exp_id: Path(root_path, exp_id, "tmp", f"LOG_{exp_id}"),
+    lambda root_path, exp_id: Path(root_path, exp_id, "tmp", "ASLOGS")
 ]
 @pytest.mark.parametrize("foo, dir_func", zip(functions_expid, root_dirs))
 def test_expid_dir_structure(foo, dir_func, autosubmit_config):

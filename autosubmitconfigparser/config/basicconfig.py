@@ -76,7 +76,7 @@ class BasicConfig:
     def expid_dir(exp_id):
         if not isinstance(exp_id, str) or len(exp_id) != 4 or "/" in exp_id:
             raise TypeError("Experiment ID must be a string of 4 characters without the folder separator symbol")
-        return Path(BasicConfig.LOCAL_ROOT_DIR).joinpath(exp_id)
+        return Path(BasicConfig.LOCAL_ROOT_DIR, exp_id)
 
     @staticmethod
     def expid_tmp_dir(exp_id):
