@@ -575,7 +575,6 @@ class AutosubmitConfig(object):
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
-
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
         aux_dependencies = {}
@@ -585,12 +584,6 @@ class AutosubmitConfig(object):
         elif isinstance(dependencies, dict):
             for dependency, dependency_data in dependencies.items():
                 aux_dependencies[dependency.upper()] = dependency_data
-                if type(dependency_data) is dict and dependency_data.get("STATUS", None):
-                    dependency_data["STATUS"] = dependency_data["STATUS"].upper()
-                    if dependency_data["STATUS"][-1] == "?":
-                        dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
-                        dependency_data["OPTIONAL"] = True
-
         return aux_dependencies
 
     @staticmethod
