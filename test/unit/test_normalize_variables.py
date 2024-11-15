@@ -237,6 +237,51 @@ import pytest
         True,
         id="file_yaml_list"
     ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "DEPENDENCIES": {
+                        "job2": {"STATUS": "FAILED"},
+                        "job3": {"STATUS": "FAILED?"},
+                        "job4": {"STATUS": "RUNNING"},
+                        "job5": {"STATUS": "COMPLETED"},
+                        "job6": {"STATUS": "SKIPPED"},
+                        "job7": {"STATUS": "READY"},
+                        "job8": {"STATUS": "DELAYED"},
+                        "job9": {"STATUS": "PREPARED"},
+                        "job10": {"STATUS": "QUEUING"},
+                        "job11": {"STATUS": "SUBMITTED"},
+                        "job12": {"STATUS": "HELD"},
+                    },
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {
+                        'JOB2': {'STATUS': 'FAILED', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB3': {'STATUS': 'FAILED', 'ANY_FINAL_STATUS_IS_VALID': True},
+                        'JOB4': {'STATUS': 'RUNNING', 'ANY_FINAL_STATUS_IS_VALID': True},
+                        'JOB5': {'STATUS': 'COMPLETED', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB6': {'STATUS': 'SKIPPED', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB7': {'STATUS': 'READY', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB8': {'STATUS': 'DELAYED', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB9': {'STATUS': 'PREPARED', 'ANY_FINAL_STATUS_IS_VALID': False},
+                        'JOB10': {'STATUS': 'QUEUING', 'ANY_FINAL_STATUS_IS_VALID': True},
+                        'JOB11': {'STATUS': 'SUBMITTED', 'ANY_FINAL_STATUS_IS_VALID': True},
+                        'JOB12': {'STATUS': 'HELD', 'ANY_FINAL_STATUS_IS_VALID': True},
+                    },
+                },
+            }
+        },
+        True,
+        id="dependencies_status"
+    ),
 ])
 def test_normalize_variables(autosubmit_config, data, expected_data, must_exists):
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
