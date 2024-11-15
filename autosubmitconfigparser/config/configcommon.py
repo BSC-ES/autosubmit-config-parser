@@ -575,9 +575,22 @@ class AutosubmitConfig(object):
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
-
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
+        """
+        Normalize the dependencies to a consistent format.
+
+        This function takes a string or dictionary of dependencies and normalizes them to a dictionary format.
+        If the input is a string, it splits the string by spaces and converts each dependency to uppercase.
+        If the input is a dictionary, it converts each dependency key to uppercase and processes the status.
+
+        Additionally, it checks if any final status is allowed, and if so, it sets the flag "ANY_FINAL_STATUS_IS_VALID".
+
+        :param dependencies: The dependencies to normalize, either as a string or a dictionary.
+        :type dependencies: Union[str, dict]
+        :return: A dictionary with normalized dependencies.
+        :rtype: dict
+        """
         aux_dependencies = {}
         if isinstance(dependencies, str):
             for dependency in dependencies.upper().split(" "):
@@ -589,7 +602,11 @@ class AutosubmitConfig(object):
                     dependency_data["STATUS"] = dependency_data["STATUS"].upper()
                     if dependency_data["STATUS"][-1] == "?":
                         dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
-                        dependency_data["OPTIONAL"] = True
+                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                    elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED", "COMPLETED"]:  # May change in future issues.
+                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                    else:
+                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
 
         return aux_dependencies
 
