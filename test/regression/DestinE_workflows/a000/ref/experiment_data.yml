@@ -2146,6 +2146,7 @@ JOBS:
       DN-1: {}
       REMOTE_SETUP:
         STATUS: COMPLETED
+        ANY_FINAL_STATUS_IS_VALID: False
     FILE: templates/dn.sh
     PLATFORM: MARENOSTRUM5-login
     RETRIALS: 3
