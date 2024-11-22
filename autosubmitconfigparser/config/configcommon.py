@@ -1616,6 +1616,13 @@ class AutosubmitConfig(object):
             list_parameters = list(self.starter_conf[parameter])
         return [parameter.strip(" ") for parameter in list_parameters]
 
+    def is_current_real_user_owner(self) -> bool:
+        """
+        Check if the real user(AS_ENV_CURRENT_USER) is the owner of the experiment folder
+        :return: bool
+        """
+        return Path(self.experiment_data["ROOTDIR"]).owner() == self.experiment_data["AS_ENV_CURRENT_USER"]
+
     @staticmethod
     def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
