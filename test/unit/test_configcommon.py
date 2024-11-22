@@ -1,6 +1,5 @@
-import os
 from typing import Callable
-
+from pathlib import Path
 import pytest
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
@@ -58,14 +57,10 @@ def test_get_submodules(autosubmit_config: Callable):
 
 @pytest.mark.parametrize('owner', [True, False])
 def test_is_current_real_user_owner(autosubmit_config: Callable, owner):
-    if owner:
-        experiment_data = {
-            'AS_ENV_CURRENT_USER': os.environ['USER'],
-        }
-    else:
-        experiment_data = {
-            'AS_ENV_CURRENT_USER': 'another_user',
-        }
-    as_conf = autosubmit_config(expid='a000', experiment_data=experiment_data)
+    as_conf = autosubmit_config(expid='a000', experiment_data={})
     as_conf.experiment_data = as_conf.load_common_parameters(as_conf.experiment_data)
+    if owner:
+        as_conf.experiment_data["AS_ENV_CURRENT_USER"] = Path(as_conf.experiment_data['ROOTDIR']).owner()
+    else:
+        as_conf.experiment_data["AS_ENV_CURRENT_USER"] = "dummy"
     assert as_conf.is_current_real_user_owner() == owner
