@@ -1619,13 +1619,14 @@ class AutosubmitConfig(object):
     @staticmethod
     def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Loads all environment variables that starts with AS_ENV into the parameters dictionary
+        Loads all environment variables that starts with AS_ENV into the parameters dictionary and obtains the current user running it.
         :param parameters: current loaded parameters.
         :return: dict
         """
         for key, value in os.environ.items():
             if key.startswith("AS_ENV"):
                 parameters[key] = value
+        parameters["AS_ENV_CURRENT_USER"] = os.environ.get("SUDO_USER", os.environ.get("USER", None))
         return parameters
 
     def reload(self, force_load=False, only_experiment_data=False, save=False):
