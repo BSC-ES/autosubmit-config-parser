@@ -1616,6 +1616,18 @@ class AutosubmitConfig(object):
             list_parameters = list(self.starter_conf[parameter])
         return [parameter.strip(" ") for parameter in list_parameters]
 
+    @staticmethod
+    def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Loads all environment variables that starts with AS_ENV into the parameters dictionary
+        :param parameters: current loaded parameters.
+        :return: dict
+        """
+        for key, value in os.environ.items():
+            if key.startswith("AS_ENV"):
+                parameters[key] = value
+        return parameters
+
     def reload(self, force_load=False, only_experiment_data=False, save=False):
         """
         Reloads the configuration files
@@ -1634,6 +1646,7 @@ class AutosubmitConfig(object):
             self.current_loaded_files = {}  # reset loaded files
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
                 starter_conf = self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename)))
+            starter_conf = self.load_as_env_variables(starter_conf)
             starter_conf = self.load_common_parameters(starter_conf)
             self.starter_conf = starter_conf
             # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
