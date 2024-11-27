@@ -600,13 +600,14 @@ class AutosubmitConfig(object):
                 aux_dependencies[dependency.upper()] = dependency_data
                 if type(dependency_data) is dict and dependency_data.get("STATUS", None):
                     dependency_data["STATUS"] = dependency_data["STATUS"].upper()
-                    if dependency_data["STATUS"][-1] == "?":
-                        dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
-                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
-                    elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED", "COMPLETED"]:  # May change in future issues.
-                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
-                    else:
-                        dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
+                    if not dependency_data.get("ANY_FINAL_STATUS_IS_VALID", False):
+                        if dependency_data["STATUS"][-1] == "?":
+                            dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
+                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED", "COMPLETED"]:  # May change in future issues.
+                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                        else:
+                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
 
         return aux_dependencies
 

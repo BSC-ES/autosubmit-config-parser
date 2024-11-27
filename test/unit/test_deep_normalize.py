@@ -69,3 +69,5 @@ def test_normalize_variables(autosubmit_config, data, expected_data):
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
     normalized_data = as_conf.deep_normalize(data)
     assert normalized_data == expected_data
+    normalized_data = as_conf.deep_normalize(normalized_data)
+    assert normalized_data == expected_data
