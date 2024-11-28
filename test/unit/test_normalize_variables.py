@@ -287,3 +287,5 @@ def test_normalize_variables(autosubmit_config, data, expected_data, must_exists
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
     normalized_data = as_conf.normalize_variables(data, must_exists=must_exists)
     assert normalized_data == expected_data
+    normalized_data = as_conf.normalize_variables(normalized_data, must_exists=must_exists)
+    assert normalized_data == expected_data
