@@ -63,4 +63,4 @@ def test_is_current_real_user_owner(autosubmit_config: Callable, owner):
         as_conf.experiment_data["AS_ENV_CURRENT_USER"] = Path(as_conf.experiment_data['ROOTDIR']).owner()
     else:
         as_conf.experiment_data["AS_ENV_CURRENT_USER"] = "dummy"
-    assert as_conf.is_current_real_user_owner() == owner
+    assert as_conf.is_current_real_user_owner == owner
