@@ -1616,6 +1616,7 @@ class AutosubmitConfig(object):
             list_parameters = list(self.starter_conf[parameter])
         return [parameter.strip(" ") for parameter in list_parameters]
 
+    @property
     def is_current_real_user_owner(self) -> bool:
         """
         Check if the real user(AS_ENV_CURRENT_USER) is the owner of the experiment folder
