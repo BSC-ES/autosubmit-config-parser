@@ -282,6 +282,94 @@ import pytest
         True,
         id="dependencies_status"
     ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "NOTIFY_ON": ["running", "COmpLETED"]
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {},
+                    'NOTIFY_ON': ['RUNNING', 'COMPLETED'],
+                },
+            }
+        },
+        True,
+        id="notify_on_list"
+    ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "NOTIFY_ON": "running, COmpLETED"
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {},
+                    'NOTIFY_ON': ['RUNNING', 'COMPLETED'],
+                },
+            }
+        },
+        True,
+        id="notify_on_string_with_,"
+    ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "NOTIFY_ON": "running COmpLETED"
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {},
+                    'NOTIFY_ON': ['RUNNING', 'COMPLETED'],
+                },
+            }
+        },
+        True,
+        id="notify_on_string_without_,"
+    ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "NOTIFY_ON": "running"
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {},
+                    'NOTIFY_ON': ['RUNNING'],
+                },
+            }
+        },
+        True,
+        id="notify_on_string_single"
+    ),
 ])
 def test_normalize_variables(autosubmit_config, data, expected_data, must_exists):
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
