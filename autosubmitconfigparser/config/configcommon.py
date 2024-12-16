@@ -552,6 +552,20 @@ class AutosubmitConfig(object):
                 data_fixed["WRAPPERS"][wrapper]["JOBS_IN_WRAPPER"] = jobs_in_wrapper.upper()
                 data_fixed["WRAPPERS"][wrapper]["TYPE"] = str(wrapper_data.get("TYPE", "vertical")).lower()
 
+    @staticmethod
+    def _normalize_notify_on(data_fixed: dict, job_section) -> None:
+        """
+        Normalize the NOTIFY_ON section to a consistent format.
+        """
+        notify_on = data_fixed["JOBS"][job_section].get("NOTIFY_ON", "")
+        if notify_on:
+            if type(notify_on) is str:
+                if "," in notify_on:
+                    notify_on = notify_on.split(",")
+                else:
+                    notify_on = notify_on.split()
+            data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
+
     def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool ) -> None:
         for job, job_data in data_fixed.get("JOBS", {}).items():
             if "DEPENDENCIES" in job_data or must_exists:
@@ -574,6 +588,8 @@ class AutosubmitConfig(object):
 
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
+
+            self._normalize_notify_on(data_fixed, job)
 
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
