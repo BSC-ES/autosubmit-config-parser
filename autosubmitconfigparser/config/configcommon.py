@@ -557,14 +557,14 @@ class AutosubmitConfig(object):
         """
         Normalize the NOTIFY_ON section to a consistent format.
         """
-        if "NOTIFY_ON" in data_fixed["JOBS"][job_section]:
-            if type(data_fixed["JOBS"][job_section]["NOTIFY_ON"]) is str:
-                if "," in data_fixed["JOBS"][job_section]["NOTIFY_ON"]:
-                    data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in data_fixed["JOBS"][job_section]["NOTIFY_ON"].split(",")]
+        notify_on = data_fixed["JOBS"][job_section].get("NOTIFY_ON", "")
+        if notify_on:
+            if type(notify_on) is str:
+                if "," in notify_on:
+                    notify_on = notify_on.split(",")
                 else:
-                    data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in data_fixed["JOBS"][job_section]["NOTIFY_ON"].split()]
-            else:
-                data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in data_fixed["JOBS"][job_section]["NOTIFY_ON"]]
+                    notify_on = notify_on.split()
+            data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
 
     def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool ) -> None:
         for job, job_data in data_fixed.get("JOBS", {}).items():
