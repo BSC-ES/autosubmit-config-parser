@@ -837,8 +837,16 @@ class AutosubmitConfig(object):
         return dict_keys_type
 
     def clean_dynamic_variables(self, pattern, in_the_end=False):
-        """
-        Clean dynamic variables
+        """Resets the local variable of dynamic (or special) variables.
+
+        The ``pattern`` is used to search for dynamic or special variables (they vary
+        from normal dynamic by a ``^`` symbol, ``%DYN%`` vs. ``%^SPE%``). Only variables
+        whose value matches the given pattern are kept.
+
+        The new dictionary of variable names and values is defined as the local object
+        ``self.special_dynamic_variables`` if ``in_the_end`` is ``True``. Otherwise,
+        ``self.dynamic_variables``.
+
         :param pattern: Regex pattern to identify dynamic variables.
         :param in_the_end: Boolean flag to determine which set of dynamic variables to clean.
         :return: None
@@ -851,12 +859,12 @@ class AutosubmitConfig(object):
 
         for key, dynamic_var in dynamic_variables_.items():
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
-            if isinstance(dynamic_var[1], list):
-                for value in dynamic_var[1]:
+            if isinstance(dynamic_var, list):
+                for value in dynamic_var:
                     if not re.search(pattern, value, flags=re.IGNORECASE):
                         dynamic_variables[key] = dynamic_var
             else:
-                match = re.search(pattern, dynamic_var[1], flags=re.IGNORECASE)
+                match = re.search(pattern, dynamic_var, flags=re.IGNORECASE)
                 if match is not None:
                     dynamic_variables[key] = dynamic_var
 
