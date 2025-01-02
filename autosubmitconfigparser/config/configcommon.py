@@ -1015,7 +1015,7 @@ class AutosubmitConfig(object):
         :return: A tuple containing the updated processed dynamic variables and parameters.
         :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
-        for i, key in enumerate(keys):
+        for i, key in enumerate(filter(None, keys)):
             matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
             for match in matches:
                 value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
