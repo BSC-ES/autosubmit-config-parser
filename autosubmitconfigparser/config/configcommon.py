@@ -860,9 +860,14 @@ class AutosubmitConfig(object):
         for key, dynamic_var in dynamic_variables_.items():
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
             if isinstance(dynamic_var, list):
-                for value in dynamic_var:
-                    if not re.search(pattern, value, flags=re.IGNORECASE):
-                        dynamic_variables[key] = dynamic_var
+                matching_values = list(
+                    filter(
+                        lambda value: re.search(pattern, value, flags=re.IGNORECASE),
+                        dynamic_var
+                    )
+                )
+                if matching_values:
+                    dynamic_variables[key] = matching_values
             else:
                 match = re.search(pattern, dynamic_var, flags=re.IGNORECASE)
                 if match is not None:
@@ -912,6 +917,8 @@ class AutosubmitConfig(object):
                 break
             dynamic_variables = dynamic_variables_
             max_deep -= 1
+
+        self.dynamic_variables = dynamic_variables
 
         self.clean_dynamic_variables(pattern, in_the_end)
         return parameters
