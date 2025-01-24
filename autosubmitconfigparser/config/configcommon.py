@@ -2556,7 +2556,8 @@ class AutosubmitConfig(object):
             final_dict = yaml_dict
             # Write resultant dictionary to the yaml file
         yaml_file = open(input_file, 'w', encoding=locale.getlocale()[1])
-        yaml.dump(final_dict, yaml_file, Dumper=yaml.RoundTripDumper)
+        yaml = YAML()
+        yaml.dump(final_dict, yaml_file)
         ini_file.rename(Path(root_dir, ini_file.stem + ".yml"))
 
     def get_notifications_crash(self):
