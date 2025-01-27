@@ -30,7 +30,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, Any, Tuple, Dict
 
-import ruamel.yaml as yaml
 from ruamel.yaml import YAML
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
