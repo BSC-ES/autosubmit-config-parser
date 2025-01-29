@@ -1,7 +1,6 @@
 from typing import Callable
 from pathlib import Path
 import pytest
-import sys
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 
@@ -132,11 +131,11 @@ def test_yaml_deprecation_warning(autosubmit_config: Callable):
     as_conf: AutosubmitConfig = autosubmit_config(expid='a000', experiment_data={})
     as_conf_copy: AutosubmitConfig = autosubmit_config(expid='a001', experiment_data={})
 
+    as_path = Path.home() / 'autosubmit'
     expid = str(as_conf.expid)
     expid_copy = str(as_conf_copy.expid)
-    db_path = Path.home() / 'autosubmit'
     file_base = "conf/expdef_"+expid+".conf"
     file_copied = "conf/expdef_"+expid_copy+".conf_AS_v3_backup"
-    file = open(db_path/expid/file_base, 'r')
-    expected = open(db_path/expid_copy/file_copied, 'r')
-    assert expected.read() == file.read()
+    expected = open(as_path/expid_copy/file_copied, 'r')
+    with open(as_path/expid/file_base, 'r') as file:
+        assert expected.read() == file.read()
