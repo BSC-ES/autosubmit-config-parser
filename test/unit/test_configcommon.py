@@ -156,4 +156,7 @@ def test_yaml_deprecation_warning(tmp_path, autosubmit_config: Callable):
             if line_backup.strip().split('=')[1] != line_newYaml.strip().split(':')[1]:
                 valid = False
 
-    assert valid == True
+        if valid:
+            assert True
+        elif valid:
+            assert False
