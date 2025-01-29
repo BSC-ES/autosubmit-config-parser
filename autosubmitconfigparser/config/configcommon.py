@@ -2501,11 +2501,11 @@ class AutosubmitConfig(object):
 
     # based on https://github.com/cbirajdar/properties-to-yaml-converter/blob/master/properties_to_yaml.py
     @staticmethod
-    def ini_to_yaml(root_dir, ini_file):
+    def ini_to_yaml(root_dir: Path, ini_file: str) -> None:
         # Based on http://stackoverflow.com/a/3233356
-        def update_dict(original_dict, updated_dict):
+        def update_dict(original_dict: Dict, updated_dict: collections.abc.Mapping) -> Dict:
             for k, v in updated_dict.items():
-                if isinstance(v, collections.Mapping):
+                if isinstance(v, collections.abc.Mapping):
                     r = update_dict(original_dict.get(k, {}), v)
                     original_dict[k] = r
                 else:

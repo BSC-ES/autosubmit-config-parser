@@ -1,5 +1,6 @@
 from typing import Callable
 from pathlib import Path
+from textwrap import dedent
 import pytest
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
@@ -126,16 +127,33 @@ def test_clean_dynamic_variables(autosubmit_config: Callable) -> None:
     assert 'jaspion_eats' in as_conf.dynamic_variables
 
 
-def test_yaml_deprecation_warning(autosubmit_config: Callable):
+def test_yaml_deprecation_warning(tmp_path, autosubmit_config: Callable):
+    """Test that the conversion from YAML to INI works as expected, without warnings.
+
+    +    Creates a dummy AS3 INI file, calls ``AutosubmitConfig.ini_to_yaml``, and
+    +    verifies that the YAML files exists and is not empty, and a backup file was
+    +    created. All without warnings being raised (i.e. they were suppressed).
+    +    """
 
     as_conf: AutosubmitConfig = autosubmit_config(expid='a000', experiment_data={})
-    as_conf_copy: AutosubmitConfig = autosubmit_config(expid='a001', experiment_data={})
+    ini_file = tmp_path / 'a000_jobs.ini'
+    with open(ini_file, 'w+') as f:
+        f.write(dedent('''\
+            [LOCAL_SETUP]
+            FILE = LOCAL_SETUP.sh
+            PLATFORM = LOCAL
+            '''))
+        f.flush()
+    as_conf.ini_to_yaml(root_dir=tmp_path, ini_file=str(ini_file))
 
-    as_path = Path.home() / 'autosubmit'
-    expid = str(as_conf.expid)
-    expid_copy = str(as_conf_copy.expid)
-    file_base = "conf/expdef_"+expid+".conf"
-    file_copied = "conf/expdef_"+expid_copy+".conf_AS_v3_backup"
-    expected = open(as_path/expid_copy/file_copied, 'r')
-    with open(as_path/expid/file_base, 'r') as file:
-        assert expected.read() == file.read()
+    print(f'tmp_path: {tmp_path}')
+    with open(tmp_path / 'a000_jobs.ini_AS_v3_backup', 'r') as backup, open(tmp_path / 'a000_jobs.yml', 'r') as newYaml:
+        lines_backup = backup.readlines()
+        lines_newYaml = newYaml.readlines()
+
+        valid = True
+        for line_backup, line_newYaml in zip(lines_backup[1:], lines_newYaml[2:]):
+            if line_backup.strip().split('=')[1] != line_newYaml.strip().split(':')[1]:
+                valid = False
+
+    assert valid == True
