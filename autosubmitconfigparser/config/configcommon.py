@@ -30,7 +30,6 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, Any, Tuple, Dict
 
-import ruamel.yaml as yaml
 from ruamel.yaml import YAML
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
@@ -2502,11 +2501,11 @@ class AutosubmitConfig(object):
 
     # based on https://github.com/cbirajdar/properties-to-yaml-converter/blob/master/properties_to_yaml.py
     @staticmethod
-    def ini_to_yaml(root_dir, ini_file):
+    def ini_to_yaml(root_dir: Path, ini_file: str) -> None:
         # Based on http://stackoverflow.com/a/3233356
-        def update_dict(original_dict, updated_dict):
+        def update_dict(original_dict: Dict, updated_dict: collections.abc.Mapping) -> Dict:
             for k, v in updated_dict.items():
-                if isinstance(v, collections.Mapping):
+                if isinstance(v, collections.abc.Mapping):
                     r = update_dict(original_dict.get(k, {}), v)
                     original_dict[k] = r
                 else:
@@ -2556,7 +2555,8 @@ class AutosubmitConfig(object):
             final_dict = yaml_dict
             # Write resultant dictionary to the yaml file
         yaml_file = open(input_file, 'w', encoding=locale.getlocale()[1])
-        yaml.dump(final_dict, yaml_file, Dumper=yaml.RoundTripDumper)
+        yaml = YAML()
+        yaml.dump(final_dict, yaml_file)
         ini_file.rename(Path(root_dir, ini_file.stem + ".yml"))
 
     def get_notifications_crash(self):

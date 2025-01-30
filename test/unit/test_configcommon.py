@@ -1,5 +1,6 @@
 from typing import Callable
 from pathlib import Path
+from textwrap import dedent
 import pytest
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
@@ -124,3 +125,31 @@ def test_clean_dynamic_variables(autosubmit_config: Callable) -> None:
 
     assert len(as_conf.dynamic_variables) == 1
     assert 'jaspion_eats' in as_conf.dynamic_variables
+
+
+def test_yaml_deprecation_warning(tmp_path, autosubmit_config: Callable):
+    """Test that the conversion from YAML to INI works as expected, without warnings.
+
+    Creates a dummy AS3 INI file, calls ``AutosubmitConfig.ini_to_yaml``, and
+    verifies that the YAML files exists and is not empty, and a backup file was
+    created. All without warnings being raised (i.e. they were suppressed).
+    """
+
+    as_conf: AutosubmitConfig = autosubmit_config(expid='a000', experiment_data={})
+    ini_file = tmp_path / 'a000_jobs.ini'
+    with open(ini_file, 'w+') as f:
+        f.write(dedent('''\
+            [LOCAL_SETUP]
+            FILE = LOCAL_SETUP.sh
+            PLATFORM = LOCAL
+            '''))
+        f.flush()
+    as_conf.ini_to_yaml(root_dir=tmp_path, ini_file=str(ini_file))
+
+    backup_file = Path(f'{ini_file}_AS_v3_backup')
+    assert backup_file.exists()
+    assert backup_file.stat().st_size > 0
+
+    new_yaml_file = Path(ini_file.parent,ini_file.stem).with_suffix('.yml')
+    assert new_yaml_file.exists()
+    assert new_yaml_file.stat().st_size > 0

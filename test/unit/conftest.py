@@ -217,7 +217,8 @@ def autosubmit_config(
 
     def finalizer() -> None:
         BasicConfig.LOCAL_ROOT_DIR = original_root_dir
-        rmtree(tmp_path)
+        if tmp_path and tmp_path.exists():
+            rmtree(tmp_path)
 
     request.addfinalizer(finalizer)
 
