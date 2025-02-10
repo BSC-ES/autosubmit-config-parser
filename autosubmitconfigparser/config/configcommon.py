@@ -588,7 +588,36 @@ class AutosubmitConfig(object):
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
+            if "WALLCLOCK" not in job_data:
+                # check wallclock is "%H:%M"
+                job_platform = data_fixed["PLATFORMS"].get(data_fixed["JOBS"][job]["PLATFORM"].upper(), {})
+                platform_wallclock = job_platform.get("WALLCLOCK", job_platform.get("MAX_WALLCLOCK", data_fixed["CONFIG"].get("JOB_WALLCLOCK", "24:00")))
+                if platform_wallclock:
+                    data_fixed["JOBS"][job]["WALLCLOCK"] = platform_wallclock
+                else:
+                    data_fixed["JOBS"][job]["WALLCLOCK"] = data_fixed["CONFIG"].get("JOB_WALLCLOCK", "24:00")
+                Log.warning(f"Wallclock not defined for job {job}. Using default value based on Platform Max_wallclock or Config Job_wallclock {data_fixed['JOBS'][job]['WALLCLOCK']}")
+
+            # check wallclock is "%H:%M" and convert if not. Possible values: "HH:MM:SS", "HH:MM", "hhmm"
+            self._normalize_wallclock(data_fixed, job)
+
             self._normalize_notify_on(data_fixed, job)
+
+    @staticmethod
+    def normalize_wallclock(wallclock: str) -> str:
+        """
+        Normalize the wallclock time to "%H:%M" format.
+
+        :param wallclock: The raw wallclock time.
+        :type wallclock: str
+        :return: The wallclock time in "%H:%M" format.
+        :rtype: str
+        """
+        if re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
+            # Truncate SS to "HH:MM"
+            Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Truncating to HH:MM")
+            wallclock = wallclock[:5]
+        return wallclock
 
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
@@ -1192,6 +1221,59 @@ class AutosubmitConfig(object):
         except Exception as e:
             raise AutosubmitCritical(
                 "There was an error while showing the config log messages", 7014, str(e))
+        self.validate_config(running_time)
+
+    def validate_wallclock(self) -> str:
+        """
+        Validate the wallclock time for each job against the platform's maximum wallclock time.
+
+        :return: Error message if any job exceeds the platform's wallclock time, otherwise an empty string.
+        :rtype: str
+        """
+        def _calculate_wallclock(wallclock: str) -> int:
+            wallclock_datetime = datetime.strptime(wallclock, "%H:%M")
+            return timedelta(hours=wallclock_datetime.hour, minutes=wallclock_datetime.minute).total_seconds
+
+        err_msg = ""
+        jobs = self.experiment_data.get("JOBS", {})
+        platforms = self.experiment_data.get("PLATFORMS", {})
+        wallclock_per_platform = {}
+        for platform_name in platforms.keys():
+            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK", ""))
+
+        for job in jobs:
+            platform_wallclock = wallclock_per_platform.get(job.get("PLATFORM", ""), {})
+            if platform_wallclock:
+                total_seconds = _calculate_wallclock(job.get("WALLCLOCK", ""))
+                if total_seconds > platform_wallclock:
+                    err_msg += f"Job {job} has a wallclock time greater than the platform's wallclock time\n"
+        return err_msg
+
+    def validate_jobs_conf(self) -> str:
+        """
+        Validate the job configurations.
+
+        :return: Error message if any validation fails, otherwise an empty string.
+        :rtype: str
+        """
+        err_msg = self.validate_wallclock()
+        return err_msg
+
+    def validate_config(self, running_time: bool) -> None:
+        """
+        Check if the configuration is valid.
+
+        :param running_time: Indicates if the validation is being performed during runtime.
+        :type running_time: bool
+        :raises AutosubmitCritical: If any validation error occurs during runtime.
+        """
+        error_msg = self.validate_jobs_conf()
+        if error_msg and running_time:
+            raise AutosubmitCritical(error_msg, 7014)
+        elif error_msg and not running_time:
+            Log.critical(f"Fix your invalid configuration before running!:{error_msg}")
+        else:
+            Log.result('Validation OK (WIP, not all configuration is validated)')
 
     def check_autosubmit_conf(self, no_log=False):
         """
@@ -1726,6 +1808,7 @@ class AutosubmitConfig(object):
         for filename in self.misc_files:
             self.misc_data = self.unify_conf(self.misc_data,
                                              self.load_config_file(self.misc_data, Path(filename), load_misc=True))
+
 
     def load_last_run(self):
         try:
