@@ -588,36 +588,28 @@ class AutosubmitConfig(object):
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
-            if "WALLCLOCK" not in job_data:
-                # check wallclock is "%H:%M"
-                job_platform = data_fixed["PLATFORMS"].get(data_fixed["JOBS"][job]["PLATFORM"].upper(), {})
-                platform_wallclock = job_platform.get("WALLCLOCK", job_platform.get("MAX_WALLCLOCK", data_fixed["CONFIG"].get("JOB_WALLCLOCK", "24:00")))
-                if platform_wallclock:
-                    data_fixed["JOBS"][job]["WALLCLOCK"] = platform_wallclock
-                else:
-                    data_fixed["JOBS"][job]["WALLCLOCK"] = data_fixed["CONFIG"].get("JOB_WALLCLOCK", "24:00")
-                Log.warning(f"Wallclock not defined for job {job}. Using default value based on Platform Max_wallclock or Config Job_wallclock {data_fixed['JOBS'][job]['WALLCLOCK']}")
-
-            # check wallclock is "%H:%M" and convert if not. Possible values: "HH:MM:SS", "HH:MM", "hhmm"
-            self._normalize_wallclock(data_fixed, job)
+            if "WALLCLOCK" in job_data:
+                self._normalize_wallclock(data_fixed)
 
             self._normalize_notify_on(data_fixed, job)
 
     @staticmethod
-    def normalize_wallclock(wallclock: str) -> str:
+    def _normalize_wallclock(data_fixed: {}) -> None:
         """
-        Normalize the wallclock time to "%H:%M" format.
+        Normalize the wallclock time format in the job configuration.
 
-        :param wallclock: The raw wallclock time.
-        :type wallclock: str
-        :return: The wallclock time in "%H:%M" format.
-        :rtype: str
+        This method iterates through the jobs in the provided data dictionary and checks the format of the "WALLCLOCK" value.
+        If the wallclock time is in "HH:MM:SS" format, it truncates it to "HH:MM" and logs a warning.
+
+        :param data_fixed: The dictionary containing job configurations.
+        :type data_fixed: dict
         """
-        if re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
-            # Truncate SS to "HH:MM"
-            Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Truncating to HH:MM")
-            wallclock = wallclock[:5]
-        return wallclock
+        for job in data_fixed.get("JOBS", {}):
+            wallclock = data_fixed["JOBS"][job].get("WALLCLOCK", "")
+            if wallclock and re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
+                # Truncate SS to "HH:MM"
+                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Truncating to HH:MM")
+                data_fixed["JOBS"][job]["WALLCLOCK"] = wallclock[:5]
 
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:

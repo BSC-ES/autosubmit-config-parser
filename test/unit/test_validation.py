@@ -60,6 +60,22 @@ from log.log import AutosubmitCritical
         False,
         id="Lower wallclock than platform"
     ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "PLATFORM": "test"
+                }
+            },
+            "PLATFORMS": {
+                "test": {
+                    "MAX_WALLCLOCK": "01:30"
+                }
+            }
+        },
+        False,
+        id="Empty wallclock"
+    ),
 ])
 def test_validate_conf(autosubmit_config, data, must_fail):
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
