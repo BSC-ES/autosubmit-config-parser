@@ -1231,22 +1231,23 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         def _calculate_wallclock(wallclock: str) -> int:
-            wallclock_datetime = datetime.strptime(wallclock, "%H:%M")
-            return timedelta(hours=wallclock_datetime.hour, minutes=wallclock_datetime.minute).total_seconds
+            hours, minutes = map(int, wallclock.split(":"))
+            return timedelta(hours=hours, minutes=minutes).total_seconds()
 
+        default_wallclock = _calculate_wallclock(self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00"))
         err_msg = ""
         jobs = self.experiment_data.get("JOBS", {})
         platforms = self.experiment_data.get("PLATFORMS", {})
         wallclock_per_platform = {}
-        for platform_name in platforms.keys():
-            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK", ""))
 
-        for job in jobs:
-            platform_wallclock = wallclock_per_platform.get(job.get("PLATFORM", ""), {})
-            if platform_wallclock:
-                total_seconds = _calculate_wallclock(job.get("WALLCLOCK", ""))
-                if total_seconds > platform_wallclock:
-                    err_msg += f"Job {job} has a wallclock time greater than the platform's wallclock time\n"
+        for platform_name in platforms.keys():
+            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK", self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00")))
+
+        for job in jobs.values():
+            platform_wallclock = wallclock_per_platform.get(job.get("PLATFORM", ""), default_wallclock)
+            total_seconds = _calculate_wallclock(job.get("WALLCLOCK", "00:01"))
+            if total_seconds > platform_wallclock:
+                err_msg += f"Job {job} has a wallclock time greater than the platform's wallclock time\n"
         return err_msg
 
     def validate_jobs_conf(self) -> str:
@@ -1259,7 +1260,7 @@ class AutosubmitConfig(object):
         err_msg = self.validate_wallclock()
         return err_msg
 
-    def validate_config(self, running_time: bool) -> None:
+    def validate_config(self, running_time: bool) -> bool:
         """
         Check if the configuration is valid.
 
@@ -1271,9 +1272,11 @@ class AutosubmitConfig(object):
         if error_msg and running_time:
             raise AutosubmitCritical(error_msg, 7014)
         elif error_msg and not running_time:
-            Log.critical(f"Fix your invalid configuration before running!:{error_msg}")
+            Log.printlog(f"Fix your invalid configuration before running!:{error_msg}", 7014)
+            return False
         else:
             Log.result('Validation OK (WIP, not all configuration is validated)')
+            return True
 
     def check_autosubmit_conf(self, no_log=False):
         """
