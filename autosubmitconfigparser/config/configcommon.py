@@ -1201,6 +1201,7 @@ class AutosubmitConfig(object):
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
         self.check_mandatory_parameters(no_log=no_log)
         # End of checkers.
+        self.validate_config(running_time)
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
             if not no_log:
@@ -1209,14 +1210,12 @@ class AutosubmitConfig(object):
         except AutosubmitCritical as e:
             # In case that there are critical errors in the configuration, Autosubmit won't continue.
             if running_time is True:
-                raise AutosubmitCritical(e.message, e.code, e.trace)
+                raise
             else:
                 if not no_log:
                     Log.warning(e.message)
         except Exception as e:
-            raise AutosubmitCritical(
-                "There was an error while showing the config log messages", 7014, str(e))
-        self.validate_config(running_time)
+            raise
 
     def validate_wallclock(self) -> str:
         """
@@ -1244,11 +1243,11 @@ class AutosubmitConfig(object):
                                                                                                           "JOB_WALLCLOCK",
                                                                                                           "24:00")))
 
-        for job in jobs.values():
-            platform_wallclock = wallclock_per_platform.get(job.get("PLATFORM", ""), default_wallclock)
-            total_seconds = _calculate_wallclock(job.get("WALLCLOCK", "00:01"))
+        for job_name, job_data in jobs.items():
+            platform_wallclock = wallclock_per_platform.get(job_data.get("PLATFORM", ""), default_wallclock)
+            total_seconds = _calculate_wallclock(job_data.get("WALLCLOCK", "00:01"))
             if total_seconds > platform_wallclock:
-                err_msg += f"Job {job} has a wallclock time greater than the platform's wallclock time\n"
+                err_msg += f"Job {job_name} has a wallclock {total_seconds}s time greater than the platform's {total_seconds}s wallclock time\n"
         return err_msg
 
     def validate_jobs_conf(self) -> str:
