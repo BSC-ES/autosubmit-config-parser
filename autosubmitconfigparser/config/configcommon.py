@@ -30,10 +30,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, Any, Tuple, Dict
 
-from ruamel.yaml import YAML
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
 from pyparsing import nestedExpr
+from ruamel.yaml import YAML
 
 from log.log import Log, AutosubmitCritical, AutosubmitError
 from .basicconfig import BasicConfig
@@ -565,7 +565,7 @@ class AutosubmitConfig(object):
                     notify_on = notify_on.split()
             data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
 
-    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool ) -> None:
+    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool) -> None:
         for job, job_data in data_fixed.get("JOBS", {}).items():
             if "DEPENDENCIES" in job_data or must_exists:
                 data_fixed["JOBS"][job]["DEPENDENCIES"] = self._normalize_dependencies(job_data.get("DEPENDENCIES", {}))
@@ -640,7 +640,8 @@ class AutosubmitConfig(object):
                         if dependency_data["STATUS"][-1] == "?":
                             dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
-                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED", "COMPLETED"]:  # May change in future issues.
+                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED",
+                                                               "COMPLETED"]:  # May change in future issues.
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
                         else:
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
@@ -844,7 +845,9 @@ class AutosubmitConfig(object):
         """
         # When a key_type is long, there are no dictionaries.
         dict_keys_type = "short"
-        if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS", None) or parameters.get("PLATFORMS", None):
+        if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS",
+                                                                                                   None) or parameters.get(
+            "PLATFORMS", None):
             dict_keys_type = "short"
         else:
             for key, values in parameters.items():
@@ -979,7 +982,8 @@ class AutosubmitConfig(object):
         for dynamic_var in dynamic_variables.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
-                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, dynamic_variables_)
+                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern,
+                                                                       start_long, dict_keys_type, dynamic_variables_)
 
         return dynamic_variables_, parameters
 
@@ -1084,7 +1088,8 @@ class AutosubmitConfig(object):
         rest_of_key_start = key[:match.start()]
         rest_of_key_end = key[match.end():]
         key_parts = key[match.start():match.end()]
-        key_parts = key_parts[start_long:-1].split(".") if "." in key_parts and dict_keys_type != "long" else [key_parts[start_long:-1]]
+        key_parts = key_parts[start_long:-1].split(".") if "." in key_parts and dict_keys_type != "long" else [
+            key_parts[start_long:-1]]
         param = parameters
         for k in key_parts:
             param = param.get(k.upper(), {})
@@ -1222,6 +1227,7 @@ class AutosubmitConfig(object):
         :return: Error message if any job exceeds the platform's wallclock time, otherwise an empty string.
         :rtype: str
         """
+
         def _calculate_wallclock(wallclock: str) -> int:
             hours, minutes = map(int, wallclock.split(":"))
             return timedelta(hours=hours, minutes=minutes).total_seconds()
@@ -1233,7 +1239,12 @@ class AutosubmitConfig(object):
         wallclock_per_platform = {}
 
         for platform_name in platforms.keys():
-            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK", self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00")))
+            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK",
+                                                                                                      self.experiment_data.get(
+                                                                                                          "CONFIG",
+                                                                                                          {}).get(
+                                                                                                          "JOB_WALLCLOCK",
+                                                                                                          "24:00")))
 
         for job in jobs.values():
             platform_wallclock = wallclock_per_platform.get(job.get("PLATFORM", ""), default_wallclock)
@@ -1664,7 +1675,7 @@ class AutosubmitConfig(object):
                 else:
                     # Load a file and unify the current_data with the loaded data
                     current_data = self.unify_conf(current_data,
-                                        self.load_config_file(current_data, filename))
+                                                   self.load_config_file(current_data, filename))
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
@@ -1803,7 +1814,6 @@ class AutosubmitConfig(object):
         for filename in self.misc_files:
             self.misc_data = self.unify_conf(self.misc_data,
                                              self.load_config_file(self.misc_data, Path(filename), load_misc=True))
-
 
     def load_last_run(self):
         try:
