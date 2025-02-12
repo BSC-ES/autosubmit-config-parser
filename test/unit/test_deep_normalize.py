@@ -3,66 +3,66 @@ import pytest
 
 @pytest.mark.parametrize("data, expected_data", [
     (
-        {
-            "JOBS": {
-                "job1": {
-                    "FOR": {
-                        "NAME": "var",
-                        "lowercase": True
+            {
+                "JOBS": {
+                    "job1": {
+                        "FOR": {
+                            "NAME": "var",
+                            "lowercase": True
+                        }
                     }
-                }
+                },
+                "var": ["test", "test2", "test3"]
             },
-            "var": ["test", "test2", "test3"]
-        },
-        {
-            "JOBS": {
-                "JOB1": {
-                    "FOR": {
-                        "NAME": "var",
-                        "LOWERCASE": True
+            {
+                "JOBS": {
+                    "JOB1": {
+                        "FOR": {
+                            "NAME": "var",
+                            "LOWERCASE": True
+                        }
                     }
-                }
-            },
-            "VAR": ["test", "test2", "test3"]
-        }
+                },
+                "VAR": ["test", "test2", "test3"]
+            }
     ),
     (
-        {
-            "FOR": {
-                "DEPENDENCIES": [
-                    {
-                        "APP_ENERGY_ONSHORE": {
-                            "SPLITS_FROM": {
-                                "all": {
-                                    "SPLITS_TO": "previous"
+            {
+                "FOR": {
+                    "DEPENDENCIES": [
+                        {
+                            "APP_ENERGY_ONSHORE": {
+                                "SPLITS_FROM": {
+                                    "all": {
+                                        "SPLITS_TO": "previous"
+                                    }
                                 }
                             }
                         }
-                    }
-                ]
+                    ]
+                },
+                "foo": ["bar", "baz"],
+                "1": ["one", "two"],
+                "3": "three"
             },
-            "foo": ["bar", "baz"],
-            "1": ["one", "two"],
-            "3": "three"
-        },
-        {
-            "FOR": {
-                "DEPENDENCIES": [
-                    {
-                        "APP_ENERGY_ONSHORE": {
-                            "SPLITS_FROM": {
-                                "ALL": {
-                                    "SPLITS_TO": "previous"
+            {
+                "FOR": {
+                    "DEPENDENCIES": [
+                        {
+                            "APP_ENERGY_ONSHORE": {
+                                "SPLITS_FROM": {
+                                    "ALL": {
+                                        "SPLITS_TO": "previous"
+                                    }
                                 }
                             }
                         }
-                    }
-                ]
-            },
-            "FOO": ["bar", "baz"],
-            "1": ["one", "two"],
-            "3": "three"
-        }
+                    ]
+                },
+                "FOO": ["bar", "baz"],
+                "1": ["one", "two"],
+                "3": "three"
+            }
     )
 ])
 def test_normalize_variables(autosubmit_config, data, expected_data):

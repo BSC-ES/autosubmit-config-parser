@@ -1,5 +1,5 @@
 import pytest
-from autosubmitconfigparser.config.configcommon import AutosubmitConfig
+
 from log.log import AutosubmitCritical
 
 
