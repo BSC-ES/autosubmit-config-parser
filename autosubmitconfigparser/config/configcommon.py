@@ -1214,7 +1214,7 @@ class AutosubmitConfig(object):
             else:
                 if not no_log:
                     Log.warning(e.message)
-        except Exception as e:
+        except Exception:
             raise
 
     def validate_wallclock(self) -> str:
