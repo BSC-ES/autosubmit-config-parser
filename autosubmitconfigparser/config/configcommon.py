@@ -1177,8 +1177,6 @@ class AutosubmitConfig(object):
         :type running_time: bool
         :param force_load: True if the function is called during the first load of the program
         :type force_load: bool
-        :param refresh: True if the function is called during the refresh of the program
-        :type refresh: bool
         :param no_log: True if the function is called during describe
         :type no_log: bool
         :return: True if everything is correct, False if it finds any error
