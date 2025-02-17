@@ -30,10 +30,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Union, Any, Tuple, Dict
 
-from ruamel.yaml import YAML
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
 from pyparsing import nestedExpr
+from ruamel.yaml import YAML
 
 from log.log import Log, AutosubmitCritical, AutosubmitError
 from .basicconfig import BasicConfig
@@ -565,7 +565,7 @@ class AutosubmitConfig(object):
                     notify_on = notify_on.split()
             data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
 
-    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool ) -> None:
+    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool) -> None:
         for job, job_data in data_fixed.get("JOBS", {}).items():
             if "DEPENDENCIES" in job_data or must_exists:
                 data_fixed["JOBS"][job]["DEPENDENCIES"] = self._normalize_dependencies(job_data.get("DEPENDENCIES", {}))
@@ -588,7 +588,28 @@ class AutosubmitConfig(object):
             if "ADDITIONAL_FILES" not in data_fixed["JOBS"][job] and must_exists:
                 data_fixed["JOBS"][job]["ADDITIONAL_FILES"] = []
 
+            if "WALLCLOCK" in job_data:
+                self._normalize_wallclock(data_fixed)
+
             self._normalize_notify_on(data_fixed, job)
+
+    @staticmethod
+    def _normalize_wallclock(data_fixed: {}) -> None:
+        """
+        Normalize the wallclock time format in the job configuration.
+
+        This method iterates through the jobs in the provided data dictionary and checks the format of the "WALLCLOCK" value.
+        If the wallclock time is in "HH:MM:SS" format, it truncates it to "HH:MM" and logs a warning.
+
+        :param data_fixed: The dictionary containing job configurations.
+        :type data_fixed: dict
+        """
+        for job in data_fixed.get("JOBS", {}):
+            wallclock = data_fixed["JOBS"][job].get("WALLCLOCK", "")
+            if wallclock and re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
+                # Truncate SS to "HH:MM"
+                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
+                data_fixed["JOBS"][job]["WALLCLOCK"] = wallclock[:5]
 
     @staticmethod
     def _normalize_dependencies(dependencies: Union[str, dict]) -> dict:
@@ -619,7 +640,8 @@ class AutosubmitConfig(object):
                         if dependency_data["STATUS"][-1] == "?":
                             dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
-                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED", "COMPLETED"]:  # May change in future issues.
+                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED",
+                                                               "COMPLETED"]:  # May change in future issues.
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
                         else:
                             dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
@@ -823,7 +845,9 @@ class AutosubmitConfig(object):
         """
         # When a key_type is long, there are no dictionaries.
         dict_keys_type = "short"
-        if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS", None) or parameters.get("PLATFORMS", None):
+        if parameters.get("DEFAULT", None) or parameters.get("EXPERIMENT", None) or parameters.get("JOBS",
+                                                                                                   None) or parameters.get(
+            "PLATFORMS", None):
             dict_keys_type = "short"
         else:
             for key, values in parameters.items():
@@ -958,7 +982,8 @@ class AutosubmitConfig(object):
         for dynamic_var in dynamic_variables.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
-                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern, start_long, dict_keys_type, dynamic_variables_)
+                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern,
+                                                                       start_long, dict_keys_type, dynamic_variables_)
 
         return dynamic_variables_, parameters
 
@@ -1063,7 +1088,8 @@ class AutosubmitConfig(object):
         rest_of_key_start = key[:match.start()]
         rest_of_key_end = key[match.end():]
         key_parts = key[match.start():match.end()]
-        key_parts = key_parts[start_long:-1].split(".") if "." in key_parts and dict_keys_type != "long" else [key_parts[start_long:-1]]
+        key_parts = key_parts[start_long:-1].split(".") if "." in key_parts and dict_keys_type != "long" else [
+            key_parts[start_long:-1]]
         param = parameters
         for k in key_parts:
             param = param.get(k.upper(), {})
@@ -1151,8 +1177,6 @@ class AutosubmitConfig(object):
         :type running_time: bool
         :param force_load: True if the function is called during the first load of the program
         :type force_load: bool
-        :param refresh: True if the function is called during the refresh of the program
-        :type refresh: bool
         :param no_log: True if the function is called during describe
         :type no_log: bool
         :return: True if everything is correct, False if it finds any error
@@ -1177,6 +1201,7 @@ class AutosubmitConfig(object):
         # Annotates all errors found in the configuration files in dictionaries self.warn_config and self.wrong_config.
         self.check_mandatory_parameters(no_log=no_log)
         # End of checkers.
+        self.validate_config(running_time)
         # This Try/Except is in charge of  print all the info gathered by all the checkers and stop the program if any critical error is found.
         try:
             if not no_log:
@@ -1185,13 +1210,71 @@ class AutosubmitConfig(object):
         except AutosubmitCritical as e:
             # In case that there are critical errors in the configuration, Autosubmit won't continue.
             if running_time is True:
-                raise AutosubmitCritical(e.message, e.code, e.trace)
+                raise
             else:
                 if not no_log:
                     Log.warning(e.message)
-        except Exception as e:
-            raise AutosubmitCritical(
-                "There was an error while showing the config log messages", 7014, str(e))
+        except Exception:
+            raise
+
+    def validate_wallclock(self) -> str:
+        """
+        Validate the wallclock time for each job against the platform's maximum wallclock time.
+
+        :return: Error message if any job exceeds the platform's wallclock time, otherwise an empty string.
+        :rtype: str
+        """
+
+        def _calculate_wallclock(wallclock: str) -> float:
+            hours, minutes = map(int, wallclock.split(":"))
+            return timedelta(hours=hours, minutes=minutes).total_seconds()
+
+        config_job_wallclock = self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00")
+        default_wallclock = _calculate_wallclock(config_job_wallclock)
+        err_msg = ""
+        jobs = self.experiment_data.get("JOBS", {})
+        platforms = self.experiment_data.get("PLATFORMS", {})
+        wallclock_per_platform = {}
+
+        for platform_name in platforms.keys():
+            wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK",
+                                                                                                      config_job_wallclock))
+
+        for job_name, job_data in jobs.items():
+            platform_wallclock = wallclock_per_platform.get(job_data.get("PLATFORM", ""), default_wallclock)
+            total_seconds = _calculate_wallclock(job_data.get("WALLCLOCK", "00:01"))
+            if total_seconds > platform_wallclock:
+                err_msg += f"Job {job_name} has a wallclock {total_seconds}s time greater than the platform's {total_seconds}s wallclock time\n"
+        return err_msg
+
+    def validate_jobs_conf(self) -> str:
+        """
+        Validate the job configurations.
+
+        :return: Error message if any validation fails, otherwise an empty string.
+        :rtype: str
+        """
+        err_msg = self.validate_wallclock()
+        return err_msg
+
+    def validate_config(self, running_time: bool) -> bool:
+        """
+        Check if the configuration is valid.
+
+        :param running_time: Indicates if the validation is being performed during runtime.
+        :type running_time: bool
+        :raises AutosubmitCritical: If any validation error occurs during runtime.
+        """
+        error_msg = self.validate_jobs_conf()
+        if not error_msg:
+            Log.result('Partial configuration validated correctly')
+            return True
+
+        if running_time:
+            raise AutosubmitCritical(error_msg, 7014)
+
+        Log.printlog(f"Invalid configuration. You must fix it before running your experiment:{error_msg}", 7014)
+        return False
 
     def check_autosubmit_conf(self, no_log=False):
         """
@@ -1587,7 +1670,7 @@ class AutosubmitConfig(object):
                 else:
                     # Load a file and unify the current_data with the loaded data
                     current_data = self.unify_conf(current_data,
-                                        self.load_config_file(current_data, filename))
+                                                   self.load_config_file(current_data, filename))
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)

@@ -1,5 +1,5 @@
-
 import pytest
+
 
 @pytest.mark.parametrize("data, expected_data, must_exists", [
     pytest.param(
@@ -369,6 +369,28 @@ import pytest
         },
         True,
         id="notify_on_string_single"
+    ),
+    pytest.param(
+        {
+            "JOBS": {
+                "job1": {
+                    "FILE": "FILE1",
+                    "WALLCLOCK": "00:20:00"
+                }
+            }
+        },
+        {
+            'JOBS': {
+                'JOB1': {
+                    'FILE': 'FILE1',
+                    'ADDITIONAL_FILES': [],
+                    'DEPENDENCIES': {},
+                    'WALLCLOCK': "00:20",
+                },
+            }
+        },
+        True,
+        id="wallclock"
     ),
 ])
 def test_normalize_variables(autosubmit_config, data, expected_data, must_exists):
