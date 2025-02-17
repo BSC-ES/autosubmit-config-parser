@@ -1,4 +1,6 @@
-# Improve this in the future.
+# TODO Improve this in the future.
+from contextlib import nullcontext as does_not_raise
+
 def test_check_conf_files(autosubmit_config):
     config_dict = {
         "CONFIG": {
@@ -36,4 +38,5 @@ def test_check_conf_files(autosubmit_config):
     }
 
     as_conf = autosubmit_config(expid='t000', experiment_data=config_dict)
-    as_conf.check_conf_files()
+    with does_not_raise():
+        as_conf.check_conf_files()

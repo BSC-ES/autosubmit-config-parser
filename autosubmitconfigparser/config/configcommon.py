@@ -608,7 +608,7 @@ class AutosubmitConfig(object):
             wallclock = data_fixed["JOBS"][job].get("WALLCLOCK", "")
             if wallclock and re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
                 # Truncate SS to "HH:MM"
-                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Truncating to HH:MM")
+                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
                 data_fixed["JOBS"][job]["WALLCLOCK"] = wallclock[:5]
 
     @staticmethod
@@ -1225,11 +1225,12 @@ class AutosubmitConfig(object):
         :rtype: str
         """
 
-        def _calculate_wallclock(wallclock: str) -> int:
+        def _calculate_wallclock(wallclock: str) -> float:
             hours, minutes = map(int, wallclock.split(":"))
             return timedelta(hours=hours, minutes=minutes).total_seconds()
 
-        default_wallclock = _calculate_wallclock(self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00"))
+        config_job_wallclock = self.experiment_data.get("CONFIG", {}).get("JOB_WALLCLOCK", "24:00")
+        default_wallclock = _calculate_wallclock(config_job_wallclock)
         err_msg = ""
         jobs = self.experiment_data.get("JOBS", {})
         platforms = self.experiment_data.get("PLATFORMS", {})
@@ -1237,11 +1238,7 @@ class AutosubmitConfig(object):
 
         for platform_name in platforms.keys():
             wallclock_per_platform[platform_name] = _calculate_wallclock(platforms[platform_name].get("MAX_WALLCLOCK",
-                                                                                                      self.experiment_data.get(
-                                                                                                          "CONFIG",
-                                                                                                          {}).get(
-                                                                                                          "JOB_WALLCLOCK",
-                                                                                                          "24:00")))
+                                                                                                      config_job_wallclock))
 
         for job_name, job_data in jobs.items():
             platform_wallclock = wallclock_per_platform.get(job_data.get("PLATFORM", ""), default_wallclock)
@@ -1269,14 +1266,15 @@ class AutosubmitConfig(object):
         :raises AutosubmitCritical: If any validation error occurs during runtime.
         """
         error_msg = self.validate_jobs_conf()
-        if error_msg and running_time:
-            raise AutosubmitCritical(error_msg, 7014)
-        elif error_msg and not running_time:
-            Log.printlog(f"Fix your invalid configuration before running!:{error_msg}", 7014)
-            return False
-        else:
-            Log.result('Validation OK (WIP, not all configuration is validated)')
+        if not error_msg:
+            Log.result('Partial configuration validated correctly')
             return True
+
+        if running_time:
+            raise AutosubmitCritical(error_msg, 7014)
+
+        Log.printlog(f"Invalid configuration. You must fix it before running your experiment:{error_msg}", 7014)
+        return False
 
     def check_autosubmit_conf(self, no_log=False):
         """
