@@ -75,12 +75,28 @@ class AutosubmitConfig(object):
         self.misc_data = list()
 
     @property
-    def jobs_data(self):
-        return self.experiment_data["JOBS"]
+    def jobs_data(self) -> Dict[str, Any]:
+        try:
+            return self.experiment_data["JOBS"]
+        except KeyError:
+            raise AutosubmitCritical(
+                "JOBS section not found in configuration file", 7014
+            )
+        except Exception as exc:
+            raise AutosubmitCritical(f"Error while reading JOBS section: {exc}", 7014)
 
     @property
-    def platforms_data(self):
-        return self.experiment_data["PLATFORMS"]
+    def platforms_data(self) -> Dict[str, Any]:
+        try:
+            return self.experiment_data["PLATFORMS"]
+        except KeyError:
+            raise AutosubmitCritical(
+                "PLATFORMS section not found in configuration file", 7014
+            )
+        except Exception as exc:
+            raise AutosubmitCritical(
+                f"Error while reading PLATFORMS section: {exc}", 7014
+            )
 
     def get_wrapper_export(self, wrapper={}):
         """
@@ -2400,14 +2416,23 @@ class AutosubmitConfig(object):
 
         return str(self.get_section(['RERUN', 'RERUN'])).lower()
 
-    def get_platform(self):
+    def get_platform(self) -> str:
         """
         Returns main platforms from experiment's config file
 
         :return: main platforms
         :rtype: str
         """
-        return self.experiment_data['DEFAULT']['HPCARCH'].upper()
+        try:
+            return self.experiment_data["DEFAULT"]["HPCARCH"].upper()
+        except KeyError:
+            raise AutosubmitCritical(
+                "Defaul HPCARCH not defined in the configuration file", 7014
+            )
+        except Exception as exc:
+            raise AutosubmitCritical(
+                f"Error while reading HPCARCH from the configuration file: {exc}", 7014
+            )
 
     def set_platform(self, hpc):
         """
