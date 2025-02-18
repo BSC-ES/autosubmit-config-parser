@@ -1740,8 +1740,12 @@ class AutosubmitConfig(object):
                 if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                     with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
                         yaml_loader = YAML(typ='safe')
-                        self.last_experiment_data = yaml_loader.load(stream)
-                    self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
+                        self.last_experiment_data = yaml_loader.load(stream)  # Can be 0 bytes, if that happens, it will be None
+                    if not self.last_experiment_data:
+                        self.last_experiment_data = {}
+                        self.data_changed = True
+                    else:
+                        self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
                 else:
                     self.last_experiment_data = {}
                     self.data_changed = True
