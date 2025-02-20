@@ -165,7 +165,15 @@ def test_key_error_raise(autosubmit_config: Callable):
     with pytest.raises(AutosubmitCritical):
         as_conf.platforms_data
 
-    as_conf.experiment_data = {"JOBS": {"SIM": {}}, "PLATFORMS": {"LOCAL": {}}}
+    with pytest.raises(AutosubmitCritical):
+        as_conf.get_platform()
+
+    as_conf.experiment_data = {
+        "JOBS": {"SIM": {}},
+        "PLATFORMS": {"LOCAL": {}},
+        "DEFAULT": {"HPCARCH": "DUMMY"},
+    }
 
     assert as_conf.jobs_data == {"SIM": {}}
     assert as_conf.platforms_data == {"LOCAL": {}}
+    assert as_conf.get_platform() == "DUMMY"
