@@ -4,6 +4,7 @@ from textwrap import dedent
 import pytest
 
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
+from log.log import AutosubmitCritical
 
 """Basic tests for ``AutosubmitConfig``."""
 
@@ -153,3 +154,26 @@ def test_yaml_deprecation_warning(tmp_path, autosubmit_config: Callable):
     new_yaml_file = Path(ini_file.parent,ini_file.stem).with_suffix('.yml')
     assert new_yaml_file.exists()
     assert new_yaml_file.stat().st_size > 0
+
+
+def test_key_error_raise(autosubmit_config: Callable):
+    """Test that a KeyError is raised when a key is not found in the configuration."""
+    as_conf: AutosubmitConfig = autosubmit_config(expid="a000", experiment_data={})
+    with pytest.raises(AutosubmitCritical):
+        as_conf.jobs_data
+
+    with pytest.raises(AutosubmitCritical):
+        as_conf.platforms_data
+
+    with pytest.raises(AutosubmitCritical):
+        as_conf.get_platform()
+
+    as_conf.experiment_data = {
+        "JOBS": {"SIM": {}},
+        "PLATFORMS": {"LOCAL": {}},
+        "DEFAULT": {"HPCARCH": "DUMMY"},
+    }
+
+    assert as_conf.jobs_data == {"SIM": {}}
+    assert as_conf.platforms_data == {"LOCAL": {}}
+    assert as_conf.get_platform() == "DUMMY"
