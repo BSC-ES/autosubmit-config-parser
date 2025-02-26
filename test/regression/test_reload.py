@@ -218,13 +218,13 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         as_conf.experiment_data.pop(key, None)
         reference_experiment_data.pop(key, None)
 
-    parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
-    for key in list(parameters.keys()):
+    as_conf.deep_parameters_export(as_conf.experiment_data)
+    for key in list(as_conf.experiment_data.keys()):
         if key.endswith(".NAME") and not key.startswith("MODEL"): # Added in this branch, so it is not in the reference file, the model.NAME has to not be hardcoded #todo
-            parameters.pop(key)
+            as_conf.experiment_data.pop(key)
 
-    parameters_ref = as_conf.deep_parameters_export(reference_experiment_data)
-    list_of_differences = check_differences(parameters, parameters_ref)
+    as_conf.deep_parameters_export(reference_experiment_data)
+    list_of_differences = check_differences(as_conf.experiment_data, reference_experiment_data)
 
     if list_of_differences:
         print("\n")
@@ -236,13 +236,13 @@ def test_destine_workflows(temp_folder: Path, mocker, prepare_basic_config: Any)
         for key, value, reference in list_of_differences:
             print(f"\n---Key---: {key}\n Value: {value}\n Reference: {reference}")
 
-    parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
+    as_conf.deep_parameters_export(as_conf.experiment_data)
 
     # Check that all parameters are being substituted
-    parameters_values = ' '.join(map(str, parameters.values()))
+    parameters_values = ' '.join(map(str, as_conf.experiment_data.values()))
     import re
     placeholders = re.findall(r"%\w+%", parameters_values)
-    placeholders_in_parameters = [placeholder for placeholder in placeholders if placeholder.strip("%") in parameters.keys()]
+    placeholders_in_parameters = [placeholder for placeholder in placeholders if placeholder.strip("%") in reference_experiment_data.keys()]
     assert not placeholders_in_parameters
 
     # Check that all keys are in upper_case

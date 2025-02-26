@@ -19,7 +19,7 @@ as_conf.jobs_data
 # Obtain only platforms data
 as_conf.platforms_data
 # Obtain all data in parameter format( %SECTION%.%SUBSECTION%.%SUBSECTION% )
-parameters = as_conf.deep_parameters_export(as_conf.experiment_data)
+as_conf.deep_parameters_export(as_conf.experiment_data)
 # To parse the placeholders from a file use the following function
 #write sample text
 with open("as_sample.txt", "w") as f:
@@ -27,7 +27,7 @@ with open("as_sample.txt", "w") as f:
 
 #write the parsed text
 with open("as_sample_parsed.txt", "w") as f:
-    f.write(as_conf.parse_placeholders(open("as_sample.txt","r").read(), parameters))
+    f.write(as_conf.parse_placeholders(open("as_sample.txt","r").read(), as_conf.experiment_data))
 
 
 # print the file content

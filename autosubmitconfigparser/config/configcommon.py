@@ -1,20 +1,19 @@
-#!/usr/bin/env python3
-
 # Copyright 2015-2022 Earth Sciences Department, BSC-CNS
-
+#
 # This file is part of Autosubmit.
-
+#
 # Autosubmit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-
+#
 # Autosubmit is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 # You should have received a copy of the GNU General Public License
 # along with Autosubmit.  If not, see <http://www.gnu.org/licenses/>.
+
 import collections
 import copy
 import json
@@ -26,9 +25,10 @@ import shutil
 import subprocess
 import traceback
 from collections import defaultdict
-from datetime import datetime, timedelta
+from contextlib import suppress
+from datetime import timedelta
 from pathlib import Path
-from typing import List, Union, Any, Tuple, Dict
+from typing import List, Union, Any, Tuple, Dict, Optional, cast
 
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
@@ -37,18 +37,14 @@ from ruamel.yaml import YAML
 
 from log.log import Log, AutosubmitCritical, AutosubmitError
 from .basicconfig import BasicConfig
-from .yamlparser import YAMLParserFactory
+from .yamlparser import YAMLParserFactory, YAMLParser
 
 
 class AutosubmitConfig(object):
-    """
-    Class to handle experiment configuration coming from file or database
-
-    :param expid: experiment identifier
-    :type expid: str
-    """
+    """Class to handle experiment configuration coming from file or database."""
 
     def __init__(self, expid, basic_config=BasicConfig, parser_factory=YAMLParserFactory()):
+        self.metadata_folder = None
         self.data_changed = False
         self.ignore_undefined_platforms = False
         self.ignore_file_path = False
@@ -69,8 +65,8 @@ class AutosubmitConfig(object):
         self.wrong_config = defaultdict(list)
         self.warn_config = defaultdict(list)
         self.dynamic_variables = dict()
-        self.special_dynamic_variables = dict()  # variables that will be sustituted after all files is loaded
-        self.starter_conf = dict()
+        # variables that will be substituted after all files is loaded
+        self.special_dynamic_variables = dict()
         self.misc_files = []
         self.misc_data = list()
 
@@ -82,13 +78,15 @@ class AutosubmitConfig(object):
     def platforms_data(self):
         return self.experiment_data["PLATFORMS"]
 
-    def get_wrapper_export(self, wrapper={}):
+    def get_wrapper_export(self, wrapper=None):
         """
          Returns modules variable from wrapper
 
          :return: string
-         :rtype: string
+         :rtype: str
          """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('EXPORT', self.experiment_data.get("WRAPPERS", {}).get("EXPORT", ""))
 
     def get_project_submodules_depth(self):
@@ -107,7 +105,7 @@ class AutosubmitConfig(object):
             try:
                 depth = int(unparsed_depth)
                 depth = [depth]
-            except Exception:
+            except ValueError:
                 Log.warning("PROJECT_SUBMODULES_DEPTH is not an integer neither a int. Using default value -1")
                 depth = []
         return depth
@@ -135,16 +133,6 @@ class AutosubmitConfig(object):
                                      self.get_project_destination())
         return dir_templates
 
-    def get_x11(self, section):
-        """
-        Active X11 for this section
-        :param section: job type
-        :type section: str
-        :return: false/true
-        :rtype: str
-        """
-        return str(self.get_section([section, 'X11'], "false")).lower()
-
     def get_section(self, section, d_value="", must_exists=False):
         """
         Gets any section if it exists within the dictionary, else returns None or error if must exist.
@@ -159,7 +147,7 @@ class AutosubmitConfig(object):
 
         """
         section = [s.upper() for s in section]
-        # For text redeability
+        # For text readability
         section_str = str(section[0])
         for sect in section[1:]:
             section_str += "." + str(sect)
@@ -167,7 +155,7 @@ class AutosubmitConfig(object):
         for param in section[1:]:
             if current_level:
                 if type(current_level) is dict:
-                    current_level = current_level.get(param, d_value)
+                    current_level = cast(dict, current_level).get(param, d_value)
                 else:
                     if must_exists:
                         raise AutosubmitCritical(
@@ -193,239 +181,6 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         return self.jobs_data.get(section, {}).get('WCHUNKINC', "")
-
-    def get_synchronize(self, section):
-        """
-        Gets wallclock for the given job type
-        :param section: job type
-        :type section: str
-        :return: wallclock time
-        :rtype: str
-        """
-        return self.get_section([section, 'SYNCHRONIZE'], "")
-
-    def get_processors(self, section):
-        """
-        Gets processors needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: wallclock time
-        :rtype: str
-        """
-        return str(self.get_section([section, 'PROCESSORS'], 1))
-
-    def get_threads(self, section):
-        """
-        Gets threads needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: threads needed
-        :rtype: str
-        """
-
-        return str(self.get_section([section, 'THREADS'], 1))
-
-    def get_tasks(self, section):
-        """
-        Gets tasks needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: tasks (processes) per host
-        :rtype: str
-        """
-        return str(self.get_section([section, 'TASKS'], ""))
-
-    def get_scratch_free_space(self, section):
-        """
-        Gets scratch free space needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: percentage of scratch free space needed
-        :rtype: int
-        """
-        return int(self.get_section([section, 'SCRATCH_FREE_SPACE'], ""))
-
-    def get_memory(self, section):
-        """
-        Gets memory needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: memory needed
-        :rtype: str
-        """
-        return str(self.get_section([section, 'MEMORY'], ""))
-
-    def get_memory_per_task(self, section):
-        """
-        Gets memory per task needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: memory per task needed
-        :rtype: str
-        """
-        return str(self.get_section([section, 'MEMORY_PER_TASK'], ""))
-
-    def get_migrate_user_to(self, section):
-        """
-        Returns the user to change to from platform config file.
-
-        :return: migrate user to
-        :rtype: str
-        """
-        return self.get_section([section, 'USER_TO'], "")
-
-    def get_migrate_duplicate(self, section):
-        """
-        Returns the user to change to from platform config file.
-
-        :return: migrate user to
-        :rtype: str
-        """
-        return str(self.get_section([section, 'SAME_USER'], "false")).lower()
-
-    def get_current_user(self, section):
-        """
-        Returns the user to be changed from platform config file.
-
-        :return: migrate user to
-        :rtype: str
-        """
-        return self.get_section([section, 'USER'], "")
-
-    def get_current_host(self, section):
-        """
-        Returns the user to be changed from platform config file.
-
-        :return: migrate user to
-        :rtype: str
-        """
-        return self.get_section([section, 'HOST'], "")
-
-    def get_current_project(self, section):
-        """
-        Returns the project to be changed from platform config file.
-
-        :return: migrate user to
-        :rtype: str
-        """
-        return self.get_section([section, 'PROJECT'], "")
-
-    def set_new_user(self, section, new_user):
-        """
-        Sets new user for given platform
-        :param new_user: 
-        :param section: platform name
-        :type: str
-        """
-
-        with open(self._platforms_parser_file) as p_file:
-            contentLine = p_file.readline()
-            contentToMod = ""
-            content = ""
-            mod = False
-            while contentLine:
-                if re.search(section, contentLine):
-                    mod = True
-                if mod:
-                    contentToMod += contentLine
-                else:
-                    content += contentLine
-                contentLine = p_file.readline()
-        if mod:
-            old_user = self.get_current_user(section)
-            contentToMod = contentToMod.replace(re.search(
-                'USER:.*', contentToMod).group(0)[1:], "USER: " + new_user)
-            contentToMod = contentToMod.replace(re.search(
-                'USER_TO:.*', contentToMod).group(0)[1:], "USER_TO: " + old_user)
-        open(self._platforms_parser_file, 'w').write(content)
-        open(self._platforms_parser_file, 'a').write(contentToMod)
-
-    def set_new_host(self, section, new_host):
-        """
-        Sets new host for given platform
-        :param new_host:
-        :param section: platform name
-        :type: str
-        """
-        with open(self._platforms_parser_file) as p_file:
-            contentLine = p_file.readline()
-            contentToMod = ""
-            content = ""
-            mod = False
-            while contentLine:
-                if re.search(section, contentLine):
-                    mod = True
-                if mod:
-                    contentToMod += contentLine
-                else:
-                    content += contentLine
-                contentLine = p_file.readline()
-        if mod:
-            old_host = self.get_current_host(section)
-            contentToMod = contentToMod.replace(re.search(
-                'HOST:.*', contentToMod).group(0)[1:], "HOST: " + new_host)
-            contentToMod = contentToMod.replace(re.search(
-                'HOST_TO:.*', contentToMod).group(0)[1:], "HOST_TO: " + old_host)
-        open(self._platforms_parser_file, 'w').write(content)
-        open(self._platforms_parser_file, 'a').write(contentToMod)
-
-    def get_migrate_project_to(self, section):
-        """
-        Returns the project to change to from platform config file.
-
-        :return: migrate project to
-        :rtype: str
-        """
-        return self.get_section([section, 'PROJECT_TO'], "")
-
-    def get_migrate_host_to(self, section):
-        """
-        Returns the host to change to from platform config file.
-
-        :return: host_to
-        :rtype: str
-        """
-        return self.get_section([section, 'HOST_TO'], "")
-
-    def set_new_project(self, section, new_project):
-        """
-        Sets new project for given platform
-        :param new_project: 
-        :param section: platform name
-        :type: str
-        """
-        with open(self._platforms_parser_file) as p_file:
-            contentLine = p_file.readline()
-            contentToMod = ""
-            content = ""
-            mod = False
-            while contentLine:
-                if re.search(section, contentLine):
-                    mod = True
-                if mod:
-                    contentToMod += contentLine
-                else:
-                    content += contentLine
-                contentLine = p_file.readline()
-        if mod:
-            old_project = self.get_current_project(section)
-            contentToMod = contentToMod.replace(re.search(
-                "PROJECT:.*", contentToMod).group(0)[1:], "PROJECT: " + new_project)
-            contentToMod = contentToMod.replace(re.search(
-                "PROJECT_TO:.*", contentToMod).group(0)[1:], "PROJECT_TO: " + old_project)
-        open(self._platforms_parser_file, 'w').write(content)
-        open(self._platforms_parser_file, 'a').write(contentToMod)
-
-    def get_custom_directives(self, section):
-        """
-        Gets custom directives needed for the given job type
-        :param section: job type
-        :type section: str
-        :return: custom directives needed
-        :rtype: str
-        """
-        directives = self.get_section([section, 'CUSTOM_DIRECTIVES'], "")
-        return directives
 
     def show_messages(self):
 
@@ -455,54 +210,17 @@ class AutosubmitConfig(object):
         else:
             return True
 
-    def deep_normalize(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Normalize a nested dictionary or similar mapping to uppercase.
-
-        This function recursively iterates through a dictionary, converting all keys to uppercase.
-        If a value is a dictionary, it calls itself recursively to normalize the nested dictionary.
-        If a value is a list, it iterates through the list and normalizes any dictionaries keys within it.
-        Other types of values are added to the normalized dictionary as is.
-
-        :param data: The dictionary to normalize.
-        :type data: Dict[str, Any]
-        :return: A new dictionary with all keys normalized to uppercase.
-        :rtype: Dict[str, Any]
-        """
-        normalized_data = dict()
-        try:
-            for key, val in data.items():
-                normalized_key = str(key).upper()
-                if isinstance(val, collections.abc.Mapping):
-                    normalized_data[normalized_key] = self.deep_normalize(val)
-                elif isinstance(val, list):
-                    normalized_list = []
-                    for item in val:
-                        if isinstance(item, collections.abc.Mapping):
-                            normalized_list.append(self.deep_normalize(item))
-                        else:
-                            normalized_list.append(item)
-                    normalized_data[normalized_key] = normalized_list
-                else:
-                    normalized_data[normalized_key] = val
-        except Exception:
-            pass
-        return normalized_data
-
-    def deep_update(self, unified_config, new_dict):
+    def deep_update(self, unified_config, new_dict) -> None:
         """
         Update a nested dictionary or similar mapping.
         Modify ``source`` in place.
         """
-        if not isinstance(unified_config, collections.abc.Mapping):
-            unified_config = {}
         for key in new_dict.keys():
             if key not in unified_config:
                 unified_config[key] = ""
         for key, val in new_dict.items():
             if isinstance(val, collections.abc.Mapping):
-                tmp = self.deep_update(unified_config.get(key, {}), val)
-                unified_config[key] = tmp
+                self.deep_update(unified_config.get(key, {}), val)
             elif isinstance(val, list):
                 if len(val) > 0 and isinstance(val[0], collections.abc.Mapping):
                     unified_config[key] = val
@@ -512,33 +230,26 @@ class AutosubmitConfig(object):
                         unified_config[key] = val
             else:
                 unified_config[key] = new_dict[key]
-        return unified_config
 
-    def normalize_variables(self, data: dict, must_exists: bool) -> dict:
+    def normalize_variables(self, data: Dict[str, Any], must_exists: bool) -> None:
         """
         Apply some memory internal variables to normalize its format. (right now only dependencies)
 
         :param data: The input data dictionary to normalize.
         :param must_exists: If false, add the sections that are not present in the data dictionary.
-        :return: The normalized data dictionary.
         """
-        data_fixed = data.copy()
-        data_fixed = self.deep_normalize(data_fixed)
-        self._normalize_default_section(data_fixed)
-        self._normalize_wrappers_section(data_fixed)
-        self._normalize_jobs_section(data_fixed, must_exists)
-
-        return data_fixed
+        deep_normalize(data)
+        self._normalize_default_section(data)
+        self._normalize_wrappers_section(data)
+        self._normalize_jobs_section(data, must_exists)
 
     def _normalize_default_section(self, data_fixed: dict) -> None:
         default_section = data_fixed.get("DEFAULT", {})
         if "HPCARCH" in default_section:
             data_fixed["DEFAULT"]["HPCARCH"] = default_section["HPCARCH"].upper()
         if "CUSTOM_CONFIG" in default_section:
-            try:
-                data_fixed["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(default_section["CUSTOM_CONFIG"])
-            except Exception:
-                pass
+            with suppress(KeyError):
+                data_fixed["DEFAULT"]["CUSTOM_CONFIG"] = _convert_list_to_string(default_section["CUSTOM_CONFIG"])
 
     @staticmethod
     def _normalize_wrappers_section(data_fixed: dict) -> None:
@@ -556,16 +267,14 @@ class AutosubmitConfig(object):
         """
         Normalize the NOTIFY_ON section to a consistent format.
         """
-        notify_on = data_fixed["JOBS"][job_section].get("NOTIFY_ON", "")
-        if notify_on:
-            if type(notify_on) is str:
-                if "," in notify_on:
-                    notify_on = notify_on.split(",")
-                else:
-                    notify_on = notify_on.split()
-            data_fixed["JOBS"][job_section]["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
+        job_section = data_fixed["JOBS"][job_section]
+        notify_on = job_section.get("NOTIFY_ON", "")
+        if notify_on and isinstance(notify_on, str):
+            separator: Optional[str] = ',' if ',' in notify_on else None
+            notify_on = notify_on.split(separator)
+            job_section["NOTIFY_ON"] = [status.strip(" ").upper() for status in notify_on]
 
-    def _normalize_jobs_section(self, data_fixed: dict, must_exists: bool) -> None:
+    def _normalize_jobs_section(self, data_fixed: Dict[str, Any], must_exists: bool) -> None:
         for job, job_data in data_fixed.get("JOBS", {}).items():
             if "DEPENDENCIES" in job_data or must_exists:
                 data_fixed["JOBS"][job]["DEPENDENCIES"] = self._normalize_dependencies(job_data.get("DEPENDENCIES", {}))
@@ -659,35 +368,21 @@ class AutosubmitConfig(object):
                 files = [files]
         return files
 
-    def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> dict:
+    def dict_replace_value(self, d: dict, old: str, new: str, index: int, section_names: list) -> None:
         current_section = section_names.pop()
-        if d.get(current_section, None) is None:
-            return d
-        if isinstance(d[current_section], dict):
-            d[current_section] = self.dict_replace_value(d[current_section], old, new, index, section_names)
-        elif isinstance(d[current_section], list):
-            d[current_section][index] = d[current_section][index].replace(old[index], new)
-        elif isinstance(d[current_section], str) and d[current_section] == old:
-            d[current_section] = d[current_section].replace(old, new)
-        return d
+        if d.get(current_section, None):
+            if isinstance(d[current_section], dict):
+                self.dict_replace_value(d[current_section], old, new, index, section_names)
+            elif isinstance(d[current_section], list):
+                d[current_section][index] = d[current_section][index].replace(old[index], new)
+            elif isinstance(d[current_section], str) and d[current_section] == old:
+                d[current_section] = d[current_section].replace(old, new)
 
-    def convert_list_to_string(self, data):
-        """
-        Convert a list to a string
-        """
-        if type(data) is dict:
-            for key, val in data.items():
-                if isinstance(val, list):
-                    data[key] = ",".join(val)
-                elif isinstance(val, dict):
-                    self.convert_list_to_string(data[key])
-        return data
-
-    def load_config_file(self, current_folder_data, yaml_file, load_misc=False):
+    def load_config_file(self, current_folder_data: Dict[str, Any], yaml_file: Path, load_misc=False) -> None:
         """
         Load a config file and parse it
         :param current_folder_data: current folder data
-        :param yaml_file: yaml file to load
+        :param yaml_file: yaml file to load.
         :param load_misc: Load misc files
         :return: unified config file
         """
@@ -696,16 +391,16 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.normalize_variables(new_file.data, must_exists=False)
+        self.normalize_variables(new_file.data, must_exists=False)
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
-            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
+            new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = _convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
         if new_file.data.get("AS_MISC", False) and not load_misc:
             self.misc_files.append(yaml_file)
             new_file.data = {}
-        return self.unify_conf(current_folder_data, new_file.data)
+        self.unify_conf(current_folder_data, new_file.data)
 
-    def get_yaml_filenames_to_load(self, yaml_folder, ignore_minimal=False):
+    def get_yaml_filenames_to_load(self, yaml_folder, ignore_minimal=False) -> List[str]:
         """
         Get all yaml files in a folder and return a list with the filenames
         :param yaml_folder: folder to search for yaml files
@@ -723,17 +418,6 @@ class AutosubmitConfig(object):
                     [p.resolve() for p in Path(yaml_folder).glob("*") if p.suffix in {".yml", ".yaml"}]):
                 filenames_to_load.append(str(yaml_file))
         return filenames_to_load
-
-    def load_config_folder(self, current_data, yaml_folder, ignore_minimal=False):
-        """
-        Load a config folder and return pre and post config
-        :param current_data: current data to be updated
-        :param yaml_folder: folder to load config
-        :param ignore_minimal: ignore minimal config files
-        :return: pre and post config
-        """
-        filenames_to_load = self.get_yaml_filenames_to_load(yaml_folder, ignore_minimal)
-        return self.load_custom_config(current_data, filenames_to_load)
 
     def parse_custom_conf_directive(self, custom_conf_directive):
         filenames_to_load = dict()
@@ -770,7 +454,7 @@ class AutosubmitConfig(object):
                     f_list.remove(file_to_load)
         return filenames_to_load
 
-    def unify_conf(self, current_data, new_data):
+    def unify_conf(self, current_data, new_data) -> None:
         """
         Unifies all configuration files into a single dictionary.
         :param current_data: dict with current configuration
@@ -778,27 +462,27 @@ class AutosubmitConfig(object):
         :return: dict with new configuration taking priority over current configuration
         """
         # Basic data
-        current_data = self.deep_update(current_data, new_data)
-        current_data = self.deep_read_loops(current_data)
-        current_data = self.substitute_dynamic_variables(current_data)
-        current_data = self.parse_data_loops(current_data)
-        return current_data
+        self.deep_update(current_data, new_data)
+        self.deep_read_loops(current_data)
+        self.substitute_dynamic_variables(current_data)
+        self.parse_data_loops(current_data)
 
-    def parse_data_loops(self, experiment_data):
+    def parse_data_loops(self, experiment_data) -> None:
         """
         This function, looks for the FOR keyword, to generates N amount of subsections of the same section.
         Looks for the "NAME" keyword, inside this FOR keyword to determine the name of the new sections
         Experiment_data is the dictionary that contains all the sections, a subsection could be located at the root but also in a nested section
+        The experiment data is modified in place, with the FOR values expanded.
         :param experiment_data: dictionary with all the sections
-        :return: Original experiment_data with the sections in the data_loops updated changing the FOR by multiple new sections
         """
-        while len(self.data_loops) > 0:
+        exp_data_copy = experiment_data.copy()
+        while self.data_loops:
             loops = self.data_loops.pop().split(",")
-            pointer_to_last_data = experiment_data
+            pointer_to_last_data = exp_data_copy
             for section in loops[:-1]:
                 pointer_to_last_data = pointer_to_last_data[section]
             section_basename = loops[-1]
-            current_data = copy.deepcopy(pointer_to_last_data[loops[-1]])
+            current_data = pointer_to_last_data[loops[-1]]
             # Remove the original section  keyword from original data
             pointer_to_last_data.pop(loops[-1])
             for_sections = current_data.pop("FOR")
@@ -816,26 +500,14 @@ class AutosubmitConfig(object):
                 current_data_aux["NAME"] = for_sections["NAME"][name_index]
                 # add the dynamic_var
                 self.deep_read_loops(current_data_aux)
-                current_data_aux = self.substitute_dynamic_variables(current_data_aux)
+                self.substitute_dynamic_variables(current_data_aux)
                 pointer_to_last_data[section_ending_name] = current_data_aux
                 for key, value in for_sections.items():
                     if key != "NAME":
                         pointer_to_last_data[section_ending_name][key] = value[name_index]
-            # Delete pointer, because we are going to use it in the next loop for a different section so we need to delete the pointer to avoid overwriting
+            # Delete pointer, because we are going to use it in the next loop for a different section,
+            # so we need to delete the pointer to avoid overwriting.
             del pointer_to_last_data
-        return experiment_data
-
-    def get_placeholders(self, val, key):
-
-        aux_name = val.split("/")
-        full_name = []
-        for aux in aux_name:
-            full_name.extend(aux.split(" "))
-        placeholders = []
-        for posible_placeholder in full_name:
-            if "%" in posible_placeholder or key:
-                placeholders.append(posible_placeholder.strip("%"))
-        return placeholders
 
     def check_dict_keys_type(self, parameters):
         """
@@ -903,11 +575,11 @@ class AutosubmitConfig(object):
 
     def substitute_dynamic_variables(
             self,
-            parameters: Dict[str, Any] = None,
+            parameters: Dict[str, Any],
             max_deep: int = 25,
             dict_keys_type: str = None,
             in_the_end: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> None:
         """
         Substitute dynamic variables in the experiment data.
 
@@ -925,26 +597,15 @@ class AutosubmitConfig(object):
         max_deep += len(self.dynamic_variables)
         dynamic_variables, pattern, start_long = self._initialize_variables(in_the_end)
 
-        if parameters is None:
-            parameters = self.deep_parameters_export(self.experiment_data)
-            parameters = self.normalize_parameters_keys(parameters)
-
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
 
         while len(dynamic_variables) > 0 and max_deep > 0:
-            dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables, parameters, pattern,
-                                                                             start_long, dict_keys_type)
-            # check if any value of dynamic_variables_ changed
-            if dynamic_variables_ == dynamic_variables:
+            if self._process_dynamic_variables(dynamic_variables, parameters, pattern, start_long, dict_keys_type):
                 break
-            dynamic_variables = dynamic_variables_
             max_deep -= 1
 
-        self.dynamic_variables = dynamic_variables
-
         self.clean_dynamic_variables(pattern, in_the_end)
-        return parameters
 
     def _initialize_variables(self, in_the_end: bool) -> Tuple[Dict[str, str], str, int]:
         """
@@ -955,9 +616,9 @@ class AutosubmitConfig(object):
         :rtype: tuple
         """
         if not in_the_end:
-            return copy.deepcopy(self.dynamic_variables), '%[a-zA-Z0-9_.-]*%', 1
+            return self.dynamic_variables, '%[a-zA-Z0-9_.-]*%', 1
         else:
-            return copy.deepcopy(self.special_dynamic_variables), '%\^[a-zA-Z0-9_.-]*%', 2
+            return self.special_dynamic_variables, '%\^[a-zA-Z0-9_.-]*%', 2
 
     def _process_dynamic_variables(
             self,
@@ -966,26 +627,28 @@ class AutosubmitConfig(object):
             pattern: str,
             start_long: int,
             dict_keys_type: str
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> bool:
         """
         Process and substitute dynamic variables in the parameters.
 
-        :param dict dynamic_variables_: Dict of dynamic variables to be processed.
-        :param dict parameters: Dictionary containing the parameters to be substituted.
+        :param dict dynamic_variables: Dict of dynamic variables to be processed.
         :param str pattern: Regex pattern to identify dynamic variables.
         :param int start_long: Start index for long key format.
         :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
-        :returns: A dict containing the processed dynamic variables and the updated parameters.
-        :rtype: tuple
+        :return: ``True`` if there were any changes to the dynamic variables.
+        :rtype: bool
         """
-        dynamic_variables_ = copy.copy(dynamic_variables)
-        for dynamic_var in dynamic_variables.items():
+        modified = False
+        dynamic_variables_copy = dynamic_variables.copy()
+        for dynamic_var in dynamic_variables_copy.items():
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
-                dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern,
-                                                                       start_long, dict_keys_type, dynamic_variables_)
+                self._substitute_keys(keys, dynamic_var, parameters, pattern,
+                                      start_long, dict_keys_type, dynamic_variables)
+                modified = True
+        del dynamic_variables_copy
+        return modified
 
-        return dynamic_variables_, parameters
 
     @staticmethod
     def _get_keys(
@@ -1025,7 +688,7 @@ class AutosubmitConfig(object):
             start_long: int,
             dict_keys_type: str,
             processed_dynamic_variables: Dict[str, Any]
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> None:
         """
         Substitute dynamic variables in the given keys.
 
@@ -1043,15 +706,13 @@ class AutosubmitConfig(object):
         :type dict_keys_type: str
         :param processed_dynamic_variables: Dictionary of already processed dynamic variables.
         :type processed_dynamic_variables: Dict[str, Any]
-        :return: A tuple containing the updated processed dynamic variables and parameters.
-        :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
         for i, key in enumerate(filter(None, keys)):
             matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
             for match in matches:
                 value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
                 if value:
-                    parameters = self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
+                    self._update_parameters(parameters, dynamic_var, value, i, dict_keys_type)
                     key = value
                     if len(keys) > 1:  # Mantain the list of keys if there are more than one
                         keys[i] = key
@@ -1059,7 +720,6 @@ class AutosubmitConfig(object):
                     else:
                         dynamic_var = (dynamic_var[0], value)
             processed_dynamic_variables[dynamic_var[0]] = dynamic_var[1]
-        return processed_dynamic_variables, parameters
 
     @staticmethod
     def _get_substituted_value(
@@ -1068,7 +728,7 @@ class AutosubmitConfig(object):
             parameters: Dict[str, Any],
             start_long: int,
             dict_keys_type: str
-    ) -> str:
+    ) -> Optional[str]:
         """
         Get the substituted value for a dynamic variable in the key.
 
@@ -1092,10 +752,12 @@ class AutosubmitConfig(object):
             key_parts[start_long:-1]]
         param = parameters
         for k in key_parts:
-            param = param.get(k.upper(), {})
+            param = param.get(k.upper(), None)
             if isinstance(param, int):
                 param = str(param)
-        return str(rest_of_key_start) + str(param) + str(rest_of_key_end) if param else None
+        if param is None:
+            return None
+        return str(rest_of_key_start) + str(param) + str(rest_of_key_end)
 
     def _update_parameters(
             self,
@@ -1104,7 +766,7 @@ class AutosubmitConfig(object):
             value: str,
             index: int,
             dict_keys_type: str
-    ) -> Dict[str, Any]:
+    ) -> None:
         """
         Update the parameters dictionary with the substituted value.
 
@@ -1125,20 +787,22 @@ class AutosubmitConfig(object):
             parameters[str(dynamic_var[0])] = value
         else:
             section_names = dynamic_var[0].split(".")[::-1] if "." in dynamic_var[0] else [dynamic_var[0]]
-            parameters = self.dict_replace_value(parameters, dynamic_var[1], value, index, section_names)
-        return parameters
+            self.dict_replace_value(parameters, dynamic_var[1], value, index, section_names)
 
-    def deep_read_loops(self, data, for_keys=[], long_key=""):
+    def deep_read_loops(self, data, for_keys=None, long_key="") -> None:
         """
         Update a nested dictionary or similar mapping.
         Modify ``source`` in place.
         """
+        if for_keys is None:
+            for_keys = []
+
         for key, val in data.items():
             # Placeholders variables
             # Pattern to search a string starting with % and ending with % allowing the chars [],._ to exist in the middle
             dynamic_var_pattern = '%[a-zA-Z0-9_.-]*%'
             # Pattern to search a string starting with %^ and ending with %
-            special_dynamic_var_pattern = '%\^[a-zA-Z0-9_.-]*%'
+            special_dynamic_var_pattern = '%\\^[a-zA-Z0-9_.-]*%'
 
             if not isinstance(val, collections.abc.Mapping) and re.search(dynamic_var_pattern, str(val),
                                                                           flags=re.IGNORECASE) is not None:
@@ -1148,7 +812,9 @@ class AutosubmitConfig(object):
                 self.special_dynamic_variables[long_key + key] = val
             if key == "FOR":
                 # special case: check dynamic variables in the for loop
-                for for_section, for_values in data[key].items():
+                if not val:
+                    val = {}
+                for for_section, for_values in val.items():
                     if len(for_values) == 0:
                         raise AutosubmitCritical("Empty for loop in section {0}".format(long_key + key), 7014)
                     if not isinstance(for_values[0], dict):
@@ -1156,12 +822,11 @@ class AutosubmitConfig(object):
                         for_values = for_values.replace("'", "")
                         if re.search(dynamic_var_pattern, for_values, flags=re.IGNORECASE) is not None:
                             self.dynamic_variables[long_key + key + "." + for_section] = for_values
-                    data[key][for_section] = for_values
+                    val[for_section] = for_values
                 # convert for_keys to string
                 self.data_loops.add(",".join(for_keys))
             elif isinstance(val, collections.abc.Mapping):
-                self.deep_read_loops(data.get(key, {}), for_keys + [key], long_key=long_key + key + ".")
-        return data
+                self.deep_read_loops(val, for_keys + [key], long_key=long_key + key + ".")
 
     def check_mandatory_parameters(self, no_log=False):
         self.check_expdef_conf(no_log)
@@ -1279,8 +944,6 @@ class AutosubmitConfig(object):
     def check_autosubmit_conf(self, no_log=False):
         """
         Checks experiment's autosubmit configuration file.
-        :param refresh: True if the function is called during the refresh of the program
-        :type refresh: bool
         :param no_log: True if the function is called during describe
         :type no_log: bool
         :return: True if everything is correct, False if it founds any error
@@ -1300,10 +963,6 @@ class AutosubmitConfig(object):
             if parser_data["CONFIG"].get('TOTALJOBS', -1) == -1:
                 self.wrong_config["Autosubmit"] += [['config',
                                                      "TOTALJOBS parameter not found or non-integer"]]
-            # if parser_data["CONFIG"].get('SAFETYSLEEPTIME',-1) == -1:
-            #    self.set_safetysleeptime(10)
-            # else:
-            #    self.set_safetysleeptime(int(parser_data["CONFIG"].get('SAFETYSLEEPTIME',10)))
             if type(parser_data["CONFIG"].get('RETRIALS', 0)) is not int:
                 parser_data["CONFIG"]['RETRIALS'] = int(parser_data["CONFIG"].get('RETRIALS', 0))
 
@@ -1327,14 +986,12 @@ class AutosubmitConfig(object):
                 self.experiment_data["MAIL"]["TO"] = mails
 
                 for mail in self.experiment_data["MAIL"]["TO"]:
-                    if not self.is_valid_mail_address(mail):
+                    if not _is_valid_mail_address(mail):
                         self.wrong_config["Autosubmit"] += [['mail',
                                                              "invalid e-mail"]]
         if "Autosubmit" not in self.wrong_config:
             if not no_log:
                 Log.result('Autosubmit general sections OK')
-            return True
-        else:
             return True
         return False
 
@@ -1406,7 +1063,7 @@ class AutosubmitConfig(object):
                 self.wrong_config["Jobs"] += [[section,
                                                "Mandatory FILE parameter not found"]]
             else:
-                try:
+                with suppress(KeyError):
                     if self.ignore_file_path:
                         if "SCRIPT" not in section_data:
                             if not os.path.exists(os.path.join(self.get_project_dir(), section_file_path)):
@@ -1420,8 +1077,6 @@ class AutosubmitConfig(object):
                                 else:
                                     self.wrong_config["Jobs"] += [[section, "FILE {0} doesn't exist".format(
                                         os.path.join(self.get_project_dir(), section_file_path))]]
-                except BaseException:
-                    pass  # tests conflict quick-patch
 
             dependencies = section_data.get('DEPENDENCIES', '')
             if dependencies != "":
@@ -1465,8 +1120,6 @@ class AutosubmitConfig(object):
     def check_expdef_conf(self, no_log=False):
         """
         Checks experiment's experiment configuration file.
-        :param refresh: if True, it doesn't check the mandatory parameters
-        :type refresh: bool
         :param no_log: if True, it doesn't print any log message
         :type no_log: bool
         :return: True if everything is correct, False if it founds any error
@@ -1547,7 +1200,7 @@ class AutosubmitConfig(object):
             return True
         return False
 
-    def check_wrapper_conf(self, wrappers=dict(), no_log=False):
+    def check_wrapper_conf(self, wrappers=None, no_log=False) -> bool:
         """
         Checks wrapper config file
 
@@ -1555,6 +1208,8 @@ class AutosubmitConfig(object):
         :param no_log:
         :return:
         """
+        if wrappers is None:
+            wrappers = {}
         for wrapper_name, wrapper_values in wrappers.items():
             # continue if it is a global option (non-dicT)
             if type(wrapper_values) is not dict:
@@ -1600,135 +1255,101 @@ class AutosubmitConfig(object):
                 if not no_log:
                     Log.result('wrappers OK')
                 return True
+        return False
 
-    def file_modified(self, file, prev_mod_time):
-        '''
-        Function to check if a file has been modified.
-        :param file: path
-        :return: bool,new_time
-        '''
-        modified = False
-        file_mod_time = datetime.fromtimestamp(file.lstat().st_mtime)  # This is a datetime.datetime object!
-
-        max_delay = timedelta(seconds=1)
-
-        if prev_mod_time is None or prev_mod_time - file_mod_time > max_delay:
-            modified = True
-        else:
-            modified = False
-        return modified, file_mod_time
-
-    def load_common_parameters(self, parameters):
+    def load_common_parameters(self, parameters) -> None:
         """
         Loads common parameters not specific to a job neither a platform
         :param parameters:
         :return:
         """
+        parameters['ROOTDIR'] = os.path.join(BasicConfig.LOCAL_ROOT_DIR, self.expid)
+        project_destination = parameters.get('PROJECT', {}).get('PROJECT_DESTINATION', "project_files")
+        parameters['PROJDIR'] = os.path.join(parameters['ROOTDIR'], "proj", project_destination)
 
-        # parameters.update( dict((name, getattr(BasicConfig, name)) for name in dir(BasicConfig) if not name.startswith('_') and not name=="read"))
-        parameters['ROOTDIR'] = os.path.join(
-            BasicConfig.LOCAL_ROOT_DIR, self.expid)
-        # get_project_dir expects self.experiment_data to be loaded
-        # parameters['PROJDIR'] = self.get_project_dir()
-        parameters['PROJDIR'] = os.path.join(parameters['ROOTDIR'], "proj",
-                                             parameters.get('PROJECT', {}).get('PROJECT_DESTINATION', "project_files"))
-        return parameters
-
-    def load_custom_config(self, current_data, filenames_to_load):
+    def load_custom_config(self, current_data, filenames_to_load) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Loads custom config files
         :param current_data: dict with current data
         :param filenames_to_load: list of filenames to load
-        :return: current_data_pre,current_data_post with unified data
-
         """
         current_data_pre = {}
-        current_data_aux = {}
         current_data_post = {}
         # at this point, filenames_to_load should be a list of filenames of an specific section PRE or POST.
         for filename in filenames_to_load:
             filename = filename.strip(", ")  # Remove commas and spaces if any
             if filename.startswith("~"):
                 filename = os.path.expanduser(filename)
-            current_data_aux = self.unify_conf(self.starter_conf, current_data)
-            current_data_aux["AS_TEMP"] = {}
-            current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"] = filename
+            self.unify_conf(self.experiment_data, current_data)
+            current_data_aux = {
+                "AS_TEMP": {
+                    "FILENAME_TO_LOAD": filename
+                }
+            }
             self.dynamic_variables["AS_TEMP.FILENAME_TO_LOAD"] = filename
-            current_data_aux = self.substitute_dynamic_variables(current_data_aux)
+            self.substitute_dynamic_variables(current_data_aux)
             filename = Path(current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"])
+            del current_data_aux
             if not filename.exists() and "%" not in str(filename):
-                print(f"Yaml file {filename} not found")
+                Log.info(f"Yaml file {filename} not found")
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
                 # Load a folder or a file
                 if not filename.is_file():
                     # Load a folder by calling recursively to this function as a list of files
-                    current_data_pre, current_data_post = self.load_config_folder(copy.deepcopy(current_data), filename)
-                    current_data = self.unify_conf(current_data_pre, current_data)
-                    current_data = self.unify_conf(current_data, current_data_post)
+                    filenames_to_load = self.get_yaml_filenames_to_load(filename, ignore_minimal=False)
+                    current_data_pre, current_data_post = self.load_custom_config(current_data, filenames_to_load)
+                    self.unify_conf(self.experiment_data, current_data_pre)
+                    self.unify_conf(self.experiment_data, current_data_post)
                 else:
-                    # Load a file and unify the current_data with the loaded data
-                    current_data = self.unify_conf(current_data,
-                                                   self.load_config_file(current_data, filename))
+                    self.load_config_file(self.experiment_data, filename)
+
                     # Load next level if any
                     custom_conf_directive = current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None)
                     filenames_to_load_level = self.parse_custom_conf_directive(custom_conf_directive)
-                    if current_data.get('DEFAULT', {}).get('CUSTOM_CONFIG', None) is not None:
+                    if custom_conf_directive:
                         del current_data["DEFAULT"]["CUSTOM_CONFIG"]
-                    filenames_to_load_level["PRE"] = [to_load for to_load in filenames_to_load_level["PRE"] if
-                                                      to_load not in self.current_loaded_files]
-                    filenames_to_load_level["POST"] = [to_load for to_load in filenames_to_load_level["POST"] if
-                                                       to_load not in self.current_loaded_files]
-                    if len(filenames_to_load_level["PRE"]) > 0:
-                        current_data_pre = self.unify_conf(current_data_pre,
-                                                           self.load_custom_config_section(copy.deepcopy(current_data),
-                                                                                           filenames_to_load_level[
-                                                                                               "PRE"]))
+
+                    pre_files = [
+                        to_load for to_load in filenames_to_load_level["PRE"]
+                        if to_load not in self.current_loaded_files
+                    ]
+                    post_files = [
+                        to_load for to_load in filenames_to_load_level["POST"]
+                        if to_load not in self.current_loaded_files
+                    ]
+
+                    if pre_files:
+                        self.load_custom_config_section(current_data, pre_files)
                     else:
                         current_data_pre = current_data
-                    current_data = self.unify_conf(current_data_pre, current_data)
 
-                    if len(filenames_to_load_level["POST"]) > 0:
-                        current_data_post = self.unify_conf(current_data_post, self.unify_conf(current_data,
-                                                                                               self.load_custom_config_section(
-                                                                                                   current_data,
-                                                                                                   filenames_to_load_level[
-                                                                                                       "POST"])))
+                    self.unify_conf(self.experiment_data, current_data_pre)
+
+                    if post_files:
+                        self.load_custom_config_section(current_data, post_files)
                     else:
                         current_data_post = current_data
 
-        del current_data_aux
+                    self.unify_conf(self.experiment_data, current_data_post)
+
+                    filenames_to_load_level["PRE"] = pre_files
+                    filenames_to_load_level["POST"] = post_files
+
         return current_data_pre, current_data_post
 
-    def load_custom_config_section(self, current_data, filenames_to_load):
+    def load_custom_config_section(self, current_data: Dict[str, Any], filenames_to_load: List[str]) -> None:
         """
         Loads a section (PRE or POST ), simple str are also PRE data of the custom config files
         :param current_data: data until now
         :param filenames_to_load: files to load in this section
-        :return:
         """
         # This is a recursive call
         current_data_pre, current_data_post = self.load_custom_config(current_data, filenames_to_load)
-        # Unifies all pre and post data of the current pre or post data. Think of it as a tree with two branches that needs to be unified at each level
-        return self.unify_conf(self.unify_conf(current_data_pre, current_data), current_data_post)
-
-    def load_list_parameter(self, parameter):
-        """
-        Loads a list parameter
-        :param parameter:
-        :return: list
-        """
-        if type(self.starter_conf[parameter]) is str:
-            if "," in self.starter_conf[parameter]:
-                list_parameters = self.starter_conf[parameter].split(",")
-            else:
-                list_parameters = [self.starter_conf[parameter]]
-        elif type(self.starter_conf[parameter]) is list:
-            list_parameters = self.starter_conf[parameter]
-        else:
-            list_parameters = list(self.starter_conf[parameter])
-        return [parameter.strip(" ") for parameter in list_parameters]
+        # Unifies all pre- and post-data of the current pre- or post-data. Think of it as a tree with
+        # two branches that needs to be unified at each level
+        self.unify_conf(current_data_pre, current_data)
 
     @property
     def is_current_real_user_owner(self) -> bool:
@@ -1739,76 +1360,70 @@ class AutosubmitConfig(object):
         return Path(self.experiment_data["ROOTDIR"]).owner() == self.experiment_data["AS_ENV_CURRENT_USER"]
 
     @staticmethod
-    def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
+    def load_as_env_variables(parameters: Dict[str, Any]) -> None:
         """
         Loads all environment variables that starts with AS_ENV into the parameters dictionary and obtains the current user running it.
         :param parameters: current loaded parameters.
-        :return: dict
         """
         for key, value in os.environ.items():
             if key.startswith("AS_ENV"):
                 parameters[key] = value
         parameters["AS_ENV_CURRENT_USER"] = os.environ.get("SUDO_USER", os.environ.get("USER", None))
-        return parameters
 
-    def reload(self, force_load=False, only_experiment_data=False, save=False):
+    def reload(self, force_load=False, only_experiment_data=False) -> None:
         """
         Reloads the configuration files
         :param force_load: If True, reloads all the files, if False, reloads only the modified files
+        :param only_experiment_data: If ``True`` skips pre- and post-files.
         """
         # Check if the files have been modified or if they need a reload
         files_to_reload = []
         # Reload only the files that have been modified
         # Only reload the data if there are changes or there is no data loaded yet
-        if force_load or (
-                self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
+        reload_while_running = self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)
+        should_reload = force_load or (self.data_changed and reload_while_running)
+
+        if should_reload:
             files_to_reload = self.current_loaded_files.keys()
-        if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0:
+
+        if files_to_reload or self.current_loaded_files:
             # Load all the files starting from the $expid/conf folder
-            starter_conf = {}
-            self.current_loaded_files = {}  # reset loaded files
+            # reset loaded files
+            self.current_loaded_files = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml):
-                starter_conf = self.unify_conf(starter_conf, self.load_config_file(starter_conf, Path(filename)))
-            starter_conf = self.load_as_env_variables(starter_conf)
-            starter_conf = self.load_common_parameters(starter_conf)
-            self.starter_conf = starter_conf
-            # Same data without the minimal config ( if any ), need to be here to due current_loaded_files variable
+                self.load_config_file(self.experiment_data, Path(filename))
+            self.load_as_env_variables(self.experiment_data)
+            self.load_common_parameters(self.experiment_data)
+            # Same data without the minimal config ( if any ), need to be here due to current_loaded_files variable
             non_minimal_conf = {}
-            non_minimal_files = {}
             for filename in self.get_yaml_filenames_to_load(self.conf_folder_yaml, ignore_minimal=True):
-                non_minimal_files[str(filename)] = Path(filename).stat().st_mtime
-                non_minimal_conf = self.unify_conf(non_minimal_conf,
-                                                   self.load_config_file(non_minimal_conf, Path(filename)))
-            non_minimal_conf = self.load_common_parameters(non_minimal_conf)
+                self.current_loaded_files[str(filename)] = Path(filename).stat().st_mtime
+                self.load_config_file(non_minimal_conf, Path(filename))
+            self.load_common_parameters(non_minimal_conf)  # FIXME: why?
+
             # Start loading the custom config files
             # Gets the files to load
-            filenames_to_load = self.parse_custom_conf_directive(
-                starter_conf.get("DEFAULT", {}).get("CUSTOM_CONFIG", None))
+            custom_config_files = self.experiment_data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None)
+            filenames_to_load = self.parse_custom_conf_directive(custom_config_files)
             if not only_experiment_data:
-                # Loads all configuration associated with the project data "pre"
-                custom_conf_pre = self.load_custom_config_section({}, filenames_to_load["PRE"])
-                # Loads all configuration associated with the user data "post"
-                self.experiment_data = self.load_custom_config_section(
-                    self.unify_conf(custom_conf_pre, non_minimal_conf), filenames_to_load["POST"])
-            else:
-                self.experiment_data = starter_conf
-            ###
-            self.current_loaded_files.update(non_minimal_files)
-            if "AS_TEMP" in self.experiment_data.keys():
+                self.load_custom_config_section(self.experiment_data, filenames_to_load["PRE"])
+                self.load_custom_config_section(self.experiment_data, filenames_to_load["POST"])
+
+            if "AS_TEMP" in self.experiment_data:
                 del self.experiment_data["AS_TEMP"]
+
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
-            self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
-            self.experiment_data = self.normalize_variables(self.experiment_data, must_exists=True)
-            self.experiment_data = self.deep_read_loops(self.experiment_data)
-            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
-            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
+            self.normalize_variables(self.experiment_data, must_exists=True)
+            self.deep_read_loops(self.experiment_data)
+            self.substitute_dynamic_variables(self.experiment_data)
+            self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
 
         self.load_last_run()
+        
         self.misc_data = {}
         self.misc_files = list(set(self.misc_files))
         for filename in self.misc_files:
-            self.misc_data = self.unify_conf(self.misc_data,
-                                             self.load_config_file(self.misc_data, Path(filename), load_misc=True))
+            self.load_config_file(self.misc_data, Path(filename), load_misc=True)
 
     def load_last_run(self):
         try:
@@ -1849,7 +1464,7 @@ class AutosubmitConfig(object):
                         Path(self.metadata_folder) / "experiment_data.yml.bak")
         try:
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                # Not using typ="safe" to perserve the readability of the file
+                # Not using typ="safe" to preserve the readability of the file
                 YAML().dump(self.experiment_data, stream)
         except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
@@ -1932,20 +1547,6 @@ class AutosubmitConfig(object):
             changed = True
         return changed
 
-    def deep_add_missing_starter_conf(self, experiment_data, starter_conf):
-        """
-        Add the missing keys from starter_conf to experiment_data
-        :param experiment_data:
-        :param starter_conf:
-        :return:
-        """
-        for key in starter_conf.keys():
-            if key not in experiment_data.keys():
-                experiment_data[key] = starter_conf[key]
-            elif isinstance(starter_conf[key], collections.abc.Mapping):
-                experiment_data[key] = self.deep_add_missing_starter_conf(experiment_data[key], starter_conf[key])
-        return experiment_data
-
     def deep_get_long_key(self, section_data, long_key):
         parameters_dict = dict()
         for key, val in section_data.items():
@@ -1955,34 +1556,23 @@ class AutosubmitConfig(object):
                 parameters_dict[long_key + "." + key] = val
         return parameters_dict
 
-    def normalize_parameters_keys(self, parameters, default_parameters={}):
-        """
-        Normalize the parameters keys to be exportable in the templates case-insensitive.
-        :param parameters: dictionary containing the parameters
-        :param default_parameters: dictionary containing the default parameters, they must remain in lower-case
-        :return: upper-case parameters
-        """
-        upper_case_parameters = dict()
-        for key in parameters.keys():
-            # if key is not instance of default_parameters
-            if key not in default_parameters.keys():
-                upper_case_parameters[key.upper()] = parameters[key]
-        return upper_case_parameters
+    def deep_parameters_export(self, data: Dict[str, Any]) -> None:
+        """Modifies the given dictionary in-place, making keys all uppercase.
 
-    def deep_parameters_export(self, data):
-        """
         Export all variables of this experiment.
         Resultant format will be Section.{subsections1...subsectionN} = Value.
         In other words, it plain the dictionary into one level
         """
-        parameters_dict = dict()
-        for key in data.keys():
-            if isinstance(data.get(key, {}), collections.abc.Mapping):
-                parameters_dict.update(self.deep_get_long_key(data.get(key, {}), key))
+        data_copy = data.copy()
+        for key, value in data_copy.items():
+            if value is None:
+                value = {}
+            if isinstance(value, collections.abc.Mapping):
+                data.update(self.deep_get_long_key(value, key))
             else:
-                parameters_dict[key] = data.get(key, {})
-        parameters_dict = self.normalize_parameters_keys(parameters_dict)
-        return parameters_dict
+                data[key] = value
+        del data_copy
+        _normalize_parameters_keys(data)
 
     def load_parameters(self):
         """
@@ -1990,75 +1580,8 @@ class AutosubmitConfig(object):
         :return: a dictionary containing tuples [parameter_name, parameter_value]
         :rtype: dict
         """
-        self.parameters = self.deep_parameters_export(self.experiment_data)
-        return self.parameters
-
-    def load_platform_parameters(self):
-        """
-        Load parameters from platform config files.
-
-        :return: a dictionary containing tuples [parameter_name, parameter_value]
-        :rtype: dict
-        """
-        parameters = dict()
-        for section in self._platforms_parser.sections():
-            for option in self._platforms_parser.options(section):
-                parameters[section + "_" +
-                           option] = self._platforms_parser.get(section, option)
-        return parameters
-
-    def load_section_parameters(self, job_list, as_conf, submitter):
-        """
-        Load parameters from job config files.
-
-        :return: a dictionary containing tuples [parameter_name, parameter_value]
-        :rtype: dict
-        """
-        as_conf.check_conf_files(False)
-
-        job_list_by_section = defaultdict()
-        parameters = defaultdict()
-        for job in job_list.get_job_list():
-            if not job.platform_name:
-                job.platform_name = self.hpcarch
-            if job.section not in list(job_list_by_section.keys()):
-                job_list_by_section[job.section] = [job]
-            else:
-                job_list_by_section[job.section].append(job)
-            try:
-                job.platform = submitter.platforms[job.platform_name]
-            except Exception:
-                job.platform = submitter.platforms["LOCAL"]
-
-        for section in list(job_list_by_section.keys()):
-            job_list_by_section[section][0].update_parameters(
-                as_conf, job_list.parameters)
-            section_list = list(job_list_by_section[section][0].parameters.keys())
-            for section_param in section_list:
-                if section_param not in list(job_list.parameters.keys()):
-                    parameters[section + "_" +
-                               section_param] = job_list_by_section[section][0].parameters[section_param]
-        return parameters
-
-    def set_expid(self, exp_id):
-        """
-        Set experiment identifier in autosubmit and experiment config files
-
-        :param exp_id: experiment identifier to store
-        :type exp_id: str
-        """
-        # Experiment conf
-        content = open(self._exp_parser_file).read()
-        if re.search('EXPID:.*', content):
-            content = content.replace(
-                re.search('EXPID:.*', content).group(0), "EXPID: " + exp_id)
-        open(self._exp_parser_file, 'w').write(content)
-
-        content = open(self._conf_parser_file).read()
-        if re.search('EXPID:.*', content):
-            content = content.replace(
-                re.search('EXPID:.*', content).group(0), "EXPID: " + exp_id)
-        open(self._conf_parser_file, 'w').write(content)
+        self.deep_parameters_export(self.experiment_data)
+        return self.experiment_data
 
     def get_project_type(self):
         """
@@ -2330,15 +1853,14 @@ class AutosubmitConfig(object):
         """
         return self.get_section(['EXPERIMENT', 'CHUNKSIZEUNIT'])
 
-    def get_chunk_size(self, default=1):
+    def get_chunk_size(self, default=1) -> int:
         """
         Chunk Size as defined in the expdef file.
 
         :return: Chunksize, 1 as default.
         :rtype: int
         """
-        chunk_size = self.get_section(
-            ['experiment', 'CHUNKSIZE'], default)
+        chunk_size = int(self.get_section(['experiment', 'CHUNKSIZE'], str(default)))
         if not chunk_size:
             return default
         return int(chunk_size)
@@ -2378,18 +1900,6 @@ class AutosubmitConfig(object):
             member_list.append(string_member)
         return member_list
 
-    def get_dependencies(self, section="None"):
-        """
-        Returns dependencies list from jobs config file
-
-        :return: experiment's members
-        :rtype: list
-        """
-        try:
-            return self.get_section([section, "DEPENDENCIES"], "")
-        except Exception:
-            return []
-
     def get_rerun(self):
         """
         Returns startdates list from experiment's config file
@@ -2408,19 +1918,6 @@ class AutosubmitConfig(object):
         :rtype: str
         """
         return self.experiment_data['DEFAULT']['HPCARCH'].upper()
-
-    def set_platform(self, hpc):
-        """
-        Sets main platforms in experiment's config file
-
-        :param hpc: main platforms
-        :type: str
-        """
-        content = open(self._exp_parser_file).read()
-        if re.search('HPCARCH:.*', content):
-            content = content.replace(
-                re.search('HPCARCH:.*', content).group(0), "HPCARCH: " + hpc)
-        open(self._exp_parser_file, 'w').write(content)
 
     def set_last_as_command(self, command):
         """
@@ -2463,7 +1960,7 @@ class AutosubmitConfig(object):
         open(version_file, 'w').write(content)
         os.chmod(version_file, 0o755)
 
-    def get_version(self):
+    def get_version(self) -> str:
         """
         Returns version number of the current experiment from autosubmit's config file
 
@@ -2472,14 +1969,14 @@ class AutosubmitConfig(object):
         """
         return str(self.get_section(['CONFIG', 'AUTOSUBMIT_VERSION'], ""))
 
-    def get_total_jobs(self):
+    def get_total_jobs(self) -> int:
         """
         Returns max number of running jobs  from autosubmit's config file
 
         :return: max number of running jobs
         :rtype: int
         """
-        return int(self.get_section(['CONFIG', 'TOTALJOBS'], -1))
+        return int(self.get_section(['CONFIG', 'TOTALJOBS'], '-1'))
 
     def get_output_type(self):
         """
@@ -2498,33 +1995,22 @@ class AutosubmitConfig(object):
         """
         return self.get_section(['CONFIG', 'MAX_WALLCLOCK'], "")
 
-    def get_disable_recovery_threads(self, section):
-        """
-        Returns FALSE/TRUE
-        :return: recovery_threads_option
-        :rtype: str
-        """
-        if self.platforms_data.get(section, "false") != "false":
-            return str(self.platforms_data[section].get('DISABLE_RECOVERY_THREADS', "false")).lower()
-        else:
-            return "false"
-
     def get_max_processors(self):
         """
         Returns max processors from autosubmit's config file
 
         :rtype: str
         """
-        return self.get_section(['CONFIG', 'MAX_PROCESSORS'], -1)
+        return self.get_section(['CONFIG', 'MAX_PROCESSORS'], '-1')
 
-    def get_max_waiting_jobs(self):
+    def get_max_waiting_jobs(self) -> int:
         """
         Returns max number of waiting jobs from autosubmit's config file
 
         :return: main platforms
         :rtype: int
         """
-        return int(self.get_section(['CONFIG', 'MAXWAITINGJOBS'], -1))
+        return int(self.get_section(['CONFIG', 'MAXWAITINGJOBS'], '-1'))
 
     def get_default_job_type(self):
         """
@@ -2535,34 +2021,23 @@ class AutosubmitConfig(object):
         """
         return self.get_section(['PROJECT_FILES', 'JOB_SCRIPTS_TYPE'], 'bash')
 
-    def get_safetysleeptime(self):
+    def get_safetysleeptime(self) -> int:
         """
         Returns safety sleep time from autosubmit's config file
 
         :return: safety sleep time
         :rtype: int
         """
-        return int(self.get_section(['CONFIG', 'SAFETYSLEEPTIME'], 10))
+        return int(self.get_section(['CONFIG', 'SAFETYSLEEPTIME'], '10'))
 
-    def set_safetysleeptime(self, sleep_time):
-        """
-        Sets autosubmit's version in autosubmit's config file
-
-        :param sleep_time: value to set
-        :type sleep_time: int
-        """
-        content = open(self._conf_parser_file).read()
-        content = content.replace(re.search('SAFETYSLEEPTIME:.*', content).group(0), "SAFETYSLEEPTIME: %d" % sleep_time)
-        open(self._conf_parser_file, 'w').write(content)
-
-    def get_retrials(self):
+    def get_retrials(self) -> int:
         """
         Returns max number of retrials for job from autosubmit's config file
 
         :return: safety sleep time
         :rtype: int
         """
-        return self.get_section(['CONFIG', 'RETRIALS'], 0)
+        return int(self.get_section(['CONFIG', 'RETRIALS'], 0))
 
     def get_delay_retry_time(self):
         """
@@ -2642,15 +2117,6 @@ class AutosubmitConfig(object):
         yaml.dump(final_dict, yaml_file)
         ini_file.rename(Path(root_dir, ini_file.stem + ".yml"))
 
-    def get_notifications_crash(self):
-        """
-        Returns if the user has enabled the notifications from autosubmit's config file
-
-        :return: if notifications
-        :rtype: string
-        """
-        return self.get_section(['MAIL', 'NOTIFY_ON_REMOTE_FAIL'], True)
-
     def get_remote_dependencies(self):
         """
         Returns if the user has enabled the PRESUBMISSION configuration parameter from autosubmit's config file
@@ -2662,34 +2128,28 @@ class AutosubmitConfig(object):
         return "false"
         # return str(self.get_section(['CONFIG', 'PRESUBMISSION'], "false")).lower()
 
-    def get_wrapper_type(self, wrapper={}):
+    def get_wrapper_type(self, wrapper=None):
         """
         Returns what kind of wrapper (VERTICAL, MIXED-VERTICAL, HORIZONTAL, HYBRID, MULTI NONE) the user has configured in the autosubmit's config
 
         :return: wrapper type (or none)
         :rtype: string
         """
-        if len(wrapper) > 0:
+        if wrapper is None:
+            wrapper = {}
+        if wrapper:
             return wrapper.get('TYPE', self.experiment_data.get("WRAPPERS", {}).get("TYPE", ""))
-        else:
-            return None
+        return None
 
-    def get_wrapper_retrials(self, wrapper={}):
-        """
-        Returns max number of retrials for job from autosubmit's config file
-
-        :return: safety sleep time
-        :rtype: int
-        """
-        return wrapper.get('INNER_RETRIALS', self.experiment_data.get("WRAPPERS", {}).get("INNER_RETRIALS", 0))
-
-    def get_wrapper_policy(self, wrapper={}):
+    def get_wrapper_policy(self, wrapper=None):
         """
         Returns what kind of policy (flexible, strict, mixed ) the user has configured in the autosubmit's config
 
         :return: wrapper type (or none)
         :rtype: string
         """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('POLICY', self.experiment_data.get("WRAPPERS", {}).get("POLICY", 'flexible'))
 
     def get_wrappers(self):
@@ -2720,7 +2180,7 @@ class AutosubmitConfig(object):
 
         return jobs_in_wrapper
 
-    def get_extensible_wallclock(self, wrapper={}):
+    def get_extensible_wallclock(self, wrapper=None):
         """
         Gets extend_wallclock for the given wrapper
 
@@ -2729,97 +2189,41 @@ class AutosubmitConfig(object):
         :return: extend_wallclock
         :rtype: int
         """
+        if wrapper is None:
+            wrapper = {}
         return int(wrapper.get('EXTEND_WALLCLOCK', 0))
 
-    def get_x11_jobs(self):
-        """
-        Returns the jobs that should support x11, configured in the autosubmit's config
-
-        :return: expression (or none)
-        :rtype: string
-        """
-        return str(self.get_section(['CONFIG', 'X11_JOBS'], "false")).lower()
-
-    def get_wrapper_queue(self, wrapper={}):
+    def get_wrapper_queue(self, wrapper=None):
         """
         Returns the wrapper queue if not defined, will be the one of the first job wrapped
 
         :return: expression (or none)
         :rtype: string
         """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('QUEUE', self.experiment_data.get("WRAPPERS", {}).get("QUEUE", ""))
 
-    def get_wrapper_partition(self, wrapper={}):
+    def get_wrapper_partition(self, wrapper=None):
         """
         Returns the wrapper queue if not defined, will be the one of the first job wrapped
 
         :return: expression (or none)
         :rtype: string
         """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('PARTITION', self.experiment_data.get("WRAPPERS", {}).get("PARTITION", ""))
 
-    def get_min_wrapped_jobs(self, wrapper={}):
-        """
-         Returns the minium number of jobs that can be wrapped together as configured in autosubmit's config file
-
-        :return: minim number of jobs (or total jobs)
-        :rtype: int
-        """
-        return wrapper.get('MIN_WRAPPED', 2)
-
-    def get_max_wrapped_jobs(self, wrapper={}):
-        """
-         Returns the maximum number of jobs that can be wrapped together as configured in autosubmit's config file
-
-         :return: maximum number of jobs (or total jobs)
-         :rtype: int
-         """
-        return wrapper.get('MAX_WRAPPED', 999999999)
-
-    def get_max_wrapped_jobs_vertical(self, wrapper={}):
-        """
-         Returns the maximum number of jobs that can be wrapped together as configured in autosubmit's config file
-
-         :return: maximum number of jobs (or total jobs)
-         :rtype: int
-         """
-
-        return int(wrapper.get('MAX_WRAPPED_V', -1))
-
-    def get_max_wrapped_jobs_horizontal(self, wrapper={}):
-        """
-         Returns the maximum number of jobs that can be wrapped together as configured in autosubmit's config file
-
-         :return: maximum number of jobs (or total jobs)
-         :rtype: int
-         """
-        return int(self.get_section('MAX_WRAPPED_H', -1))
-
-    def get_min_wrapped_jobs_vertical(self, wrapper={}):
-        """
-         Returns the maximum number of jobs that can be wrapped together as configured in autosubmit's config file
-
-         :return: maximum number of jobs (or total jobs)
-         :rtype: int
-         """
-        return int(self.get_section('MIN_WRAPPED_V', 1))
-
-    def get_min_wrapped_jobs_horizontal(self, wrapper={}):
-        """
-         Returns the maximum number of jobs that can be wrapped together as configured in autosubmit's config file
-
-         :return: maximum number of jobs (or total jobs)
-         :rtype: int
-         """
-        return int(wrapper.get('MIN_WRAPPED_H', 1))
-
-    def get_wrapper_method(self, wrapper={}):
+    def get_wrapper_method(self, wrapper=None):
         """
          Returns the method of make the wrapper
 
          :return: method
          :rtype: string
          """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('METHOD', self.experiment_data.get("WRAPPERS", {}).get("METHOD", 'ASThread'))
 
     def get_wrapper_check_time(self):
@@ -2833,24 +2237,16 @@ class AutosubmitConfig(object):
 
         return wrapper.get("CHECK_TIME_WRAPPER", self.get_safetysleeptime())
 
-    def get_wrapper_machinefiles(self, wrapper={}):
+    def get_wrapper_machinefiles(self, wrapper=None):
         """
          Returns the strategy for creating the machinefiles in wrapper jobs
 
          :return: machinefiles function to use
          :rtype: string
          """
+        if wrapper is None:
+            wrapper = {}
         return wrapper.get('MACHINEFILES', self.experiment_data.get("WRAPPERS", {}).get("MACHINEFILES", ""))
-
-    def get_export(self, section):
-        """
-        Gets command line for being submitted with
-        :param section: job type
-        :type section: str
-        :return: wallclock time
-        :rtype: str
-        """
-        return self.get_section([section, 'EXPORT'], "")
 
     def get_copy_remote_logs(self):
         """
@@ -2888,21 +2284,6 @@ class AutosubmitConfig(object):
         """
         return self.get_section(['STORAGE', 'TYPE'], 'pkl')
 
-    @staticmethod
-    def is_valid_mail_address(mail_address):
-        if re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail_address,
-                    flags=re.IGNORECASE):
-            return True
-        else:
-            return False
-
-    def is_valid_communications_library(self):
-        library = self.get_communications_library()
-        return library in ['paramiko']
-
-    def is_valid_storage_type(self):
-        storage_type = self.get_storage_type()
-        return storage_type in ['pkl', 'db']
 
     def is_valid_jobs_in_wrapper(self, wrapper={}):
         expression = self.get_wrapper_jobs(wrapper)
@@ -2953,7 +2334,7 @@ class AutosubmitConfig(object):
         pass
 
     @staticmethod
-    def get_parser(parser_factory, file_path):
+    def get_parser(parser_factory, file_path) -> YAMLParser:
         """
         Gets parser for given file
 
@@ -2997,20 +2378,75 @@ class AutosubmitConfig(object):
                     "{}\n This file and the correctness of its content are necessary.".format(str(exp)))
         return parser
 
-    @staticmethod
-    def parse_placeholders(content, parameters):
-        """
-        Parse placeholders in content
 
-        :param content: content to be parsed
-        :type content: str
-        :param parameters: parameters to be used in parsing
-        :type parameters: dict
-        :return: parsed content
-        :rtype: str
-        """
-        matches = re.findall('%(?<!%%)[a-zA-Z0-9_.-]+%(?!%%)', content, flags=re.I)
-        for match in matches:
-            # replace all '%(?<!%%)\w+%(?!%%)' with parameters value
-            content = content.replace(match, parameters.get(match[1:-1], ""))
-        return content
+def _normalize_parameters_keys(parameters: Dict[str, Any], default_parameters: Dict[str, Any] = None) -> None:
+    """Modifies the given dictionary in-place, making keys all uppercase.
+
+    :param parameters: dictionary containing the parameters
+    :param default_parameters: dictionary containing the default parameters, they must remain in lower-case
+    :return: upper-case parameters
+    """
+    if not default_parameters:
+        default_parameters = {}
+
+    parameters_copy = parameters.copy()
+
+    for key, value in parameters_copy.items():
+        if key not in default_parameters.keys():
+            parameters[key.upper()] = value
+
+    del parameters_copy
+
+
+def deep_normalize(data: Dict[str, Any]) -> None:
+    """
+    Normalize a nested dictionary or similar mapping to uppercase.
+
+    This function recursively iterates through a dictionary, converting all keys to uppercase.
+    If a value is a dictionary, it calls itself recursively to normalize the nested dictionary.
+    If a value is a list, it iterates through the list and normalizes any dictionaries keys within it.
+    Other types of values are added to the normalized dictionary as is.
+
+    :param data: The dictionary to normalize.
+    :type data: Dict[str, Any]
+    :return: A new dictionary with all keys normalized to uppercase.
+    :rtype: Dict[str, Any]
+    """
+    d_copy = data.copy()
+    for key, val in d_copy.items():
+        normalized_key = key.upper()
+        if isinstance(val, collections.abc.Mapping):
+            deep_normalize(cast(Dict[str, Any], val))
+        elif isinstance(val, list):
+            normalized_list = []
+            for item in val:
+                if isinstance(item, collections.abc.Mapping):
+                    normalized_list.append(deep_normalize(cast(Dict[str, Any], item)))
+                else:
+                    normalized_list.append(item)
+            data[normalized_key] = normalized_list
+        elif key != normalized_key:
+            data[normalized_key] = val
+    del d_copy
+
+
+def _convert_list_to_string(data):
+    """Convert a list to a string"""
+    if type(data) is dict:
+        for key, val in data.items():
+            if isinstance(val, list):
+                data[key] = ",".join(val)
+            elif isinstance(val, dict):
+                _convert_list_to_string(data[key])
+    return data
+
+
+def _is_valid_mail_address(mail_address):
+    if re.match('^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$', mail_address,
+                flags=re.IGNORECASE):
+        return True
+    else:
+        return False
+
+
+__all__ = ['AutosubmitConfig', 'deep_normalize']
