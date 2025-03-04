@@ -538,13 +538,12 @@ class AutosubmitConfig(object):
         :param must_exists: If false, add the sections that are not present in the data dictionary.
         :return: The normalized data dictionary.
         """
-        data_fixed = data.copy()
-        data_fixed = self.deep_normalize(data_fixed)
-        self._normalize_default_section(data_fixed)
-        self._normalize_wrappers_section(data_fixed)
-        self._normalize_jobs_section(data_fixed, must_exists)
+        data = self.deep_normalize(data)
+        self._normalize_default_section(data)
+        self._normalize_wrappers_section(data)
+        self._normalize_jobs_section(data, must_exists)
 
-        return data_fixed
+        return data
 
     def _normalize_default_section(self, data_fixed: dict) -> None:
         default_section = data_fixed.get("DEFAULT", {})
@@ -712,7 +711,7 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.normalize_variables(new_file.data, must_exists=False)
+        new_file.data = self.normalize_variables(new_file.data.copy(), must_exists=False)
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -2010,8 +2009,8 @@ class AutosubmitConfig(object):
         :return: a dictionary containing tuples [parameter_name, parameter_value]
         :rtype: dict
         """
-        self.parameters = self.deep_parameters_export(self.experiment_data)
-        return self.parameters
+        return self.deep_parameters_export(self.experiment_data)
+
 
     def load_platform_parameters(self):
         """
