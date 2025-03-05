@@ -73,6 +73,10 @@ class AutosubmitConfig(object):
         self.starter_conf = dict()
         self.misc_files = []
         self.misc_data = list()
+        self.default_parameters = {'d': '%d%', 'd_': '%d_%', 'Y': '%Y%', 'Y_': '%Y_%',
+                                   'M': '%M%', 'M_': '%M_%', 'm': '%m%', 'm_': '%m_%'}
+
+        self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
 
     @property
     def jobs_data(self) -> Dict[str, Any]:
@@ -942,7 +946,6 @@ class AutosubmitConfig(object):
 
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data)
-            parameters = self.normalize_parameters_keys(parameters)
 
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
@@ -1766,19 +1769,32 @@ class AutosubmitConfig(object):
         parameters["AS_ENV_CURRENT_USER"] = os.environ.get("SUDO_USER", os.environ.get("USER", None))
         return parameters
 
+    def needs_reload(self) -> bool:
+        """
+        Check if any configuration file has been modified and needs to be reloaded.
+
+        Returns:
+            bool: True if a reload is needed, False otherwise.
+        """
+        if len(self.current_loaded_files) == 0:
+            return True
+        if self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True):
+            for file in self.current_loaded_files.keys():
+                if os.path.exists(file):
+                    mod_time = os.path.getmtime(file)
+                    if mod_time > self.current_loaded_files[file]:
+                        return True
+        return False
+
     def reload(self, force_load=False, only_experiment_data=False, save=False):
         """
         Reloads the configuration files
         :param force_load: If True, reloads all the files, if False, reloads only the modified files
         """
         # Check if the files have been modified or if they need a reload
-        files_to_reload = []
         # Reload only the files that have been modified
         # Only reload the data if there are changes or there is no data loaded yet
-        if force_load or (
-                self.data_changed and self.experiment_data.get("CONFIG", {}).get("RELOAD_WHILE_RUNNING", True)):
-            files_to_reload = self.current_loaded_files.keys()
-        if len(files_to_reload) > 0 or len(self.current_loaded_files) == 0:
+        if force_load or self.needs_reload():
             # Load all the files starting from the $expid/conf folder
             starter_conf = {}
             self.current_loaded_files = {}  # reset loaded files
@@ -1813,21 +1829,21 @@ class AutosubmitConfig(object):
                 del self.experiment_data["AS_TEMP"]
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
+            self.experiment_data['ROOTDIR'] = os.path.join(
+                BasicConfig.LOCAL_ROOT_DIR, self.expid)
+            self.experiment_data['PROJDIR'] = self.get_project_dir()
             self.experiment_data = self.normalize_variables(self.experiment_data, must_exists=True)
             self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
-
-        self.load_last_run()
-        self.misc_data = {}
-        self.misc_files = list(set(self.misc_files))
-        for filename in self.misc_files:
-            self.misc_data = self.unify_conf(self.misc_data,
-                                             self.load_config_file(self.misc_data, Path(filename), load_misc=True))
+            self.misc_data = {}
+            self.misc_files = list(set(self.misc_files))
+            for filename in self.misc_files:
+                self.misc_data = self.unify_conf(self.misc_data,
+                                                 self.load_config_file(self.misc_data, Path(filename), load_misc=True))
 
     def load_last_run(self):
         try:
-            self.metadata_folder = Path(self.conf_folder_yaml) / "metadata"
             if not self.metadata_folder.exists():
                 os.makedirs(self.metadata_folder)
                 os.chmod(self.metadata_folder, 0o775)
@@ -1861,8 +1877,6 @@ class AutosubmitConfig(object):
         # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
         # metadata folder is inside the experiment folder / conf folder / metadata folder
         # If this function is called before load_last_run, we need to load the last run
-        if self.last_experiment_data and len(self.last_experiment_data) == 0:
-            self.load_last_run()
         if (Path(self.metadata_folder) / "experiment_data.yml").exists():
             shutil.copy(Path(self.metadata_folder) / "experiment_data.yml",
                         Path(self.metadata_folder) / "experiment_data.yml.bak")
@@ -1870,6 +1884,8 @@ class AutosubmitConfig(object):
             with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
                 # Not using typ="safe" to perserve the readability of the file
                 YAML().dump(self.experiment_data, stream)
+            Path(self.metadata_folder / "experiment_data.yml").chmod(0o755)
+            (Path(self.metadata_folder) / "experiment_data.yml.bak").unlink()
         except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 os.remove(Path(self.metadata_folder) / "experiment_data.yml")
@@ -1965,42 +1981,44 @@ class AutosubmitConfig(object):
                 experiment_data[key] = self.deep_add_missing_starter_conf(experiment_data[key], starter_conf[key])
         return experiment_data
 
-    def deep_get_long_key(self, section_data, long_key):
+    @staticmethod
+    def deep_get_long_key(section_data, long_key):
         parameters_dict = dict()
-        for key, val in section_data.items():
-            if isinstance(val, collections.abc.Mapping):
-                parameters_dict.update(self.deep_get_long_key(section_data.get(key, {}), long_key + "." + key))
-            else:
-                parameters_dict[long_key + "." + key] = val
+        stack = [(section_data, long_key)]
+
+        while stack:
+            current_data, current_key = stack.pop()
+            for key, val in current_data.items():
+                new_key = current_key + "." + key
+                if isinstance(val, collections.abc.Mapping):
+                    stack.append((val, new_key))
+                else:
+                    parameters_dict[new_key] = val
+
         return parameters_dict
 
-    def normalize_parameters_keys(self, parameters, default_parameters={}):
-        """
-        Normalize the parameters keys to be exportable in the templates case-insensitive.
-        :param parameters: dictionary containing the parameters
-        :param default_parameters: dictionary containing the default parameters, they must remain in lower-case
-        :return: upper-case parameters
-        """
-        upper_case_parameters = dict()
-        for key in parameters.keys():
-            # if key is not instance of default_parameters
-            if key not in default_parameters.keys():
-                upper_case_parameters[key.upper()] = parameters[key]
-        return upper_case_parameters
 
-    def deep_parameters_export(self, data):
+    @staticmethod
+    def deep_parameters_export(data, default_parameters):
         """
         Export all variables of this experiment.
         Resultant format will be Section.{subsections1...subsectionN} = Value.
-        In other words, it plain the dictionary into one level
+        In other words, it plain the dictionary into one level.
         """
         parameters_dict = dict()
-        for key in data.keys():
-            if isinstance(data.get(key, {}), collections.abc.Mapping):
-                parameters_dict.update(self.deep_get_long_key(data.get(key, {}), key))
-            else:
-                parameters_dict[key] = data.get(key, {})
-        parameters_dict = self.normalize_parameters_keys(parameters_dict)
+        stack = [(data, '')]
+
+        while stack:
+            current_data, current_key = stack.pop()
+            for key, val in current_data.items():
+                new_key = f"{current_key}.{key}" if current_key else key
+                if isinstance(val, collections.abc.Mapping):
+                    stack.append((val, new_key))
+                else:
+                    if new_key not in default_parameters:
+                        new_key = new_key.upper()
+                    parameters_dict[new_key] = val
+
         return parameters_dict
 
     def load_parameters(self):
@@ -2009,7 +2027,7 @@ class AutosubmitConfig(object):
         :return: a dictionary containing tuples [parameter_name, parameter_value]
         :rtype: dict
         """
-        return self.deep_parameters_export(self.experiment_data)
+        return self.deep_parameters_export(self.experiment_data, self.default_parameters)
 
 
     def load_platform_parameters(self):
