@@ -12,7 +12,7 @@ import pytest
     (True, "older", ['%NOTFOUND%', '%TEST%', '%TEST2%']),
     (True, "newer", ['%NOTFOUND%', '%TEST%', '%TEST2%']),
 ])
-def test_reload(autosubmit_config, tmpdir, force_load, current_loaded_files, expected_result):
+def test_reload_unittest(autosubmit_config, tmpdir, force_load, current_loaded_files, expected_result):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={})
