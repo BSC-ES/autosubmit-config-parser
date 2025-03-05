@@ -1829,9 +1829,6 @@ class AutosubmitConfig(object):
                 del self.experiment_data["AS_TEMP"]
             # IF expid and hpcarch are not defined, use the ones from the minimal.yml file
             self.deep_add_missing_starter_conf(self.experiment_data, starter_conf)
-            self.experiment_data['ROOTDIR'] = os.path.join(
-                BasicConfig.LOCAL_ROOT_DIR, self.expid)
-            self.experiment_data['PROJDIR'] = self.get_project_dir()
             self.experiment_data = self.normalize_variables(self.experiment_data, must_exists=True)
             self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
@@ -1841,6 +1838,11 @@ class AutosubmitConfig(object):
             for filename in self.misc_files:
                 self.misc_data = self.unify_conf(self.misc_data,
                                                  self.load_config_file(self.misc_data, Path(filename), load_misc=True))
+            self.experiment_data['ROOTDIR'] = os.path.join(
+                BasicConfig.LOCAL_ROOT_DIR, self.expid)
+            self.experiment_data['PROJDIR'] = self.get_project_dir()
+            self.experiment_data.update(BasicConfig().props())
+            pass
 
     def load_last_run(self):
         try:
