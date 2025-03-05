@@ -1844,32 +1844,6 @@ class AutosubmitConfig(object):
                                                  self.load_config_file(self.misc_data, Path(filename), load_misc=True))
 
 
-    def load_last_run(self):
-        try:
-            if not self.metadata_folder.exists():
-                os.makedirs(self.metadata_folder)
-                os.chmod(self.metadata_folder, 0o775)
-            if not os.access(self.metadata_folder, os.W_OK):
-                print(f"WARNING: Can't save the experiment data into {self.metadata_folder}, no write permissions")
-            else:
-                # Load data from last run
-                if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                    with open(Path(self.metadata_folder) / "experiment_data.yml", 'r') as stream:
-                        yaml_loader = YAML(typ='safe')
-                        self.last_experiment_data = yaml_loader.load(stream)  # Can be 0 bytes, if that happens, it will be None
-                    if not self.last_experiment_data:
-                        self.last_experiment_data = {}
-                        self.data_changed = True
-                    else:
-                        self.data_changed = self.quick_deep_diff(self.experiment_data, self.last_experiment_data)
-                else:
-                    self.last_experiment_data = {}
-                    self.data_changed = True
-        except IOError as e:
-            self.last_experiment_data = {}
-            self.data_changed = True
-            Log.warning(f"Can't load the last experiment data: {e}")
-
     def save(self):
         """
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
@@ -1878,7 +1852,6 @@ class AutosubmitConfig(object):
         # changed = False
         # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
         # metadata folder is inside the experiment folder / conf folder / metadata folder
-        # If this function is called before load_last_run, we need to load the last run
         if (Path(self.metadata_folder) / "experiment_data.yml").exists():
             shutil.copy(Path(self.metadata_folder) / "experiment_data.yml",
                         Path(self.metadata_folder) / "experiment_data.yml.bak")
@@ -1981,23 +1954,6 @@ class AutosubmitConfig(object):
             elif isinstance(starter_conf[key], collections.abc.Mapping):
                 experiment_data[key] = self.deep_add_missing_starter_conf(experiment_data[key], starter_conf[key])
         return experiment_data
-
-    @staticmethod
-    def deep_get_long_key(section_data, long_key):
-        parameters_dict = dict()
-        stack = [(section_data, long_key)]
-
-        while stack:
-            current_data, current_key = stack.pop()
-            for key, val in current_data.items():
-                new_key = current_key + "." + key
-                if isinstance(val, collections.abc.Mapping):
-                    stack.append((val, new_key))
-                else:
-                    parameters_dict[new_key] = val
-
-        return parameters_dict
-
 
     @staticmethod
     def deep_parameters_export(data, default_parameters):
