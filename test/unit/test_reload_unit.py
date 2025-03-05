@@ -33,12 +33,15 @@ def test_reload_unittest(autosubmit_config, tmpdir, force_load, current_loaded_f
         assert as_conf.experiment_data.get('VAR', None) is None
 
 
-@pytest.mark.parametrize("current_loaded_files, expected_result", [
-    (None, True),
-    ("older", True),
-    ("newer", False),
+@pytest.mark.parametrize("current_loaded_files, reload_while_running, expected_result", [
+    (None, True, True),
+    ("older", True, True),
+    ("newer", True, False),
+    (None, False, True),
+    ("older", False, False),
+    ("newer", False, False),
 ])
-def test_needs_reload(autosubmit_config, tmpdir, current_loaded_files, expected_result):
+def test_needs_reload(autosubmit_config, tmpdir, current_loaded_files, reload_while_running, expected_result):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={})
@@ -50,6 +53,11 @@ def test_needs_reload(autosubmit_config, tmpdir, current_loaded_files, expected_
     if current_loaded_files:
         if current_loaded_files == "older":
             as_conf.current_loaded_files[as_conf.conf_folder_yaml / 'test.yml'] = time.time() - 1000
+            as_conf.current_loaded_files[as_conf.conf_folder_yaml / 'test2.yml'] = time.time() - 1000
         else:
             as_conf.current_loaded_files[as_conf.conf_folder_yaml / 'test.yml'] = time.time() + 1000
+            as_conf.current_loaded_files[as_conf.conf_folder_yaml / 'test2.yml'] = time.time() + 1000
+    if not reload_while_running:
+        as_conf.experiment_data["CONFIG"] = {}
+        as_conf.experiment_data["CONFIG"]["RELOAD_WHILE_RUNNING"] = False
     assert as_conf.needs_reload() == expected_result
