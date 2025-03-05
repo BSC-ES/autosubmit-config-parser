@@ -12,10 +12,11 @@ import pytest
     (True, "older", ['%NOTFOUND%', '%TEST%', '%TEST2%']),
     (True, "newer", ['%NOTFOUND%', '%TEST%', '%TEST2%']),
 ])
-def test_reload(autosubmit_config, force_load, current_loaded_files, expected_result):
+def test_reload(autosubmit_config, tmpdir, force_load, current_loaded_files, expected_result):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={})
+    as_conf.conf_folder_yaml = tmpdir / 'conf'
     Path(as_conf.conf_folder_yaml).mkdir(parents=True, exist_ok=True)
 
     with open(as_conf.conf_folder_yaml / 'test.yml', 'w') as f:
@@ -37,10 +38,11 @@ def test_reload(autosubmit_config, force_load, current_loaded_files, expected_re
     ("older", True),
     ("newer", False),
 ])
-def test_needs_reload(autosubmit_config, current_loaded_files, expected_result):
+def test_needs_reload(autosubmit_config, tmpdir, current_loaded_files, expected_result):
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={})
+    as_conf.conf_folder_yaml = tmpdir / 'conf'
     Path(as_conf.conf_folder_yaml).mkdir(parents=True, exist_ok=True)
 
     with open(as_conf.conf_folder_yaml / 'test.yml', 'w') as f:
