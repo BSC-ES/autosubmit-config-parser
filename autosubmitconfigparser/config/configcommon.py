@@ -945,7 +945,7 @@ class AutosubmitConfig(object):
         dynamic_variables, pattern, start_long = self._initialize_variables(in_the_end)
 
         if parameters is None:
-            parameters = self.deep_parameters_export(self.experiment_data)
+            parameters = self.deep_parameters_export(self.experiment_data, self.default_parameters)
 
         if dict_keys_type is None:
             dict_keys_type = self.check_dict_keys_type(parameters)
@@ -1887,7 +1887,6 @@ class AutosubmitConfig(object):
                 # Not using typ="safe" to perserve the readability of the file
                 YAML().dump(self.experiment_data, stream)
             Path(self.metadata_folder / "experiment_data.yml").chmod(0o755)
-            (Path(self.metadata_folder) / "experiment_data.yml.bak").unlink()
         except Exception:
             if (Path(self.metadata_folder) / "experiment_data.yml").exists():
                 os.remove(Path(self.metadata_folder) / "experiment_data.yml")
