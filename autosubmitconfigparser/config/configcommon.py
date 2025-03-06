@@ -1673,7 +1673,7 @@ class AutosubmitConfig(object):
             current_data_aux = self.substitute_dynamic_variables(current_data_aux)
             filename = Path(current_data_aux["AS_TEMP"]["FILENAME_TO_LOAD"])
             if not filename.exists() and "%" not in str(filename):
-                print(f"Yaml file {filename} not found")
+                Log.warning(f"Yaml file {filename} not found")
             if filename.exists() and str(filename) not in self.current_loaded_files:
                 # Check if this file is already loaded. If not, load it
                 self.current_loaded_files[str(filename)] = filename.stat().st_mtime
