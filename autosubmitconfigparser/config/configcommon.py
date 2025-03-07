@@ -1963,7 +1963,7 @@ class AutosubmitConfig(object):
         In other words, it plain the dictionary into one level.
         """
         parameters_dict = dict()
-        stack = [(data, '')]
+        stack = [(data.copy(), '')]
 
         while stack:
             current_data, current_key = stack.pop()
@@ -1972,8 +1972,6 @@ class AutosubmitConfig(object):
                 if isinstance(val, collections.abc.Mapping):
                     stack.append((val, new_key))
                 else:
-                    if new_key not in default_parameters:
-                        new_key = new_key.upper()
                     parameters_dict[new_key] = val
 
         return parameters_dict
