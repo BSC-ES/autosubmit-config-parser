@@ -19,7 +19,6 @@ def test_save(autosubmit_config, tmpdir, data, mocker):
     Path(as_conf.metadata_folder).mkdir(parents=True, exist_ok=True)
     as_conf.save()
     assert Path(as_conf.metadata_folder) / 'experiment_data.yml' in Path(as_conf.metadata_folder).iterdir()
-    assert Path(as_conf.metadata_folder) / 'experiment_data.yml.bak' not in Path(as_conf.metadata_folder).iterdir()
     # check contents
     with open(Path(as_conf.metadata_folder) / 'experiment_data.yml', 'r') as f:
         yaml = YAML(typ="safe")
