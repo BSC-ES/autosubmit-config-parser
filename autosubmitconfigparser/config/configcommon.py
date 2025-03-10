@@ -1842,20 +1842,16 @@ class AutosubmitConfig(object):
             for filename in self.misc_files:
                 self.misc_data = self.unify_conf(self.misc_data,
                                                  self.load_config_file(self.misc_data, Path(filename), load_misc=True))
-            self.load_hpcarch_parameters()
+            self.load_current_hpcarch_parameters()
 
-    def load_hpcarch_parameters(self):
+    def load_current_hpcarch_parameters(self) -> None:
         """
-        Load the parameters of the current HPC architecture
+        Load custom HPCARCH parameters
         """
-        hpcarch = self.experiment_data.get("DEFAULT", {}).get("HPCARCH", "LOCAL")
+        hpcarch: str = self.experiment_data.get("DEFAULT", {}).get("HPCARCH", "LOCAL")
         for name, value in self.experiment_data.get("PLATFORMS", {}).get(hpcarch, {}).items():
             self.experiment_data[f"HPC{name}"] = value
         self.experiment_data["HPCARCH"] = hpcarch
-        if hpcarch == "LOCAL":
-            self.experiment_data["HPCSCRATCH_DIR"] = self.experiment_data["ROOTDIR"]
-        else:
-            self.experiment_data["HPCROOTDIR"] = f"{self.experiment_data['HPCSCRATCH_DIR']}/{self.experiment_data['HPCPROJECT']}/{self.experiment_data['HPCUSER']}/{self.expid}"
 
     def save(self):
         """
