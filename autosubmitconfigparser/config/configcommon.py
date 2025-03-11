@@ -715,7 +715,7 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.normalize_variables(new_file.data.copy(), must_exists=False)
+        new_file.data = self.normalize_variables(new_file.data.copy(), must_exists=False)  # TODO Figure out why this .copy is needed
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
