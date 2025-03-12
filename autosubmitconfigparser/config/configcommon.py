@@ -32,6 +32,7 @@ from typing import List, Union, Any, Tuple, Dict
 
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
+from exceptiongroup import suppress
 from pyparsing import nestedExpr
 from ruamel.yaml import YAML
 
@@ -1837,12 +1838,31 @@ class AutosubmitConfig(object):
             self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
+            if not self.experiment_data.get("AUTOSUBMIT", {}):  # Reserved namespace for autosubmit
+                self.experiment_data["AUTOSUBMIT"] = {}
+            else:
+                Log.warning("AUTOSUBMIT namespace is reserved for Autosubmit, please don't use it in your configuration")
             self.misc_data = {}
             self.misc_files = list(set(self.misc_files))
             for filename in self.misc_files:
                 self.misc_data = self.unify_conf(self.misc_data,
                                                  self.load_config_file(self.misc_data, Path(filename), load_misc=True))
             self.load_current_hpcarch_parameters()
+            self.load_workflow_commit()
+
+    def load_workflow_commit(self) -> None:
+        """
+        Load the workflow commit from the .git folder
+        """
+        self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = "not-versioned"
+        project_dir = f"{self.experiment_data.get('ROOTDIR', '')}/proj/{self.experiment_data.get('PROJECT', {}).get('PROJECT_DESTINATION', 'git_project')}"
+        if Path(project_dir).joinpath(".git").exists():
+            with suppress(Exception):
+                self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = subprocess.check_output(
+                    "git rev-parse HEAD",
+                    cwd=project_dir,
+                    shell=True
+                ).decode(locale.getpreferredencoding()).strip("\n")
 
     def load_current_hpcarch_parameters(self) -> None:
         """
