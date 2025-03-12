@@ -32,7 +32,7 @@ from typing import List, Union, Any, Tuple, Dict
 
 from bscearth.utils.date import parse_date
 from configobj import ConfigObj
-from exceptiongroup import suppress
+from contextlib import suppress
 from pyparsing import nestedExpr
 from ruamel.yaml import YAML
 
