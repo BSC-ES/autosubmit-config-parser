@@ -1,5 +1,18 @@
 from pathlib import Path
 import subprocess
+from log.log import Log
+
+
+def test_add_autosubmit_dict(autosubmit_config, mocker):
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data={})
+    as_conf._add_autosubmit_dict()
+    assert "AUTOSUBMIT" in as_conf.experiment_data
+    # test log.warning has been called
+    mocker.patch.object(Log, "warning")
+    as_conf._add_autosubmit_dict()
+    Log.warning.assert_called_once()
 
 
 def test_load_workflow_commit(autosubmit_config, tmpdir):
