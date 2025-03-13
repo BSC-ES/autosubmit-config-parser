@@ -1838,10 +1838,10 @@ class AutosubmitConfig(object):
             self.experiment_data = self.deep_read_loops(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
-            if not self.experiment_data.get("AUTOSUBMIT", {}):  # Reserved namespace for autosubmit
+            if "AUTOSUBMIT" not in self.experiment_data:  # Reserved namespace for autosubmit
                 self.experiment_data["AUTOSUBMIT"] = {}
             else:
-                Log.warning("AUTOSUBMIT namespace is reserved for Autosubmit, please don't use it in your configuration")
+                Log.warning("AUTOSUBMIT namespace is reserved. Please don't use it in your configuration, as keys could be overwritten.")
             self.misc_data = {}
             self.misc_files = list(set(self.misc_files))
             for filename in self.misc_files:
@@ -1854,7 +1854,6 @@ class AutosubmitConfig(object):
         """
         Load the workflow commit from the .git folder
         """
-        self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = "not-versioned"
         project_dir = f"{self.experiment_data.get('ROOTDIR', '')}/proj/{self.experiment_data.get('PROJECT', {}).get('PROJECT_DESTINATION', 'git_project')}"
         if Path(project_dir).joinpath(".git").exists():
             with suppress(Exception):
