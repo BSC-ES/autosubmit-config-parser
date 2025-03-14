@@ -1858,23 +1858,26 @@ class AutosubmitConfig(object):
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
         :return: True if the data has changed, False otherwise
         """
-        # changed = False
-        # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
-        # metadata folder is inside the experiment folder / conf folder / metadata folder
-        if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-            shutil.copy(Path(self.metadata_folder) / "experiment_data.yml",
-                        Path(self.metadata_folder) / "experiment_data.yml.bak")
-        try:
-            with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                # Not using typ="safe" to perserve the readability of the file
-                YAML().dump(self.experiment_data, stream)
-            Path(self.metadata_folder / "experiment_data.yml").chmod(0o755)
-        except Exception:
-            if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                os.remove(Path(self.metadata_folder) / "experiment_data.yml")
-            self.data_changed = True
-            self.last_experiment_data = {}
-        return self.data_changed
+        if self.is_current_real_user_owner:
+            if not self.metadata_folder.exists():
+                self.metadata_folder.mkdir(parents=True, exist_ok=True)
+                self.metadata_folder.chmod(0o755)
+
+            if self.metadata_folder.joinpath("experiment_data.yml").exists():
+                shutil.copy(self.metadata_folder.joinpath("experiment_data.yml"),
+                            self.metadata_folder.joinpath("experiment_data.yml.bak"))
+
+            try:
+                with open(self.metadata_folder.joinpath("experiment_data.yml"), 'w') as stream:
+                    # Not using typ="safe" to perserve the readability of the file
+                    YAML().dump(self.experiment_data, stream)
+                self.metadata_folder.joinpath("experiment_data.yml").chmod(0o755)
+            except Exception:
+                if self.metadata_folder.joinpath("experiment_data.yml").exists():
+                    os.remove(self.metadata_folder.joinpath("experiment_data.yml"))
+                self.data_changed = True
+                self.last_experiment_data = {}
+
 
     def detailed_deep_diff(self, current_data, last_run_data, level=0):
         """

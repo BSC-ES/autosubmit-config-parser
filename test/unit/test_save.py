@@ -4,19 +4,16 @@ from ruamel.yaml import YAML
 
 
 @pytest.mark.parametrize("data", [
-    pytest.param(
-        {
-            "DEFAULT": {
-                "HPCARCH": "local",
-            },
+    {
+        "DEFAULT": {
+            "HPCARCH": "local",
         },
-        id="save",
-    ),
-])
+    },
+], ids=["local"])
 def test_save(autosubmit_config, tmpdir, data, mocker):
+    data['ROOTDIR'] = tmpdir.strpath
+    data['AS_ENV_CURRENT_USER'] = Path(tmpdir).owner()
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
-    as_conf.metadata_folder = tmpdir / 'metadata'
-    Path(as_conf.metadata_folder).mkdir(parents=True, exist_ok=True)
     as_conf.save()
     assert Path(as_conf.metadata_folder) / 'experiment_data.yml' in Path(as_conf.metadata_folder).iterdir()
     # check contents
