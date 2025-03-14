@@ -1,6 +1,5 @@
 from pathlib import Path
 from shutil import rmtree
-from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Protocol, TYPE_CHECKING
 
 import pytest
