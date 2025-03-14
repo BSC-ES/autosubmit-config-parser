@@ -125,6 +125,7 @@ def test_custom_config_for(temp_folder: Path, default_yaml_file: Dict[str, Any],
     prepare_yaml_files(default_yaml_file, temp_folder)
     as_conf = AutosubmitConfig("test")
     as_conf.conf_folder_yaml = Path(temp_folder)
+    as_conf.load_workflow_commit = MagicMock()
     as_conf.reload(True)
     for file_name in project_yaml_files.keys():
         assert temp_folder / file_name in as_conf.current_loaded_files.keys()
