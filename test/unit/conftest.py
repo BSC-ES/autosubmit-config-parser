@@ -1,12 +1,12 @@
 from pathlib import Path
 from shutil import rmtree
-from tempfile import TemporaryDirectory
 from typing import Any, Dict, Optional, Protocol, TYPE_CHECKING
 
 import pytest
 
 from autosubmitconfigparser.config.basicconfig import BasicConfig
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
+from py.path import local as LocalPath
 
 if TYPE_CHECKING:
     import pytest_mock
@@ -171,7 +171,8 @@ def as_conf_large(autosubmit_config: AutosubmitConfigFactory) -> AutosubmitConfi
 @pytest.fixture(scope="function")
 def autosubmit_config(
         request: pytest.FixtureRequest,
-        mocker: "pytest_mock.MockerFixture") -> AutosubmitConfigFactory:
+        mocker: "pytest_mock.MockerFixture",
+        tmpdir: "LocalPath") -> AutosubmitConfigFactory:
     """Return a factory for ``AutosubmitConfig`` objects.
 
     Abstracts the necessary mocking in ``AutosubmitConfig`` and related objects,
@@ -184,8 +185,8 @@ def autosubmit_config(
     """
 
     original_root_dir = BasicConfig.LOCAL_ROOT_DIR
-    tmp_dir = TemporaryDirectory()
-    tmp_path = Path(tmp_dir.name)
+    tmp_dir = tmpdir
+    tmp_path = Path(tmp_dir)
 
     # Mock this as otherwise BasicConfig.read resets our other mocked values above.
     mocker.patch.object(BasicConfig, "read", autospec=True)

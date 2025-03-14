@@ -627,7 +627,8 @@ class AutosubmitConfig(object):
             wallclock = data_fixed["JOBS"][job].get("WALLCLOCK", "")
             if wallclock and re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
                 # Truncate SS to "HH:MM"
-                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
+                Log.warning(
+                    f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
                 data_fixed["JOBS"][job]["WALLCLOCK"] = wallclock[:5]
 
     @staticmethod
@@ -715,7 +716,8 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.normalize_variables(new_file.data.copy(), must_exists=False)  # TODO Figure out why this .copy is needed
+        new_file.data = self.normalize_variables(new_file.data.copy(),
+                                                 must_exists=False)  # TODO Figure out why this .copy is needed
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -1858,23 +1860,25 @@ class AutosubmitConfig(object):
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
         :return: True if the data has changed, False otherwise
         """
-        # changed = False
-        # check if the folder exists and we have write permissions, if folder doesn't exist create it with rwx/rwx/r-x permissions
-        # metadata folder is inside the experiment folder / conf folder / metadata folder
-        if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-            shutil.copy(Path(self.metadata_folder) / "experiment_data.yml",
-                        Path(self.metadata_folder) / "experiment_data.yml.bak")
-        try:
-            with open(Path(self.metadata_folder) / "experiment_data.yml", 'w') as stream:
-                # Not using typ="safe" to perserve the readability of the file
-                YAML().dump(self.experiment_data, stream)
-            Path(self.metadata_folder / "experiment_data.yml").chmod(0o755)
-        except Exception:
-            if (Path(self.metadata_folder) / "experiment_data.yml").exists():
-                os.remove(Path(self.metadata_folder) / "experiment_data.yml")
-            self.data_changed = True
-            self.last_experiment_data = {}
-        return self.data_changed
+        if self.is_current_real_user_owner:
+            if not self.metadata_folder.exists():
+                self.metadata_folder.mkdir(parents=True, exist_ok=True)
+                self.metadata_folder.chmod(0o755)
+
+            if self.metadata_folder.joinpath("experiment_data.yml").exists():
+                shutil.copy(self.metadata_folder.joinpath("experiment_data.yml"),
+                            self.metadata_folder.joinpath("experiment_data.yml.bak"))
+
+            try:
+                with open(self.metadata_folder.joinpath("experiment_data.yml"), 'w') as stream:
+                    # Not using typ="safe" to perserve the readability of the file
+                    YAML().dump(self.experiment_data, stream)
+                self.metadata_folder.joinpath("experiment_data.yml").chmod(0o755)
+            except Exception:
+                if self.metadata_folder.joinpath("experiment_data.yml").exists():
+                    os.remove(self.metadata_folder.joinpath("experiment_data.yml"))
+                self.data_changed = True
+                self.last_experiment_data = {}
 
     def detailed_deep_diff(self, current_data, last_run_data, level=0):
         """
@@ -1992,7 +1996,6 @@ class AutosubmitConfig(object):
         :rtype: dict
         """
         return self.deep_parameters_export(self.experiment_data, self.default_parameters)
-
 
     def load_platform_parameters(self):
         """
