@@ -27,7 +27,7 @@ def test_save(autosubmit_config, tmpdir, mocker, data, owner):
         assert not Path(as_conf.metadata_folder).exists()
     else:
         assert Path(as_conf.metadata_folder).exists()
-        assert Path(as_conf.metadata_folder) / 'experiment_data.yml' in Path(as_conf.metadata_folder).iterdir()
+        assert (Path(as_conf.metadata_folder) / 'experiment_data.yml').exists()
 
         # check contents
         with open(Path(as_conf.metadata_folder) / 'experiment_data.yml', 'r') as f:
@@ -36,8 +36,7 @@ def test_save(autosubmit_config, tmpdir, mocker, data, owner):
 
         # Test .bak generated.
         as_conf.save()
-        assert Path(as_conf.metadata_folder) / 'experiment_data.yml.bak' in Path(as_conf.metadata_folder).iterdir()
-
+        assert (Path(as_conf.metadata_folder) / 'experiment_data.yml.bak').exists()
         # force fail save
         mocker.patch("builtins.open", side_effect=Exception("Forced exception"))
         mocker.patch("shutil.copyfile", return_value=True)
