@@ -2,10 +2,6 @@ import pytest
 from pathlib import Path
 from ruamel.yaml import YAML
 
-import pytest
-from pathlib import Path
-from ruamel.yaml import YAML
-
 
 @pytest.mark.parametrize("data, owner", [
     ({
