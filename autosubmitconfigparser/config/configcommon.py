@@ -627,7 +627,8 @@ class AutosubmitConfig(object):
             wallclock = data_fixed["JOBS"][job].get("WALLCLOCK", "")
             if wallclock and re.match(r'^\d{2}:\d{2}:\d{2}$', wallclock):
                 # Truncate SS to "HH:MM"
-                Log.warning(f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
+                Log.warning(
+                    f"Wallclock {wallclock} is in HH:MM:SS format. Autosubmit doesn't suppport ( yet ) the seconds. Truncating to HH:MM")
                 data_fixed["JOBS"][job]["WALLCLOCK"] = wallclock[:5]
 
     @staticmethod
@@ -715,7 +716,8 @@ class AutosubmitConfig(object):
         # load yaml file with ruamel.yaml
 
         new_file = AutosubmitConfig.get_parser(self.parser_factory, yaml_file)
-        new_file.data = self.normalize_variables(new_file.data.copy(), must_exists=False)  # TODO Figure out why this .copy is needed
+        new_file.data = self.normalize_variables(new_file.data.copy(),
+                                                 must_exists=False)  # TODO Figure out why this .copy is needed
         if new_file.data.get("DEFAULT", {}).get("CUSTOM_CONFIG", None) is not None:
             new_file.data["DEFAULT"]["CUSTOM_CONFIG"] = self.convert_list_to_string(
                 new_file.data["DEFAULT"]["CUSTOM_CONFIG"])
@@ -1878,7 +1880,6 @@ class AutosubmitConfig(object):
                 self.data_changed = True
                 self.last_experiment_data = {}
 
-
     def detailed_deep_diff(self, current_data, last_run_data, level=0):
         """
         Returns a dictionary with for each key, the difference between the current configuration and the last_run_data
@@ -1995,7 +1996,6 @@ class AutosubmitConfig(object):
         :rtype: dict
         """
         return self.deep_parameters_export(self.experiment_data, self.default_parameters)
-
 
     def load_platform_parameters(self):
         """

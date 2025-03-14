@@ -8,6 +8,7 @@ import pytest
 from autosubmitconfigparser.config.basicconfig import BasicConfig
 from autosubmitconfigparser.config.configcommon import AutosubmitConfig
 from py.path import local as LocalPath
+
 if TYPE_CHECKING:
     import pytest_mock
 
