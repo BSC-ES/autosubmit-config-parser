@@ -33,8 +33,10 @@ def test_load_workflow_commit(autosubmit_config, tmpdir):
     project_dir = f"{as_conf.experiment_data.get('ROOTDIR', '')}/proj"
 
     Path(project_dir).mkdir(parents=True, exist_ok=True)
+    # Project root is third parent, ../../../ (zero-indexed).
+    project_path = Path(__file__).parents[2]
     # git clone this project
-    output = subprocess.check_output("git clone https://github.com/BSC-ES/autosubmit-config-parser git_project",
+    output = subprocess.check_output(f"git clone file://{project_path} git_project",
                                      cwd=project_dir, shell=True)
     assert output is not None
     as_conf.load_workflow_commit()

@@ -1866,7 +1866,7 @@ class AutosubmitConfig(object):
         """
         project_dir = f"{self.experiment_data.get('ROOTDIR', '')}/proj/{self.experiment_data.get('PROJECT', {}).get('PROJECT_DESTINATION', 'git_project')}"
         if Path(project_dir).joinpath(".git").exists():
-            with suppress(Exception):
+            with suppress(KeyError, ValueError, UnicodeDecodeError):
                 self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = subprocess.check_output(
                     "git rev-parse HEAD",
                     cwd=project_dir,
