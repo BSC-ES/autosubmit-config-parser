@@ -1887,7 +1887,7 @@ class AutosubmitConfig(object):
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
         :return: True if the data has changed, False otherwise
         """
-        if self.is_current_real_user_owner:
+        if Path(self.experiment_data["ROOTDIR"]).owner() == os.environ.get("USER", None):
             if not self.metadata_folder.exists():
                 self.metadata_folder.mkdir(parents=True, exist_ok=True)
                 self.metadata_folder.chmod(0o755)
