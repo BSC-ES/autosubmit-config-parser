@@ -1759,6 +1759,14 @@ class AutosubmitConfig(object):
         """
         return Path(self.experiment_data["ROOTDIR"]).owner() == self.experiment_data["AS_ENV_CURRENT_USER"]
 
+    @property
+    def is_current_logged_user_owner(self) -> bool:
+        """
+        Check if the current user is the owner of the experiment folder
+        :return: bool
+        """
+        return Path(self.experiment_data["ROOTDIR"]).owner() == os.environ.get("USER", None)
+
     @staticmethod
     def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -1864,14 +1872,15 @@ class AutosubmitConfig(object):
         """
         Load the workflow commit from the .git folder
         """
-        project_dir = f"{self.experiment_data.get('ROOTDIR', '')}/proj/{self.experiment_data.get('PROJECT', {}).get('PROJECT_DESTINATION', 'git_project')}"
-        if Path(project_dir).joinpath(".git").exists():
-            with suppress(KeyError, ValueError, UnicodeDecodeError):
-                self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = subprocess.check_output(
-                    "git rev-parse HEAD",
-                    cwd=project_dir,
-                    shell=True
-                ).decode(locale.getpreferredencoding()).strip("\n")
+        if self.is_current_logged_user_owner:
+            project_dir = f"{self.experiment_data.get('ROOTDIR', '')}/proj/{self.experiment_data.get('PROJECT', {}).get('PROJECT_DESTINATION', 'git_project')}"
+            if Path(project_dir).joinpath(".git").exists():
+                with suppress(KeyError, ValueError, UnicodeDecodeError):
+                    self.experiment_data["AUTOSUBMIT"]["WORKFLOW_COMMIT"] = subprocess.check_output(
+                        "git rev-parse HEAD",
+                        cwd=project_dir,
+                        shell=True
+                    ).decode(locale.getpreferredencoding()).strip("\n")
 
     def load_current_hpcarch_parameters(self) -> None:
         """
@@ -1887,7 +1896,7 @@ class AutosubmitConfig(object):
         Saves the experiment data into the experiment_folder/conf/metadata folder as a yaml file
         :return: True if the data has changed, False otherwise
         """
-        if Path(self.experiment_data["ROOTDIR"]).owner() == os.environ.get("USER", None):
+        if self.is_current_logged_user_owner:
             if not self.metadata_folder.exists():
                 self.metadata_folder.mkdir(parents=True, exist_ok=True)
                 self.metadata_folder.chmod(0o755)
