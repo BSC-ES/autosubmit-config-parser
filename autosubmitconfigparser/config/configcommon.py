@@ -1838,7 +1838,6 @@ class AutosubmitConfig(object):
             self.experiment_data.update(BasicConfig().props())
             self.experiment_data = self.normalize_variables(self.experiment_data, must_exists=True)
             self.experiment_data = self.deep_read_loops(self.experiment_data)
-            self.experiment_data = self.substitute_dynamic_variables(self.experiment_data)
             self.experiment_data = self.substitute_dynamic_variables(self.experiment_data, in_the_end=True)
             self._add_autosubmit_dict()
             self.misc_data = {}
