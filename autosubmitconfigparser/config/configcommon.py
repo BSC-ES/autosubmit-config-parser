@@ -881,7 +881,7 @@ class AutosubmitConfig(object):
                     break
         return dict_keys_type
 
-    def clean_dynamic_variables(self, pattern, in_the_end=False):
+    def clean_dynamic_variables(self, pattern):
         """Resets the local variable of dynamic (or special) variables.
 
         The ``pattern`` is used to search for dynamic or special variables (they vary
@@ -893,14 +893,10 @@ class AutosubmitConfig(object):
         ``self.dynamic_variables``.
 
         :param pattern: Regex pattern to identify dynamic variables.
-        :param in_the_end: Boolean flag to determine which set of dynamic variables to clean.
         :return: None
         """
         dynamic_variables = {}
-        if in_the_end:
-            dynamic_variables_ = self.special_dynamic_variables
-        else:
-            dynamic_variables_ = self.dynamic_variables
+        dynamic_variables_ = self.dynamic_variables
 
         for key, dynamic_var in dynamic_variables_.items():
             # if not placeholder in dynamic_var[1], then it is not a dynamic variable
@@ -918,10 +914,7 @@ class AutosubmitConfig(object):
                 if match is not None:
                     dynamic_variables[key] = dynamic_var
 
-        if in_the_end:
-            self.special_dynamic_variables = dynamic_variables
-        else:
-            self.dynamic_variables = dynamic_variables
+        self.dynamic_variables = dynamic_variables
 
     def substitute_dynamic_variables(
             self,
@@ -945,8 +938,10 @@ class AutosubmitConfig(object):
         :rtype: dict
         """
         max_deep += len(self.dynamic_variables)
-        dynamic_variables, pattern, start_long = self._initialize_variables(in_the_end)
 
+        dynamic_variables, pattern, start_long = self._initialize_variables()
+        if in_the_end:
+            dynamic_variables.update(self.special_dynamic_variables)
         if parameters is None:
             parameters = self.deep_parameters_export(self.experiment_data, self.default_parameters)
 
@@ -955,7 +950,7 @@ class AutosubmitConfig(object):
 
         while len(dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables, parameters, pattern,
-                                                                             start_long, dict_keys_type)
+                                                                             start_long, dict_keys_type, in_the_end=in_the_end)
             # check if any value of dynamic_variables_ changed
             if dynamic_variables_ == dynamic_variables:
                 break
@@ -964,21 +959,18 @@ class AutosubmitConfig(object):
 
         self.dynamic_variables = dynamic_variables
 
-        self.clean_dynamic_variables(pattern, in_the_end)
+        self.clean_dynamic_variables(pattern)
         return parameters
 
-    def _initialize_variables(self, in_the_end: bool) -> Tuple[Dict[str, str], str, int]:
+    def _initialize_variables(self) -> Tuple[Dict[str, str], str, int]:
         """
-        Initialize dynamic variables based on the `in_the_end` flag.
+        Initialize dynamic variables.
 
-        :param bool in_the_end: Flag to indicate if special dynamic variables should be used.
         :returns: A tuple containing the dynamic variables, the regex pattern, and the start index.
         :rtype: tuple
         """
-        if not in_the_end:
-            return copy.deepcopy(self.dynamic_variables), '%[a-zA-Z0-9_.-]*%', 1
-        else:
-            return copy.deepcopy(self.special_dynamic_variables), '%\^[a-zA-Z0-9_.-]*%', 2
+
+        return copy.deepcopy(self.dynamic_variables), '%[a-zA-Z0-9_.-]*%', 1
 
     def _process_dynamic_variables(
             self,
@@ -986,7 +978,8 @@ class AutosubmitConfig(object):
             parameters: Dict[str, Any],
             pattern: str,
             start_long: int,
-            dict_keys_type: str
+            dict_keys_type: str,
+            in_the_end: bool = False
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Process and substitute dynamic variables in the parameters.
@@ -1004,7 +997,7 @@ class AutosubmitConfig(object):
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
                 dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern,
-                                                                       start_long, dict_keys_type, dynamic_variables_)
+                                                                       start_long, dict_keys_type, dynamic_variables_, in_the_end=in_the_end)
 
         return dynamic_variables_, parameters
 
@@ -1046,7 +1039,8 @@ class AutosubmitConfig(object):
             pattern: str,
             start_long: int,
             dict_keys_type: str,
-            processed_dynamic_variables: Dict[str, Any]
+            processed_dynamic_variables: Dict[str, Any],
+            in_the_end: bool = False
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Substitute dynamic variables in the given keys.
@@ -1070,6 +1064,9 @@ class AutosubmitConfig(object):
         """
         for i, key in enumerate(filter(None, keys)):
             matches = list(re.finditer(pattern, key, flags=re.IGNORECASE))[::-1]
+            if in_the_end and "^" in key:
+                pattern_special_variables = '%\^[a-zA-Z0-9_.-]*%'
+                matches.extend(list(re.finditer(pattern_special_variables, key, flags=re.IGNORECASE))[::-1])
             for match in matches:
                 value = self._get_substituted_value(key, match, parameters, start_long, dict_keys_type)
                 if value:
@@ -1114,6 +1111,7 @@ class AutosubmitConfig(object):
             key_parts[start_long:-1]]
         param = parameters
         for k in key_parts:
+            k = k.strip("^")
             param = param.get(k.upper(), {})
             if isinstance(param, int):
                 param = str(param)
