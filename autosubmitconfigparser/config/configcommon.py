@@ -1028,8 +1028,7 @@ class AutosubmitConfig(object):
                 keys = parameters.get(str(dynamic_var[0]), None)
         else:
             keys = dynamic_var[1]
-        keys = keys if isinstance(keys, list) else [keys]
-        return [key for key in keys if key not in self.default_parameters]
+        return keys if isinstance(keys, list) else [keys]
 
     def _substitute_keys(
             self,
