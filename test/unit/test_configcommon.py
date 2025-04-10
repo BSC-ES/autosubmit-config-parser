@@ -68,51 +68,17 @@ def test_is_current_real_user_owner(autosubmit_config: Callable, owner):
     assert as_conf.is_current_real_user_owner == owner
 
 
-def test_clean_dynamic_variables_special_variables(autosubmit_config: Callable) -> None:
-    """Test cleaning special variables.
-
-    In Autosubmit configuration parser, variables that follow the pattern ``^%...%`` are
-    special variables, e.g. ``^%EXPID%``.
-
-    This test verifies that ``as_conf.special_variables`` is "cleaned", in the sense that
-    when the ``clean_dynamic_variables`` is called with the right argument, the special
-    variables dictionary contains only the special dynamic variables - nothing more.
-    """
-    in_the_end = True
-
-    as_conf: AutosubmitConfig = autosubmit_config(expid='a000', experiment_data={})
-    dynamic_variables, pattern, start_long = as_conf._initialize_variables(in_the_end=in_the_end)
-
-    as_conf.special_dynamic_variables = {
-        'popeye_eats': 'spinach',
-        'penguin_eats': 'fish',
-        'thor_eats': '%^DYNAMIC_1%',
-        'floki_eats': '%^DYNAMIC_2%',
-        'jaspion_eats': '%PLACEHOLDER%'
-    }
-
-    as_conf.clean_dynamic_variables(pattern, in_the_end=in_the_end)
-
-    # All other variables, that are not special, have been removed! So we should
-    # have only thor_eats and floki_eats here.
-    assert len(as_conf.special_dynamic_variables) == 2
-    assert 'thor_eats' in as_conf.special_dynamic_variables
-    assert 'floki_eats' in as_conf.special_dynamic_variables
-
-
 def test_clean_dynamic_variables(autosubmit_config: Callable) -> None:
-    """Test cleaning dynamic (non-special) variables.
-
-    Read the text in the test above (``test_clean_dynamic_variables_special_variables``),
-    as that can be helpful here.
+    """
+    This tests that only dynamic variables are kept in the ``dynamic_variables`` dictionary.
+    a dynamic variable is a variable that it's value is a string that starts with ``%^`` or ``%`` and ends with ``%``.
 
     This tests that once called with the right arguments, ``clean_dynamic_variables`` will
     leave ``as_conf.dynamic_variables`` with only dynamic variables.
     """
-    in_the_end = False
 
     as_conf: AutosubmitConfig = autosubmit_config(expid='a000', experiment_data={})
-    dynamic_variables, pattern, start_long = as_conf._initialize_variables(in_the_end=in_the_end)
+    _, pattern, _ = as_conf._initialize_variables()
 
     as_conf.dynamic_variables = {
         'popeye_eats': 'spinach',
@@ -122,7 +88,7 @@ def test_clean_dynamic_variables(autosubmit_config: Callable) -> None:
         'jaspion_eats': '%PLACEHOLDER%'
     }
 
-    as_conf.clean_dynamic_variables(pattern, in_the_end=in_the_end)
+    as_conf.clean_dynamic_variables(pattern)
 
     assert len(as_conf.dynamic_variables) == 1
     assert 'jaspion_eats' in as_conf.dynamic_variables
