@@ -69,10 +69,9 @@ def test_is_current_real_user_owner(autosubmit_config: Callable, owner):
 
 
 def test_clean_dynamic_variables(autosubmit_config: Callable) -> None:
-    """Test cleaning dynamic (non-special) variables.
-
-    Read the text in the test above (``test_clean_dynamic_variables_special_variables``),
-    as that can be helpful here.
+    """
+    This tests that only dynamic variables are kept in the ``dynamic_variables`` dictionary.
+    a dynamic variable is a variable that it's value is a string that starts with ``%^`` or ``%`` and ends with ``%``.
 
     This tests that once called with the right arguments, ``clean_dynamic_variables`` will
     leave ``as_conf.dynamic_variables`` with only dynamic variables.

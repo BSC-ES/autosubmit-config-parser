@@ -982,15 +982,26 @@ class AutosubmitConfig(object):
             in_the_end: bool = False
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
-        Process and substitute dynamic variables in the parameters.
+        Process and substitute dynamic variables in the given parameters.
 
-        :param dict dynamic_variables_: Dict of dynamic variables to be processed.
-        :param dict parameters: Dictionary containing the parameters to be substituted.
-        :param str pattern: Regex pattern to identify dynamic variables.
-        :param int start_long: Start index for long key format.
-        :param str dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
-        :returns: A dict containing the processed dynamic variables and the updated parameters.
-        :rtype: tuple
+        This method iterates over the dynamic variables and substitutes their placeholders
+        in the provided parameters dictionary. It supports both long and short key formats
+        for dynamic variable substitution.
+
+        :param dynamic_variables: Dictionary of dynamic variables to be processed.
+        :type dynamic_variables: Dict[str, Any]
+        :param parameters: Dictionary containing the parameters where substitutions will be applied.
+        :type parameters: Dict[str, Any]
+        :param pattern: Regex pattern to identify dynamic variable placeholders.
+        :type pattern: str
+        :param start_long: Start index for long key format substitution.
+        :type start_long: int
+        :param dict_keys_type: Type of keys in the parameters dictionary, either "long" or "short".
+        :type dict_keys_type: str
+        :param in_the_end: Flag indicating whether to include special dynamic variables for substitution.
+        :type in_the_end: bool
+        :return: A tuple containing the updated dynamic variables and the modified parameters.
+        :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
         dynamic_variables_ = copy.copy(dynamic_variables)
         for dynamic_var in dynamic_variables.items():
@@ -1058,6 +1069,8 @@ class AutosubmitConfig(object):
         :type dict_keys_type: str
         :param processed_dynamic_variables: Dictionary of already processed dynamic variables.
         :type processed_dynamic_variables: Dict[str, Any]
+        :param in_the_end: Flag indicating whether to include special dynamic variables for substitution.
+        :type in_the_end: bool
         :return: A tuple containing the updated processed dynamic variables and parameters.
         :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
         """
