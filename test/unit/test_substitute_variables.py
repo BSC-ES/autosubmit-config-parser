@@ -1,3 +1,4 @@
+import locale
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -173,12 +174,12 @@ def test_substitute_placeholders_after_all_files_loaded(autosubmit_config, tmpdi
     ca_yaml_file = as_conf.conf_folder_yaml / "ca.yml"
     conf_yaml_file = as_conf.conf_folder_yaml / "conf.yml"
     cz_yaml_file = as_conf.conf_folder_yaml / "cz.yml"
-    with open(ca_yaml_file, 'w') as f:
-        YAML().dump(ca_yml, f)
-    with open(conf_yaml_file, 'w') as f:
-        YAML().dump(conf_yml, f)
-    with open(cz_yaml_file, 'w') as f:
-        YAML().dump(cz_yml, f)
+    with open(ca_yaml_file, 'w', encoding="UTF-8") as yaml_file:
+        YAML().dump(ca_yml, yaml_file)
+    with open(conf_yaml_file, 'w', encoding="UTF-8") as yaml_file:
+        YAML().dump(conf_yml, yaml_file)
+    with open(cz_yaml_file, 'w', encoding="UTF-8") as yaml_file:
+        YAML().dump(cz_yml, yaml_file)
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={}
