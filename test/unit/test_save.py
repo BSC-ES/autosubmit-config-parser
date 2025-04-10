@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from pathlib import Path
 from ruamel.yaml import YAML
@@ -17,10 +19,11 @@ from ruamel.yaml import YAML
 ], ids=["local_true", "local_false"])
 def test_save(autosubmit_config, tmpdir, mocker, data, owner):
     data['ROOTDIR'] = tmpdir.strpath
+
     if owner:
-        data['AS_ENV_CURRENT_USER'] = Path(tmpdir).owner()
+        os.environ["USER"] = Path(tmpdir).owner()
     else:
-        data['AS_ENV_CURRENT_USER'] = 'whatever'
+        os.environ["USER"] = 'whatever'
     as_conf = autosubmit_config(expid='t000', experiment_data=data)
     as_conf.save()
     if not owner:
