@@ -1,4 +1,3 @@
-import locale
 from pathlib import Path
 
 from ruamel.yaml import YAML
