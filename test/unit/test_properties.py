@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 
@@ -5,7 +7,7 @@ import pytest
 def test_is_current_real_user_owner(autosubmit_config, mocker, is_owner):
     as_conf = autosubmit_config(
         expid='a000',
-        experiment_data={"ROOTDIR": "/mock/rootdir", "AS_ENV_CURRENT_USER": "dummy"}
+        experiment_data={"ROOTDIR": "/dummy/rootdir", "AS_ENV_CURRENT_USER": "dummy"}
     )
     mocker.patch("pathlib.Path.owner", return_value="dummy" if is_owner else "otheruser")
     assert as_conf.is_current_real_user_owner == is_owner
@@ -15,8 +17,9 @@ def test_is_current_real_user_owner(autosubmit_config, mocker, is_owner):
 def test_is_current_logged_user_owner(autosubmit_config, mocker, is_owner):
     as_conf = autosubmit_config(
         expid='a000',
-        experiment_data={"ROOTDIR": "/mock/rootdir"}
+        experiment_data={"ROOTDIR": "/dummy/rootdir"}
     )
-    mocker.patch("os.environ.get", return_value="dummy" if is_owner else "otheruser")
+    os.environ["USER"] = "dummy" if is_owner else "otheruser"
+
     mocker.patch("pathlib.Path.owner", return_value="dummy")
     assert as_conf.is_current_logged_user_owner == is_owner
