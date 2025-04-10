@@ -168,19 +168,17 @@ def test_substitute_placeholders_after_all_files_loaded(autosubmit_config, tmpdi
             "version": "last"
         }
     }
-    print("tmpdir", tmpdir)
     as_conf.conf_folder_yaml = Path(tmpdir) / "a000" / "conf"
     as_conf.conf_folder_yaml.mkdir(parents=True, exist_ok=True)
-    ca_yaml_file = as_conf.conf_folder_yaml / "ca.yaml"
-    conf_yaml_file = as_conf.conf_folder_yaml / "conf.yaml"
-    cz_yaml_file = as_conf.conf_folder_yaml / "cz.yaml"
+    ca_yaml_file = as_conf.conf_folder_yaml / "ca.yml"
+    conf_yaml_file = as_conf.conf_folder_yaml / "conf.yml"
+    cz_yaml_file = as_conf.conf_folder_yaml / "cz.yml"
     with open(ca_yaml_file, 'w') as f:
         YAML().dump(ca_yml, f)
     with open(conf_yaml_file, 'w') as f:
         YAML().dump(conf_yml, f)
     with open(cz_yaml_file, 'w') as f:
         YAML().dump(cz_yml, f)
-    """Test substitution of placeholders after all files have been loaded."""
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={}
@@ -188,6 +186,6 @@ def test_substitute_placeholders_after_all_files_loaded(autosubmit_config, tmpdi
 
     # Load the YAML files
     as_conf.reload()
-    # Assert the expected values
+
     assert as_conf.experiment_data["TEST_IN_PLACE"] == "something/first/something"
     assert as_conf.experiment_data["TEST_AT_THE_END"] == "something/last/something"
