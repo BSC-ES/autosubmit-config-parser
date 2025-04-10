@@ -1,3 +1,7 @@
+from pathlib import Path
+
+from ruamel.yaml import YAML
+
 FOR_CONF = {
     "TEST": "variableX",
     "TEST2": "variableY",
@@ -35,6 +39,7 @@ TEST_NESTED_DICT = {
     }
 }
 
+
 def test_substitute_dynamic_variables_yaml_files_short_format_for(autosubmit_config):
     as_conf = autosubmit_config(
         expid='a000',
@@ -55,8 +60,12 @@ def test_substitute_dynamic_variables_yaml_files_with_for_short_format(autosubmi
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
 
     assert as_conf.experiment_data['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableX', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableY', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '',
+                                                                'NAME': 'variableX',
+                                                                'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '',
+                                                                'NAME': 'variableY',
+                                                                'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
     assert as_conf.experiment_data['JOBS'].get('%NOTFOUND%', None) is None
 
 
@@ -70,8 +79,12 @@ def test_substitute_dynamic_variables_yaml_files_with_for_short_format_and_custo
     as_conf.experiment_data = as_conf.parse_data_loops(as_conf.experiment_data)
 
     assert as_conf.experiment_data['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableX', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
-    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '', 'NAME': 'variableY', 'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEX'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '',
+                                                                'NAME': 'variableX',
+                                                                'PATH': '/home/dbeltran/conf/stuff_to_read/variableX/test.yml'}
+    assert as_conf.experiment_data['JOBS']['JOB_VARIABLEY'] == {'ADDITIONAL_FILES': [], 'DEPENDENCIES': {}, 'FILE': '',
+                                                                'NAME': 'variableY',
+                                                                'PATH': '/home/dbeltran/conf/stuff_to_read/variableY/test.yml'}
     assert as_conf.experiment_data['JOBS'].get('%NOTFOUND%', None) is None
 
 
@@ -87,7 +100,6 @@ def test_substitute_dynamic_variables_long_format(autosubmit_config):
 
 
 def test_substitute_keys_short_strings(autosubmit_config):
-
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=ONE_DIM)
@@ -105,7 +117,6 @@ def test_substitute_keys_short_strings(autosubmit_config):
 
 
 def test_substitute_keys_short_strings_dict(autosubmit_config):
-
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data=ONE_DIM)
@@ -133,3 +144,50 @@ def test_substitute_dynamic_variables_yaml_files_short_format_nested(autosubmit_
 
     assert as_conf.experiment_data['FOO']['BAR']['VAR'] == ['%NOTFOUND%', 'variableX', 'variableY']
     assert as_conf.experiment_data['FOO']['BAR']['VAR_STRING'] == '%NOTFOUND% variableX variableY'
+
+
+def test_substitute_placeholders_after_all_files_loaded(autosubmit_config, tmpdir):
+    """Test substitution of placeholders after all files have been loaded."""
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data={}
+    )
+    ca_yml = {
+        "model": {
+            "version": "first"
+        }
+    }
+    conf_yml = {
+        "other_variable": "something",
+        "test_in_place": "%other_variable%/%model.version%/%another_other_variable%",
+        "test_at_the_end": "%other_variable%/%^model.version%/%another_other_variable%",
+        "another_other_variable": "something"
+    }
+    cz_yml = {
+        "model": {
+            "version": "last"
+        }
+    }
+    print("tmpdir", tmpdir)
+    as_conf.conf_folder_yaml = Path(tmpdir) / "a000" / "conf"
+    as_conf.conf_folder_yaml.mkdir(parents=True, exist_ok=True)
+    ca_yaml_file = as_conf.conf_folder_yaml / "ca.yaml"
+    conf_yaml_file = as_conf.conf_folder_yaml / "conf.yaml"
+    cz_yaml_file = as_conf.conf_folder_yaml / "cz.yaml"
+    with open(ca_yaml_file, 'w') as f:
+        YAML().dump(ca_yml, f)
+    with open(conf_yaml_file, 'w') as f:
+        YAML().dump(conf_yml, f)
+    with open(cz_yaml_file, 'w') as f:
+        YAML().dump(cz_yml, f)
+    """Test substitution of placeholders after all files have been loaded."""
+    as_conf = autosubmit_config(
+        expid='a000',
+        experiment_data={}
+    )
+
+    # Load the YAML files
+    as_conf.reload()
+    # Assert the expected values
+    assert as_conf.experiment_data["TEST_IN_PLACE"] == "something/first/something"
+    assert as_conf.experiment_data["TEST_AT_THE_END"] == "something/last/something"

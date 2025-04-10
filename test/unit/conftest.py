@@ -199,8 +199,8 @@ def autosubmit_config(
         exp_tmp_dir = exp_path / BasicConfig.LOCAL_TMP_DIR
         aslogs_dir = exp_tmp_dir / BasicConfig.LOCAL_ASLOG_DIR
         conf_dir = exp_path / "conf"
-        aslogs_dir.mkdir(parents=True)
-        conf_dir.mkdir()
+        aslogs_dir.mkdir(parents=True, exist_ok=True)
+        conf_dir.mkdir(exist_ok=True)
 
         if not expid:
             raise ValueError("No value provided for expid")
