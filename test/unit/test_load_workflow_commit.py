@@ -19,6 +19,7 @@ def test_add_autosubmit_dict(autosubmit_config, mocker):
 
 @pytest.mark.parametrize("is_owner", [True, False])
 def test_load_workflow_commit(autosubmit_config, tmpdir, mocker, is_owner):
+    """Test that the workflow commit is correctly injected into the experiment_data (Autosubmit will add it to the database)."""
     as_conf = autosubmit_config(
         expid='a000',
         experiment_data={}
