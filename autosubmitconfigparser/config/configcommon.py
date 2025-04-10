@@ -1008,8 +1008,8 @@ class AutosubmitConfig(object):
 
         return dynamic_variables_, parameters
 
-    @staticmethod
     def _get_keys(
+            self,
             dynamic_var: Tuple[str, Any],
             parameters: Dict[str, Any],
             start_long: int,
@@ -1035,7 +1035,8 @@ class AutosubmitConfig(object):
                 keys = parameters.get(str(dynamic_var[0]), None)
         else:
             keys = dynamic_var[1]
-        return keys if isinstance(keys, list) else [keys]
+        keys = keys if isinstance(keys, list) else [keys]
+        return [key for key in keys if key not in self.default_parameters]
 
     def _substitute_keys(
             self,
@@ -1390,6 +1391,7 @@ class AutosubmitConfig(object):
             if not section_data.get('SCRATCH_DIR', ""):
                 self.wrong_config["Platform"] += [[section,
                                                    "Mandatory SCRATCH_DIR parameter not found"]]
+
         if not main_platform_found:
             self.wrong_config["Expdef"] += [
                 ["Default", "Main platform is not defined! check if [HPCARCH = {0}] has any typo".format(self.hpcarch)]]
