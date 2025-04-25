@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 install_requires = [
-    'ruamel.yaml==0.18.6',
+    'ruamel.yaml==0.18.10',
     'mock',
     'bscearth.utils',
     'configobj',
