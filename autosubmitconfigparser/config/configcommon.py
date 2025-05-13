@@ -537,7 +537,7 @@ class AutosubmitConfig(object):
 
     def normalize_variables(self, data: dict, must_exists: bool) -> dict:
         """
-        Apply some memory internal variables to normalize its format. (right now only dependencies)
+        Apply some memory internal variables to normalize its format.
 
         :param data: The input data dictionary to normalize.
         :param must_exists: If false, add the sections that are not present in the data dictionary.
@@ -547,8 +547,19 @@ class AutosubmitConfig(object):
         self._normalize_default_section(data)
         self._normalize_wrappers_section(data)
         self._normalize_jobs_section(data, must_exists)
+        self._normalize_storage(data)
 
         return data
+
+    @staticmethod
+    def _normalize_storage(data):
+        """
+        Normalize the storage section to a consistent format.
+        """
+        storage = data.get("STORAGE", {})
+        storage_type = storage.get("TYPE", "sqlite").lower()
+        data["STORAGE"] = storage
+        data["STORAGE"]["TYPE"] = storage_type
 
     def _normalize_default_section(self, data_fixed: dict) -> None:
         default_section = data_fixed.get("DEFAULT", {})
@@ -1342,7 +1353,7 @@ class AutosubmitConfig(object):
 
         if parser_data.get("STORAGE", None) is None:
             parser_data["STORAGE"] = {}
-        if parser_data["STORAGE"].get('TYPE', "pkl") not in ['pkl', 'db']:
+        if parser_data["STORAGE"].get('TYPE', "sqlite") not in ['sqlite', 'postgress']:
             self.wrong_config["Autosubmit"] += [['storage',
                                                  "TYPE parameter not found"]]
         wrappers_info = parser_data.get("WRAPPERS", {})
@@ -2942,12 +2953,12 @@ class AutosubmitConfig(object):
 
     def get_storage_type(self):
         """
-        Returns the storage system from autosubmit's config file. Pkl by default.
+        Returns the storage system from autosubmit's config file. Sqlite by default.
 
         :return: communications library
         :rtype: str
         """
-        return self.get_section(['STORAGE', 'TYPE'], 'pkl')
+        return self.get_section(['STORAGE', 'TYPE'], 'sqlite')
 
     @staticmethod
     def is_valid_mail_address(mail_address):
@@ -2963,7 +2974,7 @@ class AutosubmitConfig(object):
 
     def is_valid_storage_type(self):
         storage_type = self.get_storage_type()
-        return storage_type in ['pkl', 'db']
+        return storage_type in ['sqlite', 'postgress']
 
     def is_valid_jobs_in_wrapper(self, wrapper={}):
         expression = self.get_wrapper_jobs(wrapper)
