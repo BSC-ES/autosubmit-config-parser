@@ -652,7 +652,7 @@ class AutosubmitConfig(object):
         If the input is a string, it splits the string by spaces and converts each dependency to uppercase.
         If the input is a dictionary, it converts each dependency key to uppercase and processes the status.
 
-        Additionally, it checks if any final status is allowed, and if so, it sets the flag "ANY_FINAL_STATUS_IS_VALID".
+        Additionally, it checks if any final status is allowed, and if so, it sets the flag "OPTIONAL".
 
         :param dependencies: The dependencies to normalize, either as a string or a dictionary.
         :type dependencies: Union[str, dict]
@@ -668,15 +668,15 @@ class AutosubmitConfig(object):
                 aux_dependencies[dependency.upper()] = dependency_data
                 if type(dependency_data) is dict and dependency_data.get("STATUS", None):
                     dependency_data["STATUS"] = dependency_data["STATUS"].upper()
-                    if not dependency_data.get("ANY_FINAL_STATUS_IS_VALID", False):
+                    if not dependency_data.get("OPTIONAL", False):
                         if dependency_data["STATUS"][-1] == "?":
                             dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
-                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                            dependency_data["OPTIONAL"] = True
                         elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED",
                                                                "COMPLETED"]:  # May change in future issues.
-                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = True
+                            dependency_data["OPTIONAL"] = True
                         else:
-                            dependency_data["ANY_FINAL_STATUS_IS_VALID"] = False
+                            dependency_data["OPTIONAL"] = False
 
         return aux_dependencies
 
