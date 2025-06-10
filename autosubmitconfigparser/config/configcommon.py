@@ -672,12 +672,8 @@ class AutosubmitConfig(object):
                         if dependency_data["STATUS"][-1] == "?":
                             dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
                             dependency_data["OPTIONAL"] = True
-                        elif dependency_data["STATUS"] not in ["READY", "DELAYED", "PREPARED", "SKIPPED", "FAILED",
-                                                               "COMPLETED"]:  # May change in future issues.
-                            dependency_data["OPTIONAL"] = True
                         else:
                             dependency_data["OPTIONAL"] = False
-
         return aux_dependencies
 
     @staticmethod
