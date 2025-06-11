@@ -622,6 +622,9 @@ class AutosubmitConfig(object):
             if "WALLCLOCK" in job_data:
                 self._normalize_wallclock(data_fixed)
 
+            if "PLATFORM" in job_data:
+                data_fixed["JOBS"][job]["PLATFORM"] = job_data["PLATFORM"].upper()
+
             self._normalize_notify_on(data_fixed, job)
 
     @staticmethod
@@ -1785,7 +1788,11 @@ class AutosubmitConfig(object):
         Check if the current user is the owner of the experiment folder
         :return: bool
         """
-        return Path(self.experiment_data["ROOTDIR"]).owner() == os.environ.get("USER", None)
+        if self.experiment_data.get("ROOTDIR", None):
+            rootdir_path = Path(self.experiment_data["ROOTDIR"])
+            return rootdir_path.exists() and rootdir_path.owner() == os.environ.get("USER", None)
+        else:
+            return False
 
     @staticmethod
     def load_as_env_variables(parameters: Dict[str, Any]) -> Dict[str, Any]:
