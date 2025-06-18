@@ -676,7 +676,6 @@ class AutosubmitConfig(object):
                         dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
                         dependency_data["OPTIONAL"] = True
 
-
         return aux_dependencies
 
     @staticmethod
