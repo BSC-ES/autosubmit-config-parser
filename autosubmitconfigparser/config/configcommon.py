@@ -671,12 +671,12 @@ class AutosubmitConfig(object):
                 aux_dependencies[dependency.upper()] = dependency_data
                 if type(dependency_data) is dict and dependency_data.get("STATUS", None):
                     dependency_data["STATUS"] = dependency_data["STATUS"].upper()
-                    if not dependency_data.get("OPTIONAL", False):
-                        if dependency_data["STATUS"][-1] == "?":
-                            dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
-                            dependency_data["OPTIONAL"] = True
-                        else:
-                            dependency_data["OPTIONAL"] = False
+                    if dependency_data["STATUS"][-1] == "?":
+                        dependency_data["STATUS"] = dependency_data["STATUS"][:-1]
+                        dependency_data["OPTIONAL"] = True
+                    else:
+                        dependency_data["OPTIONAL"] = False
+
         return aux_dependencies
 
     @staticmethod
