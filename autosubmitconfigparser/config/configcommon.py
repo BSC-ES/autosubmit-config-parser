@@ -38,6 +38,7 @@ from ruamel.yaml import YAML
 
 from log.log import Log, AutosubmitCritical, AutosubmitError
 from .basicconfig import BasicConfig
+from .job_utils import calendar_chunk_section
 from .yamlparser import YAMLParserFactory
 
 
@@ -959,7 +960,8 @@ class AutosubmitConfig(object):
 
         while len(dynamic_variables) > 0 and max_deep > 0:
             dynamic_variables_, parameters = self._process_dynamic_variables(dynamic_variables, parameters, pattern,
-                                                                             start_long, dict_keys_type, in_the_end=in_the_end)
+                                                                             start_long, dict_keys_type,
+                                                                             in_the_end=in_the_end)
             # check if any value of dynamic_variables_ changed
             if dynamic_variables_ == dynamic_variables:
                 break
@@ -1017,7 +1019,8 @@ class AutosubmitConfig(object):
             keys = self._get_keys(dynamic_var, parameters, start_long, dict_keys_type)
             if keys:
                 dynamic_variables_, parameters = self._substitute_keys(keys, dynamic_var, parameters, pattern,
-                                                                       start_long, dict_keys_type, dynamic_variables_, in_the_end=in_the_end)
+                                                                       start_long, dict_keys_type, dynamic_variables_,
+                                                                       in_the_end=in_the_end)
 
         return dynamic_variables_, parameters
 
@@ -1881,6 +1884,7 @@ class AutosubmitConfig(object):
                                                  self.load_config_file(self.misc_data, Path(filename), load_misc=True))
             self.load_current_hpcarch_parameters()
             self.load_workflow_commit()
+            self.calculate_auto_splits()
 
     def _add_autosubmit_dict(self) -> None:
         """
@@ -3088,3 +3092,28 @@ class AutosubmitConfig(object):
             # replace all '%(?<!%%)\w+%(?!%%)' with parameters value
             content = content.replace(match, parameters.get(match[1:-1], ""))
         return content
+
+    def calculate_auto_splits(self):
+        datelist = self.experiment_data.get("EXPERIMENT", {}).get("DATELIST", "")
+        chunks = int(self.experiment_data.get("EXPERIMENT", {}).get("NUMCHUNKS", 1))
+        if not datelist or not chunks:
+            return
+
+        if isinstance(datelist, str) or isinstance(datelist, int):
+            datelist = str(datelist).split()
+
+
+        for section_name, section_data in self.jobs_data.items():
+            if section_data.get("RUNNING", "once") != "chunk":
+                continue
+
+            if section_data.get("SPLITS", None) == "auto":
+                splits = []
+                for date in datelist:
+                    date = datetime.strptime(date, '%Y%M%d')
+                    for chunk in range(1, chunks + 1):
+                        # Get the real splits for the section
+                        Log.debug(f"Calculating splits for {section_name} on date {date} chunk {chunk}")
+                        splits.append(calendar_chunk_section(self.experiment_data, section_name, date, chunk))
+
+                self.experiment_data["JOBS"][section_name]["SPLITS"] = splits
