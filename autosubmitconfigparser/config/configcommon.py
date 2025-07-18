@@ -3108,12 +3108,13 @@ class AutosubmitConfig(object):
                 continue
 
             if section_data.get("SPLITS", None) == "auto":
-                splits = []
-                for date in datelist:
-                    date = datetime.strptime(date, '%Y%M%d')
+                splits = {}
+                for date_str in datelist:
+                    splits[date_str] = []
+                    date = datetime.strptime(date_str, '%Y%M%d')
                     for chunk in range(1, chunks + 1):
                         # Get the real splits for the section
-                        Log.debug(f"Calculating splits for {section_name} on date {date} chunk {chunk}")
-                        splits.append(calendar_chunk_section(self.experiment_data, section_name, date, chunk))
+                        Log.debug(f"Calculating splits for {section_name} on date {date_str} chunk {chunk}")
+                        splits[date_str].append(calendar_chunk_section(self.experiment_data, section_name, date, chunk))
 
                 self.experiment_data["JOBS"][section_name]["SPLITS"] = splits
